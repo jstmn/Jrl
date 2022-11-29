@@ -1,8 +1,7 @@
 
 # Jkinpylib
 
-jkinpylib ('Jeremy's kinematics python library') has code to represent open kinematic chains, and perform forward and 
-inverse kinematics. 
+'Jeremy's kinematics python library'. This library runs forward and inverse kinematics in parrallel on the gpu/cpu using pytorch. It also can call single value FK/IK solvers from Klamp't  
 
 ## Instillation
 
