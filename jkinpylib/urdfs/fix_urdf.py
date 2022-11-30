@@ -25,10 +25,16 @@ def update_mesh_paths(tree):
         # NOTE: May need to replace 'meshes/' this for specific robot urdfs
         mesh_idx = filename.index("meshes/")
         filename =  filename[mesh_idx:]
-        if filename.endswith("DAE"):
-            updated = filename[0:-3] + "STL" 
-            print(f"Converting mesh filename from '{filename}' to '{updated}'")
-            return updated
+        updated = filename[0:-3] + "STL" 
+        return updated
+        # if filename.endswith("dae") or filename.endswith("DAE"):
+        #     updated = filename[0:-3] + "STL" 
+        #     return updated
+        # elif filename.endswith("obj") or filename.endswith("OBJ"):
+        #     updated = filename[0:-3] + "STL"
+        #     return updated
+        # else:
+        #     raise ValueError(f"Unhandled mesh extension: {filename.split('.')[-1]}")
 
     root = tree.getroot()
 
@@ -81,7 +87,6 @@ def remove_mimic(tree):
     root = tree.getroot()
     # Set all to fixed
     for joint_element in root.iter("joint"):
-
         for child in joint_element:
             if child.tag == "mimic":
                 joint_element.remove(child)
@@ -90,6 +95,14 @@ def remove_mimic(tree):
     
     
 """ Example usage
+
+# Panda
+python jkinpylib/urdfs/fix_urdf.py \
+    --filepath=jkinpylib/urdfs/panda_arm/panda_stanford.urdf \
+    --output_filepath=jkinpylib/urdfs/panda_arm/panda_stanford_out.urdf \
+    --revolute_joints panda_joint1 panda_joint2 panda_joint3 panda_joint4 panda_joint5 panda_joint6 panda_joint7 \
+    --remove_transmission \
+    --remove_gazebo
 
 # Pr2
 python3 urdfs/fix_urdf.py \
@@ -143,4 +156,6 @@ if __name__ == "__main__":
     tree = update_mesh_paths(tree)
     tree = update_joint_types(tree, args.prismatic_joints, args.continuous_joints, args.revolute_joints)
     tree = remove_mimic(tree)
+    print(f"Removed mimics")
+    print(f"Writing to {args.output_filepath}")
     tree.write(args.output_filepath)

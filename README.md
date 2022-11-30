@@ -19,3 +19,4 @@ pip install -e .
 ```
 
 ## Todos
+[ ] Remove `fix_urdf.py` hackery

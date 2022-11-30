@@ -2,28 +2,14 @@ import unittest
 
 from jkinpylib.kinematics import KinematicChain
 from jkinpylib.kinematics_utils import _len3_tuple_from_str
-from jkinpylib.robots import PandaArm
+from jkinpylib.robots import get_all_robots
 
 import torch
 
+ROBOTS = get_all_robots()
+
 
 class KinematicChainTest(unittest.TestCase):
-    def setUp(self):
-        self.panda = PandaArm()
-
-        self.robot_gt_joint_limits = {
-            "panda_arm": [
-                (-2.9671, 2.9671),
-                (-1.8326, 1.8326),
-                (-2.9671, 2.9671),
-                (-3.1416, 0.0873),
-                # (-3.1416, 0.0), # Nov28 2022: NOTE: the upper limit for `panda_joint4` was previously mistakenly set to 0.0.
-                (-2.9671, 2.9671),
-                (-0.0873, 3.8223),
-                (-2.9671, 2.9671),
-            ]
-        }
-
     def test_list_from_str(self):
         inputs = [
             "0 0 0.333",
@@ -40,30 +26,65 @@ class KinematicChainTest(unittest.TestCase):
             self.assertAlmostEqual(output[2], expected_output[2])
 
     def test_n_dofs(self):
-        self.assertEqual(self.panda.n_dofs, 7)
+        ground_truth_n_dofs = {
+            "panda_arm": 7,
+            "baxter": 7,
+        }
+        for robot in ROBOTS:
+            self.assertEqual(robot.n_dofs, ground_truth_n_dofs[robot.name])
 
     def test_joint_limits(self):
-        robot = self.panda
-        self.assertEqual(len(robot._joint_limits), robot.n_dofs)
-        for gt_limit, parsed_limit in zip(self.robot_gt_joint_limits[robot.name], robot._joint_limits):
-            self.assertAlmostEqual(gt_limit[0], parsed_limit[0])
-            self.assertAlmostEqual(gt_limit[1], parsed_limit[1])
+        ground_truth_joint_limits = {
+            "panda_arm": [
+                (-2.9671, 2.9671),
+                (-1.8326, 1.8326),
+                (-2.9671, 2.9671),
+                (-3.1416, 0.0873),
+                # (-3.1416, 0.0), # Nov28 2022: NOTE: the upper limit for `panda_joint4` was previously mistakenly set to 0.0.
+                (-2.9671, 2.9671),
+                (-0.0873, 3.8223),
+                (-2.9671, 2.9671),
+            ],
+            "baxter": [
+                (-1.70167993878, 1.70167993878),
+                (-2.147, 1.047),
+                (-3.05417993878, 3.05417993878),
+                (-0.05, 2.618),
+                (-3.059, 3.059),
+                (-1.57079632679, 2.094),
+                (-3.059, 3.059),
+            ],
+        }
+        for robot in ROBOTS:
+            self.assertEqual(len(robot._joint_limits), robot.n_dofs)
+            for gt_limit, parsed_limit in zip(ground_truth_joint_limits[robot.name], robot._joint_limits):
+                self.assertAlmostEqual(gt_limit[0], parsed_limit[0])
+                self.assertAlmostEqual(gt_limit[1], parsed_limit[1])
 
-
-class ForwardKinematicTest(unittest.TestCase):
-    def setUp(self):
-        self.panda = PandaArm()
-
-    def test_revolute_chain(self):
-        """_summary_"""
-        device = "cuda"
-        joint_values = torch.rand((10, 7), device=device)
-        t, R, runtime = self.panda.forward_kinematics_batch(joint_values, device)
-        # TODO: Compare against ground truth FK data
-
-    def test_continuous_chain(self):
-        """_summary_"""
-        pass
+    def test_actuated_joint_names(self):
+        ground_truth_actuated_joints = {
+            "panda_arm": [
+                "panda_joint1",
+                "panda_joint2",
+                "panda_joint3",
+                "panda_joint4",
+                "panda_joint5",
+                "panda_joint6",
+                "panda_joint7",
+            ],
+            "baxter": [
+                "left_s0",
+                "left_s1",
+                "left_e0",
+                "left_e1",
+                "left_w0",
+                "left_w1",
+                "left_w2",
+            ],
+        }
+        for robot in ROBOTS:
+            self.assertEqual(len(robot.actuated_joint_names), robot.n_dofs)
+            self.assertListEqual(robot.actuated_joint_names, ground_truth_actuated_joints[robot.name])
 
 
 if __name__ == "__main__":

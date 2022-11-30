@@ -26,7 +26,7 @@ def get_gt_samples_and_endpoints(robot_name: str) -> Tuple[np.ndarray, np.ndarra
 
 MAX_ALLOWABLE_L2_ERR = 5e-4
 MAX_ALLOWABLE_ANG_ERR = 0.0008726646  # .05 degrees
-ALL_3D_ROBOTS = get_all_robots()
+ROBOTS = get_all_robots()
 
 
 class TestForwardKinematics(unittest.TestCase):
@@ -64,7 +64,7 @@ class TestForwardKinematics(unittest.TestCase):
         """
         Test that the all three forward kinematics functions return the expected value for saved input
         """
-        for robot in ALL_3D_ROBOTS:
+        for robot in ROBOTS:
             samples, endpoints_expected = get_gt_samples_and_endpoints(robot.name)
             kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
 
@@ -83,7 +83,7 @@ class TestForwardKinematics(unittest.TestCase):
 
     def test_x_q_conversion(self):
         n_samples = 25
-        for robot in ALL_3D_ROBOTS:
+        for robot in ROBOTS:
             samples = robot.sample_joint_angles(n_samples)
             qs = robot._x_to_qs(samples)
             samples_post_conversion = robot._qs_to_x(qs)
@@ -94,7 +94,7 @@ class TestForwardKinematics(unittest.TestCase):
         Test that kinpy, klampt, and batch_fk all return the same poses
         """
         n_samples = 5
-        for robot in ALL_3D_ROBOTS:
+        for robot in ROBOTS:
             samples = robot.sample_joint_angles(n_samples)
             kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
             self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
@@ -110,7 +110,7 @@ class TestForwardKinematics(unittest.TestCase):
         rad_min_diff = 0.001
 
         n_samples = 5
-        for robot in ALL_3D_ROBOTS:
+        for robot in ROBOTS:
             samples = robot.sample_joint_angles(n_samples)
             samples_fks = forward_kinematics_kinpy(robot, samples)
 
