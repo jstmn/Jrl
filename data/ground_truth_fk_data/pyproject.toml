@@ -1,0 +1,20 @@
+[project]
+name = "jkinpylib"
+version = "0.0.2"
+authors = [
+  { name="Jeremy Morgan", email="jsmorgan6@gmail.com" },
+]
+description = "Jeremy's Kinematics Python Library"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Ubuntu",
+]
+# py_modules=['jkinpylib'] # can't have py_modules
+
+
+[project.urls]
+"Homepage" = "https://github.com/jstmn/jkinpylib"
+"Bug Tracker" = "https://github.com/jstmn/jkinpylib"
