@@ -5,9 +5,15 @@
 
 ## Instillation
 
+Install base dependencies
 ```
+sudo apt install python3-pip
 python3.8 -m pip install --user virtualenv
-python3.8 -m venv venv
+```
+
+Create virtual environment
+```
+python3.8 -m venv venv/
 source venv/bin/activate
 pip install -e .
 ```

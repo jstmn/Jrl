@@ -4,12 +4,14 @@ from dataclasses import dataclass
 from time import time
 
 from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion_to_rpy_batch
+from jkinpylib import config
 
 # from jkinpylib.math_utils import matrix_to_quaternion, quaternion_invert, quaternion_multiply # TODO: Find these functions
-from jkinpylib.kinematics_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
+from jkinpylib.kinematics_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
 
 import torch
 import numpy as np
+import kinpy as kp
 import klampt
 from klampt import IKSolver
 from klampt.model import ik
@@ -39,10 +41,11 @@ class KinematicChain:
             ValueError: _description_
         """
         self._name = name
-        # self._urdf_filepath = urdf_filepath
+        self._urdf_filepath = urdf_filepath
         self._end_effector_link_name = end_effector_link_name
-        self._joint_chain = get_joint_chain(urdf_filepath, active_joints, self._end_effector_link_name)
+        self._joint_chain = get_joint_chain(self._urdf_filepath, active_joints, self._end_effector_link_name)
         self._joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
+        self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
 
         # Cache fixed rotations between links
         self._fixed_rotations = {}
@@ -50,7 +53,7 @@ class KinematicChain:
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
         self._klampt_world_model = klampt.WorldModel()
-        self._klampt_world_model.loadRobot(urdf_filepath)
+        self._klampt_world_model.loadRobot(self._urdf_filepath)
         self._klampt_robot: klampt.robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._klampt_ee_link: klampt.robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
         self._klampt_config_dim = len(self._klampt_robot.getConfig())
@@ -71,6 +74,11 @@ class KinematicChain:
         return self._name
 
     @property
+    def urdf_filepath(self) -> str:
+        """Returns the filepath to the urdf file"""
+        return self._urdf_filepath
+
+    @property
     def end_effector_link_name(self) -> str:
         """Returns the name of the end effector link in the urdf"""
         return self._end_effector_link_name
@@ -79,9 +87,13 @@ class KinematicChain:
     def n_dofs(self) -> int:
         return sum([1 for joint in self._joint_chain if joint.is_actuated])
 
+    @property
+    def actuated_joint_names(self) -> List[str]:
+        return self._actuated_joint_names
+
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
-    # ---                                             Internal Functions                                             ---
+    # ---                                             External Functions                                             ---
     # ---                                                                                                            ---
 
     def sample_joint_angles(self, n: int, solver=None) -> np.ndarray:
@@ -161,14 +173,14 @@ class KinematicChain:
         for i in range(n):
             q = robot_configs[i]
             self._klampt_robot.setConfig(q)
-
             R, t = self._klampt_ee_link.getTransform()
             y[i, 0:3] = np.array(t)
             y[i, 3:] = np.array(so3.quaternion(R))
-
         return y
 
-    def forward_kinematics_batch(self, x: torch.tensor, device: str) -> Tuple[torch.Tensor, torch.Tensor, float]:
+    def forward_kinematics_batch(
+        self, x: torch.tensor, device: str = config.device
+    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
 
@@ -381,6 +393,36 @@ class KinematicChain:
         if verbosity > 0:
             print("inverse_kinematics_klampt() - Failed to find IK solution after", n_tries, "optimization attempts")
         return None
+
+
+# TODO: Where to move this? The klampt FK function is much faster
+def forward_kinematics_kinpy(robot, x: np.array) -> np.array:
+    """
+    Returns the pose of the end effector for each joint parameter setting in x
+    """
+    assert len(x.shape) == 2, f"x must be (m, n), currently: {x.shape}"
+
+    with open(robot.urdf_filepath) as f:
+        kinpy_fk_chain = kp.build_chain_from_urdf(f.read().encode("utf-8"))
+
+    n = x.shape[0]
+    y = np.zeros((n, 7))
+    zero_transform = kp.transform.Transform()
+    fk_dict = {}
+    for joint_name in robot.actuated_joint_names:
+        fk_dict[joint_name] = 0.0
+
+    def get_fk_dict(xs):
+        for i in range(robot.n_dofs):
+            fk_dict[robot.actuated_joint_names[i]] = xs[i]
+        return fk_dict
+
+    for i in range(n):
+        th = get_fk_dict(x[i])
+        transform = kinpy_fk_chain.forward_kinematics(th, world=zero_transform)[robot.end_effector_link_name]
+        y[i, 0:3] = transform.pos
+        y[i, 3:] = transform.rot
+    return y
 
 
 """

@@ -18,7 +18,6 @@ class PandaArm(KinematicChain):
             "panda_joint8",
             "panda_hand_joint",
         ]
-
         urdf_filepath = get_filepath(f"urdfs/panda_arm/panda.urdf")
         end_effector_link_name = "panda_hand"
         KinematicChain.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
@@ -26,3 +25,11 @@ class PandaArm(KinematicChain):
 
 def get_all_robots():
     return [PandaArm()]
+
+
+def get_robot(robot_name: str) -> KinematicChain:
+    classes = [PandaArm]
+    for clc in classes:
+        if clc.name == robot_name:
+            return clc()
+    raise ValueError(f"Unable to find robot '{robot_name}'")

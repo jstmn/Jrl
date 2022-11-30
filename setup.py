@@ -11,7 +11,7 @@ setup(
     license="LICENSE.txt",
     description="Jeremy's Kinematics Python Library",
     long_description=open("README.md").read(),
-    install_requires=["klampt", "numpy", "torch", "black"],
+    install_requires=["klampt", "numpy", "torch", "black", "kinpy"],
     include_package_data=True,
     # package_data={"": ["model_descriptions.yaml"]},
 )

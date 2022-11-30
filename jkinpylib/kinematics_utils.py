@@ -8,6 +8,7 @@ from xml.etree.ElementTree import Element
 UNHANDLED_JOINT_TYPES = ["prismatic", "floating", "planar"]
 
 
+# TODO: Consider using an existing urdf parser (like https://github.com/ros/urdf_parser_py/tree/melodic-devel/src)
 @dataclass
 class Link:
     name: str
