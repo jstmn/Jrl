@@ -17,6 +17,6 @@ pip install -e .
 ```
 
 ## Todos
-[ ] Remove `fix_urdf.py` hackery - don't change joint types. Maintain the original urdf, save an additional one for klampt (with problematic elements removed)
-[ ] Add additional robots (from the ikflow repo)
-[ ] batched IK optimization steps
+- [ ] Remove `fix_urdf.py` hackery - don't change joint types. Maintain the original urdf, save an additional one for klampt (with problematic elements removed)
+- [ ] Add additional robots (from the ikflow repo)
+- [ ] batched IK optimization steps
