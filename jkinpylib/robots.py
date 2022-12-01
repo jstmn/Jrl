@@ -1,9 +1,9 @@
-from jkinpylib.kinematics import KinematicChain
+from jkinpylib.robot import Robot
 from jkinpylib.utils import get_filepath
 
 
 # TODO(@jstmn): Fix batch FK for baxter
-# class Baxter(KinematicChain):
+# class Baxter(Robot):
 #     name = "baxter"
 #     formal_robot_name = "Baxter"
 
@@ -11,10 +11,10 @@ from jkinpylib.utils import get_filepath
 #         joint_chain = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
 #         end_effector_link_name = "left_hand"
 #         urdf_filepath = get_filepath(f"urdfs/baxter/baxter.urdf")
-#         KinematicChain.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name)
+#         Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
-class PandaArm(KinematicChain):
+class PandaArm(Robot):
     name = "panda_arm"
     formal_robot_name = "Panda"
 
@@ -32,7 +32,7 @@ class PandaArm(KinematicChain):
         ]
         urdf_filepath = get_filepath(f"urdfs/panda_arm/panda.urdf")
         end_effector_link_name = "panda_hand"
-        KinematicChain.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
+        Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
 def get_all_robots():
@@ -40,7 +40,7 @@ def get_all_robots():
     # return [PandaArm(), Baxter()]
 
 
-def get_robot(robot_name: str) -> KinematicChain:
+def get_robot(robot_name: str) -> Robot:
     classes = [PandaArm]
     # classes = [PandaArm, Baxter]
     for clc in classes:

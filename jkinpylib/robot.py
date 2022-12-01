@@ -7,7 +7,7 @@ from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion
 from jkinpylib import config
 
 # from jkinpylib.math_utils import matrix_to_quaternion, quaternion_invert, quaternion_multiply # TODO: Find these functions
-from jkinpylib.kinematics_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
+from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
 
 import torch
 import numpy as np
@@ -26,7 +26,7 @@ class IKResult:
     solutions: torch.Tensor
 
 
-class KinematicChain:
+class Robot:
     def __init__(self, name: str, urdf_filepath: str, active_joints: List[str], end_effector_link_name: str):
         """_summary_
 
@@ -272,7 +272,7 @@ class KinematicChain:
         original title: jac_pinvstep_single_pose_np
 
         Args:
-            robot (KinematicChain): _description_
+            robot (Robot): _description_
             target_pose (torch.Tensor): _description_
             n_steps (int): _description_
             alpha (float): _description_

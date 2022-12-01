@@ -24,11 +24,11 @@ assert len(urdf_files) > 0, "No URDF files found"
 
 setup(
     name="jkinpylib",
-    version="0.0.3",
+    version="0.0.4",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
-    url="http://pypi.python.org/pypi/jkinpylib/",
+    url="https://github.com/jstmn/jkinpylib",
     license="LICENSE.txt",
     description="Jeremy's Kinematics Python Library",
     py_modules=[],

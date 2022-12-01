@@ -2,7 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib.robots import get_all_robots
-from jkinpylib.kinematics import KinematicChain, forward_kinematics_kinpy
+from jkinpylib.robot import Robot, forward_kinematics_kinpy
 from jkinpylib.math_utils import geodesic_distance_between_quaternions
 
 import torch
@@ -45,9 +45,7 @@ class TestForwardKinematics(unittest.TestCase):
         for i in range(rotational_errors.shape[0]):
             self.assertLess(rotational_errors[i], threshold)
 
-    def get_fk_poses(
-        self, robot: KinematicChain, samples: np.array
-    ) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
+    def get_fk_poses(self, robot: Robot, samples: np.array) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
         """Return fk solutions calculated by kinpy, klampt, and batch_fk"""
         kinpy_fk = forward_kinematics_kinpy(robot, samples)
         klampt_fk = robot.forward_kinematics_klampt(samples)

@@ -1,7 +1,6 @@
 import unittest
 
-from jkinpylib.kinematics import KinematicChain
-from jkinpylib.kinematics_utils import _len3_tuple_from_str
+from jkinpylib.urdf_utils import _len3_tuple_from_str
 from jkinpylib.robots import get_all_robots
 
 import torch
@@ -9,7 +8,7 @@ import torch
 ROBOTS = get_all_robots()
 
 
-class KinematicChainTest(unittest.TestCase):
+class RobotTest(unittest.TestCase):
     def test_list_from_str(self):
         inputs = [
             "0 0 0.333",

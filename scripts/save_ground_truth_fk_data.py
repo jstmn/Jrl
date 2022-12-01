@@ -1,5 +1,5 @@
 from jkinpylib.robots import get_all_robots
-from jkinpylib.kinematics import forward_kinematics_kinpy
+from jkinpylib.robot import forward_kinematics_kinpy
 from jkinpylib.math_utils import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
 

@@ -1,7 +1,7 @@
 from typing import Tuple
 import unittest
 
-from jkinpylib.kinematics import KinematicChain
+from jkinpylib.robot import Robot
 from jkinpylib.robots import PandaArm
 from jkinpylib.math_utils import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
@@ -43,9 +43,7 @@ class TestInverseKinematics(unittest.TestCase):
         for i in range(rotational_errors.shape[0]):
             self.assertLess(rotational_errors[i], max_allowable_rotational_err)
 
-    def get_fk_poses(
-        self, robot: KinematicChain, samples: np.array
-    ) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
+    def get_fk_poses(self, robot: Robot, samples: np.array) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
         """Return fk solutions calculated by kinpy, klampt, and batch_fk"""
         kinpy_fk = robot.forward_kinematics_kinpy(samples)
         klampt_fk = robot.forward_kinematics_klampt(samples)
@@ -70,7 +68,7 @@ class TestInverseKinematics(unittest.TestCase):
         l2_err = np.linalg.norm(pose[0:3] - solution_pose[0, 0:3])
         self.assertLess(l2_err, 2 * positional_tol)
 
-    def solution_valid(self, robot: KinematicChain, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
+    def solution_valid(self, robot: Robot, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
         if solution is None:
             print(" -> Solution is None, failing")
             return False, -1
