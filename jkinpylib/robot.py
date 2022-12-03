@@ -44,7 +44,7 @@ class Robot:
         self._urdf_filepath = urdf_filepath
         self._end_effector_link_name = end_effector_link_name
         self._joint_chain = get_joint_chain(self._urdf_filepath, active_joints, self._end_effector_link_name)
-        self._joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
+        self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
 
         # Cache fixed rotations between links
@@ -91,6 +91,14 @@ class Robot:
     def actuated_joint_names(self) -> List[str]:
         return self._actuated_joint_names
 
+    @property
+    def actuated_joints_limits(self) -> List[Tuple[float, float]]:
+        return self._actuated_joint_limits
+
+    @property
+    def klampt_world_model(self) -> klampt.WorldModel:
+        return self._klampt_world_model
+
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
     # ---                                             External Functions                                             ---
@@ -110,11 +118,19 @@ class Robot:
 
         # Sample
         for i in range(self.n_dofs):
-            range_ = self._joint_limits[i][1] - self._joint_limits[i][0]
+            range_ = self._actuated_joint_limits[i][1] - self._actuated_joint_limits[i][0]
             assert range_ > 0
             angs[:, i] *= range_
-            angs[:, i] += self._joint_limits[i][0]
+            angs[:, i] += self._actuated_joint_limits[i][0]
         return angs
+
+    def __str__(self) -> str:
+        s = "<Robot[{}] name:{}, ndofs:{}>".format(
+            self.__class__.__name__,
+            self.name,
+            self.n_dofs,
+        )
+        return s
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -162,6 +178,14 @@ class Robot:
     # ---                                                                                                            ---
     # ---                                             Forward Kinematics                                             ---
     # ---                                                                                                            ---
+
+    def forward_kinematics(self, x: np.array, solver="klampt") -> np.array:
+        if solver == "klampt":
+            return self.forward_kinematics_klampt(x)
+        elif solver == "batchfk":
+            return self.forward_kinematics_batchfk(x)
+        else:
+            raise ValueError(f"Solver '{solver}' not recognized")
 
     def forward_kinematics_klampt(self, x: np.array) -> np.array:
         """Forward kinematics using the klampt library"""

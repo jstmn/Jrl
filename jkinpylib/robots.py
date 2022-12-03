@@ -35,15 +35,21 @@ class PandaArm(Robot):
         Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
+ALL_CLCS = [PandaArm]
+
+
 def get_all_robots():
-    return [PandaArm()]
-    # return [PandaArm(), Baxter()]
+    return [clc() for clc in ALL_CLCS]
 
 
 def get_robot(robot_name: str) -> Robot:
-    classes = [PandaArm]
-    # classes = [PandaArm, Baxter]
-    for clc in classes:
+    for clc in ALL_CLCS:
         if clc.name == robot_name:
             return clc()
     raise ValueError(f"Unable to find robot '{robot_name}'")
+
+
+def robot_name_to_fancy_robot_name(name: str) -> str:
+    for cls in ALL_CLCS:
+        if cls.name == name:
+            return cls.formal_robot_name
