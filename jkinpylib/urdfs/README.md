@@ -11,9 +11,8 @@
 
 
 **A note about the Panda Arm:**
-From https://github.com/StanfordASL/PandaRobot.jl 
 
-There are two different joint limits for the panda arm floating around. One is from `franka_description` and `robosuite`, the other from `StandfordASL/PandaRobot.jl`. There are several trained models for the stanford version (the name for this version in this repo is `panda_arm_stanford`). I am in the process of training models for the `franka_description` version.
+There are two different joint limit sets for the panda arm floating around. One is from `franka_description` and `robosuite`, the other from `StandfordASL/PandaRobot.jl`. There are several trained models for the stanford version (the name for this version in this repo is `panda_arm_stanford`). I am in the process of training models for the `franka_description` version.
 
 1. From http://wiki.ros.org/franka_description 'robots/panda/joint_limits.yaml', also from `robosuite` https://github.com/ARISE-Initiative/robosuite/blob/master/robosuite/models/assets/bullet_data/panda_description/
 
