@@ -56,6 +56,7 @@ class RobotTest(unittest.TestCase):
 
     def test_n_dofs(self):
         ground_truth_n_dofs = {
+            "panda_arm": 7,
             "panda_arm_stanford": 7,
             "baxter": 7,
         }
@@ -72,6 +73,15 @@ class RobotTest(unittest.TestCase):
                 (-2.9671, 2.9671),
                 (-0.0873, 3.8223),
                 (-2.9671, 2.9671),
+            ],
+            "panda_arm": [
+                (-2.8973, 2.8973),
+                (-1.7628, 1.7628),
+                (-2.8973, 2.8973),
+                (-3.0718, -0.0698),
+                (-2.8973, 2.8973),
+                (-0.0175, 3.7525),
+                (-2.8973, 2.8973),
             ],
             "baxter": [
                 (-1.70167993878, 1.70167993878),
@@ -92,6 +102,15 @@ class RobotTest(unittest.TestCase):
     def test_actuated_joint_names(self):
         ground_truth_actuated_joints = {
             "panda_arm_stanford": [
+                "panda_joint1",
+                "panda_joint2",
+                "panda_joint3",
+                "panda_joint4",
+                "panda_joint5",
+                "panda_joint6",
+                "panda_joint7",
+            ],
+            "panda_arm": [
                 "panda_joint1",
                 "panda_joint2",
                 "panda_joint3",

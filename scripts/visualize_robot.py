@@ -18,8 +18,8 @@ def oscillate_joints(robot: Robot):
 
     vis.init()
     vis.add("world", robot.klampt_world_model)
-    vis.add("robot", robot.klampt_world_model.robot(0))
-    vis.setColor("robot", 1, 0.1, 0.1, 1)
+    # vis.add("robot", robot.klampt_world_model.robot(0))
+    # vis.setColor("robot", 1, 0.1, 0.1, 1)
     vis.setWindowTitle(f"{robot.name} visualizer")
     vis.show()
 
@@ -52,6 +52,7 @@ def oscillate_joints(robot: Robot):
 
 """ Example usage
 
+python scripts/visualize_robot.py --robot_name=panda_arm
 python scripts/visualize_robot.py --robot_name=panda_arm_stanford
 python scripts/visualize_robot.py --robot_name=baxter
 """

@@ -32,7 +32,7 @@ class Robot:
         self,
         name: str,
         urdf_filepath: str,
-        active_joints: List[str],
+        joint_path: List[str],
         end_effector_link_name: str,
         verbose: bool = False,
     ):
@@ -40,7 +40,7 @@ class Robot:
 
         Args:
             urdf_filepath (str): _description_
-            active_joints (List[str]): The name of the joints that form the kinematic chain that is being represented. There
+            joint_path (List[str]): The name of the joints that form the kinematic chain that is being represented. There
                                 are no restrictions on where it starts. It must end at the end effector however. NOTE:
                                 This may include fixed joints
             end_effector_link_name (str): _description_
@@ -54,7 +54,7 @@ class Robot:
 
         # Note: `_joint_chain`, `_actuated_joint_limits`, `_actuated_joint_names` only includes the joints that were
         # specified by the subclass. It does not include all actuated joints in the urdf
-        self._joint_chain = get_joint_chain(self._urdf_filepath, active_joints, self._end_effector_link_name)
+        self._joint_chain = get_joint_chain(self._urdf_filepath, joint_path, self._end_effector_link_name)
         self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
 

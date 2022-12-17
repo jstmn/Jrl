@@ -5,8 +5,7 @@
 | Robot         | Url | Notes |
 | ------------- | ------------- | ------------- |
 | `panda_arm_stanford`  | https://github.com/StanfordASL/PandaRobot.jl/blob/master/deps/Panda/panda.urdf  |  |
-
-
+| `panda_arm`  | https://github.com/ARISE-Initiative/robosuite/blob/92abf5595eddb3a845cd1093703e5a3ccd01e77e/robosuite/models/assets/bullet_data/panda_description/urdf/panda_arm.urdf  |  |
 
 
 
