@@ -11,7 +11,32 @@ class Baxter(Robot):
         joint_chain = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
         end_effector_link_name = "left_hand"
         urdf_filepath = get_filepath(f"urdfs/baxter/baxter.urdf")
-        Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name)
+        Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=False)
+
+
+# TODO(@jstmn): Implement prismatic joint in forward_kinematics_batch
+class Fetch(Robot):
+    name = "fetch"
+    formal_robot_name = "Fetch"
+
+    def __init__(self):
+        # Sum joint range: 34.0079 rads
+        joint_chain = [
+            "torso_lift_joint",
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "upperarm_roll_joint",  # continuous
+            "elbow_flex_joint",
+            "forearm_roll_joint",  # continuous
+            "wrist_flex_joint",
+            "wrist_roll_joint",  # continous
+            "gripper_axis",  # fixed
+        ]
+        end_effector_link_name = "gripper_link"
+        urdf_filepath = get_filepath(f"urdfs/fetch/fetch_formatted.urdf")
+        Robot.__init__(
+            self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=False, verbose=True
+        )
 
 
 class PandaArm(Robot):
@@ -58,7 +83,8 @@ class PandaArmStanford(Robot):
 
 
 # ALL_CLCS = [PandaArm]
-ALL_CLCS = [PandaArmStanford, PandaArm]
+ALL_CLCS = [Fetch]
+# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch]
 # ALL_CLCS = [PandaArmStanford, Baxter]
 
 
@@ -79,5 +105,5 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
             return cls.formal_robot_name
 
 
-# if __name__ == "__main__":
-#     r = Baxter()
+if __name__ == "__main__":
+    r = Fetch()

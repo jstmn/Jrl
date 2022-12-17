@@ -4,11 +4,12 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 
-<!-- Changes: -->
-<!-- Dec 16 2022: 'package://panda_description/' was removed from all filenames -->
-<!-- Dec 16 2022: Replaced '<origin rpy="0 0 0" xyz="0 -0.1 0"/>' with 
-  '<origin rpy="0 0 0" xyz="0 0 0.333"/>'. The xyz value was wrong for panda_arm_hand.urdf
-  in the robosuite package. See https://github.com/ARISE-Initiative/robosuite/issues/371 -->
+<!-- Changes:
+1. Dec 16 2022: 'package://panda_description/' was removed from all filenames
+2. Dec 16 2022: Replaced '<origin rpy="0 0 0" xyz="0 -0.1 0"/>' with 
+                  '<origin rpy="0 0 0" xyz="0 0 0.333"/>'. The xyz value was wrong for 
+                  panda_arm_hand.urdf in the robosuite package. See https://github.com/ARISE-Initiative/robosuite/issues/371 
+-->
 
 
 <robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">

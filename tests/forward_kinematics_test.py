@@ -51,11 +51,17 @@ class TestForwardKinematics(unittest.TestCase):
         """Return fk solutions calculated by kinpy, klampt, and batch_fk"""
         kinpy_fk = forward_kinematics_kinpy(robot, samples)
         klampt_fk = robot.forward_kinematics_klampt(samples)
-        batch_fk_t, batch_fk_R, _ = robot.forward_kinematics_batch(torch.from_numpy(samples).float())
-        assert batch_fk_t.shape[0] == kinpy_fk.shape[0]
-        assert batch_fk_R.shape[0] == kinpy_fk.shape[0]
+
+        if robot._batch_fk_enabled:
+            batch_fk_t, batch_fk_R, _ = robot.forward_kinematics_batch(torch.from_numpy(samples).float())
+            assert batch_fk_t.shape[0] == kinpy_fk.shape[0]
+            assert batch_fk_R.shape[0] == kinpy_fk.shape[0]
+            batch_fk = (batch_fk_t.cpu().data.numpy(), batch_fk_R.cpu().data.numpy())
+        else:
+            batch_fk = None
+
         # TODO(@jeremysm): Get batch_fk_R to quaternion and return (n x 7) array
-        return kinpy_fk, klampt_fk, (batch_fk_t.cpu().data.numpy(), batch_fk_R.cpu().data.numpy())
+        return kinpy_fk, klampt_fk, batch_fk
 
     # Tests
 
@@ -68,15 +74,17 @@ class TestForwardKinematics(unittest.TestCase):
             samples, endpoints_expected = get_gt_samples_and_endpoints(robot.name)
             kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
 
+            if robot._batch_fk_enabled:
+                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t)
+                self.assert_endpose_position_almost_equal(batch_fk_t, endpoints_expected)
+
             # fks batch eachother
             self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
             self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
-            self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t)
 
             # fks match saved
             self.assert_endpose_position_almost_equal(kinpy_fk, endpoints_expected)
             self.assert_endpose_position_almost_equal(klampt_fk, endpoints_expected)
-            self.assert_endpose_position_almost_equal(batch_fk_t, endpoints_expected)
 
             self.assert_endpose_rotation_almost_equal(kinpy_fk, endpoints_expected)
             self.assert_endpose_rotation_almost_equal(klampt_fk, endpoints_expected)
@@ -99,7 +107,9 @@ class TestForwardKinematics(unittest.TestCase):
             kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
             self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
             self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
-            self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t)
+
+            if robot._batch_fk_enabled:
+                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t)
 
     def test_each_dimension_actuated(self):
         """

@@ -3,6 +3,8 @@ from dataclasses import dataclass
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 
+import numpy as np
+
 # See http://wiki.ros.org/urdf/XML/joint
 # All types: 'revolute', 'continuous', 'prismatic', 'fixed', 'floating', 'planar'
 UNHANDLED_JOINT_TYPES = ["prismatic", "floating", "planar"]
@@ -50,6 +52,9 @@ class Joint:
         # If joint_type is 'fixed' we can ignore `axis_xyz`
         if not self.joint_type == "fixed":
             assert len(self.axis_xyz) == 3
+
+        assert isinstance(self.limits[0], int) or isinstance(self.limits[0], float)
+        assert isinstance(self.limits[1], int) or isinstance(self.limits[1], float)
 
     def __str__(self):
         ret = f"\n<Joint(), '{self.name}'>\n"
@@ -124,8 +129,18 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                     elif subelem.tag == "child":
                         joint_child = subelem.attrib["link"]
                     elif subelem.tag == "limit":
-                        limits[0] = float(subelem.attrib["lower"])
-                        limits[1] = float(subelem.attrib["upper"])
+                        if child.tag == "joint" and child.attrib["type"] == "continuous":
+                            limits[0] = -np.pi
+                            limits[1] = np.pi
+
+                            print(
+                                "Heads up: Setting joint limits to [-pi, pi] for continuous joint"
+                                f" '{child.attrib['name']}'"
+                            )
+
+                        else:
+                            limits[0] = float(subelem.attrib["lower"])
+                            limits[1] = float(subelem.attrib["upper"])
 
                 joint = Joint(
                     name=joint_name,
@@ -175,4 +190,5 @@ def get_joint_chain(urdf_filepath: str, active_joints: List[str], end_effector_n
         all_joints[active_joints[-1]].child == end_effector_name
     ), f"Error: the final joint's child != end_effector_link_name ('{self.end_effector_link_name}')"
 
-    return [all_joints[joint_name] for joint_name in active_joints]
+    joint_chain = [all_joints[joint_name] for joint_name in active_joints]
+    return joint_chain

@@ -34,6 +34,7 @@ class Robot:
         urdf_filepath: str,
         joint_path: List[str],
         end_effector_link_name: str,
+        batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
         """_summary_
@@ -57,6 +58,7 @@ class Robot:
         self._joint_chain = get_joint_chain(self._urdf_filepath, joint_path, self._end_effector_link_name)
         self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
+        self._batch_fk_enabled = batch_fk_enabled
 
         # Cache fixed rotations between links
         self._fixed_rotations = {}
@@ -77,6 +79,10 @@ class Robot:
             print("  joints:")
             for i, joint_name in enumerate(self.actuated_joint_names):
                 print(f"    {i} {joint_name}: {self.actuated_joints_limits[i][0]}, {self.actuated_joints_limits[i][1]}")
+            sjld = 0
+            for l, u in self.actuated_joints_limits:
+                sjld += u - l
+            print(f"Sum joint range: {round(sjld, 4)} rads")
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -304,6 +310,9 @@ class Robot:
                 2. [N x 3 x 3] torch tensor of the end effector's rotation
                 3. The total runtime of the function. For convenience
         """
+        if not self._batch_fk_enabled:
+            raise NotImplementedError()
+
         time0 = time()
         batch_size = x.shape[0]
         assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"

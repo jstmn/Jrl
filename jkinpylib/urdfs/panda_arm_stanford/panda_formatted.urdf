@@ -4,16 +4,13 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 
-<!-- Changes: -->
-<!-- Dec16 2020: 'package://Panda/' was removed from all filenames -->
+<!-- Changes: 
 
-<!-- Dec 16 2020: Replaced '<material name="panda_white"/>' with:
-    <material name="panda_white">
-      <color rgba="1. 1. 1. 1."/>
-    </material>
-  This is because of an issue with klampt where the urdf loader needs the rgba value in each 
-  material tag. -->
-<!-- Dec 16 2022: Removed 'material' tag from all 'collision' tags -->
+1. Dec 16 2022: 'package://Panda/' was removed from all filenames 
+2. Dec 16 2022: Replaced '<material name="panda_white"/>' with: '<material name="panda_white"> <color rgba="1. 1. 1. 1."/> </material>'
+                This is because of an issue with klampt where the urdf loader needs the rgba 
+                value in each material tag.
+3. Dec 16 2022: Removed 'material' tag from all 'collision' tags -->
 
 
 <robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">
