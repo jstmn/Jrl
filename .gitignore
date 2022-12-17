@@ -4,3 +4,4 @@ jkinpylib.egg-info
 dist/
 build/
 notes_to_self
+napkin.py

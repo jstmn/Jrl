@@ -2,7 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib.robot import Robot
-from jkinpylib.robots import PandaArm
+from jkinpylib.robots import PandaArmStanford
 from jkinpylib.math_utils import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
 
@@ -22,8 +22,8 @@ MAX_ALLOWABLE_ANG_ERR = 0.01  # degrees
 class TestInverseKinematics(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.panda_arm = PandaArm()
-        self.robots = [self.panda_arm]
+        self.panda_arm_stanford = PandaArmStanford()
+        self.robots = [self.panda_arm_stanford]
 
     # Helper functions
     def assert_pose_position_almost_equal(
@@ -60,11 +60,11 @@ class TestInverseKinematics(unittest.TestCase):
         pose = np.array([-0.45741714, -0.08548167, 0.87084611, 0.09305326, -0.49179573, -0.86208266, 0.07931919])
         seed = np.array([0.46013147, -0.71480753, 1.74743252, -0.34429741, 1.08508085, 0.64453392, 1.82583597])
         positional_tol = 1e-3
-        solution = self.panda_arm.inverse_kinematics_klampt(
+        solution = self.panda_arm_stanford.inverse_kinematics_klampt(
             pose, seed=seed, positional_tolerance=positional_tol, verbosity=0
         )
         self.assertIsInstance(solution, np.ndarray)
-        solution_pose = self.panda_arm.forward_kinematics_klampt(solution)
+        solution_pose = self.panda_arm_stanford.forward_kinematics_klampt(solution)
         l2_err = np.linalg.norm(pose[0:3] - solution_pose[0, 0:3])
         self.assertLess(l2_err, 2 * positional_tol)
 
@@ -102,7 +102,7 @@ class TestInverseKinematics(unittest.TestCase):
         n_successes_kl = 0
         positional_tol = 1e-4
         verbosity = 0
-        robot = self.panda_arm
+        robot = self.panda_arm_stanford
 
         samples = robot.sample_joint_angles(n)
         poses_gt = robot.forward_kinematics_klampt(samples)
@@ -134,7 +134,7 @@ class TestInverseKinematics(unittest.TestCase):
         n_successes_kl = 0
         positional_tol = 1e-4
         verbosity = 0
-        robot = self.panda_arm
+        robot = self.panda_arm_stanford
         poses_gt = robot.forward_kinematics_klampt(robot.sample_joint_angles(n))
 
         for i, pose_gt in enumerate(poses_gt):

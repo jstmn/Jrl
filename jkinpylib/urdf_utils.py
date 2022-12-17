@@ -39,7 +39,6 @@ class Joint:
         assert (
             len(self.limits) == 2
         ), f"limits should be length 2, currently {len(self.limits)} (self.limits={self.limits})"
-        assert self.joint_type not in UNHANDLED_JOINT_TYPES
 
         # Note: 'fixed' joints have been observed to have non zero limits, for example (0, 0.04) - see 'panda.urdf'. Not
         # sure what's up with that. Ignoring this for now.

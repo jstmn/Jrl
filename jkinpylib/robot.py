@@ -2,6 +2,7 @@ from typing import List, Tuple, Dict, Optional
 from time import time
 from dataclasses import dataclass
 from time import time
+from more_itertools import locate
 
 from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion_to_rpy_batch
 from jkinpylib import config
@@ -27,7 +28,14 @@ class IKResult:
 
 
 class Robot:
-    def __init__(self, name: str, urdf_filepath: str, active_joints: List[str], end_effector_link_name: str):
+    def __init__(
+        self,
+        name: str,
+        urdf_filepath: str,
+        active_joints: List[str],
+        end_effector_link_name: str,
+        verbose: bool = False,
+    ):
         """_summary_
 
         Args:
@@ -43,6 +51,9 @@ class Robot:
         self._name = name
         self._urdf_filepath = urdf_filepath
         self._end_effector_link_name = end_effector_link_name
+
+        # Note: `_joint_chain`, `_actuated_joint_limits`, `_actuated_joint_names` only includes the joints that were
+        # specified by the subclass. It does not include all actuated joints in the urdf
         self._joint_chain = get_joint_chain(self._urdf_filepath, active_joints, self._end_effector_link_name)
         self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
@@ -57,11 +68,15 @@ class Robot:
         self._klampt_robot: klampt.robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._klampt_ee_link: klampt.robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
         self._klampt_config_dim = len(self._klampt_robot.getConfig())
+        self._klampt_driver_vec_dim = self._klampt_robot.numDrivers()
         self._klampt_active_dofs = self._get_klampt_active_dofs()
+        self._klampt_active_driver_idxs = self._get_klampt_active_driver_idxs()
 
-        assert (
-            self._klampt_robot.numDrivers() == self.n_dofs
-        ), f"# of active joints in urdf {self._klampt_robot.numDrivers()} doesn't equal `n_dofs`: {self.n_dofs}"
+        if verbose:
+            print(f"Created robot[{self.name}]")
+            print("  joints:")
+            for i, joint_name in enumerate(self.actuated_joint_names):
+                print(f"    {i} {joint_name}: {self.actuated_joints_limits[i][0]}, {self.actuated_joints_limits[i][1]}")
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -124,6 +139,13 @@ class Robot:
             angs[:, i] += self._actuated_joint_limits[i][0]
         return angs
 
+    def set_klampt_robot_config(self, x: np.ndarray):
+        """Set the internal klampt robots config with the given joint angle vector"""
+        assert isinstance(x, np.ndarray), f"Expected x to be a numpy array but got {type(x)}"
+        assert x.shape == (self.n_dofs,), f"Expected x to be of shape ({self.n_dofs},) but got {x.shape}"
+        q = self._x_to_qs(np.resize(x, (1, self.n_dofs)))[0]
+        self._klampt_robot.setConfig(q)
+
     def __str__(self) -> str:
         s = "<Robot[{}] name:{}, ndofs:{}>".format(
             self.__class__.__name__,
@@ -138,15 +160,77 @@ class Robot:
     # ---                                                                                                            ---
 
     def _get_klampt_active_dofs(self) -> List[int]:
-        active_dofs = []
-        self._klampt_robot.setConfig([0] * self._klampt_config_dim)
-        idxs = [1000 * (i + 1) for i in range(self.n_dofs)]
-        q_temp = self._klampt_robot.configFromDrivers(idxs)
-        for idx, v in enumerate(q_temp):
-            if v in idxs:
-                active_dofs.append(idx)
-        assert len(active_dofs) == self.n_dofs, f"len(active_dofs): {len(active_dofs)} != self.n_dofs: {self.n_dofs}"
-        return active_dofs
+        """Hack: We need to know which indexes of the klampt q vector are from active joints.
+
+        Returns:
+            List[int]: The indexes of the klampt configuration vector which correspond to the user specified active
+                        joints
+        """
+        all_drivers = [self._klampt_robot.driver(i) for i in range(self._klampt_robot.numDrivers())]
+        actuated_joint_child_names = [joint.child for joint in self._joint_chain]
+        driver_vec_tester = [1000 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
+
+        q_test_result = self._klampt_robot.configFromDrivers(driver_vec_tester)
+        q_active_joint_idxs = list(locate(q_test_result, lambda x: x == 1000))
+        assert len(q_active_joint_idxs) == self.n_dofs, (
+            f"Error - the number of active drivers in the klampt config != n_dofs ({len(q_active_joint_idxs)} !="
+            f" {self.n_dofs})"
+        )
+        return q_active_joint_idxs
+
+    def _get_klampt_active_driver_idxs(self) -> List[int]:
+        """We need to know which indexes of the klampt driver vector are from user specified active joints.
+
+        Returns:
+            List[int]: The indexes of the klampt driver vector which correspond to the(user specified) active joints
+        """
+
+        # Get the names of all the child links for each active joint.
+        # Note: driver.getName() returns the joints' child link for some god awful reason. See L1161 in Robot.cpp
+        # (https://github.com/krishauser/Klampt/blob/master/Cpp/Modeling/Robot.cpp#L1161)
+        actuated_joint_child_names = [joint.child for joint in self._joint_chain]
+
+        all_drivers = [self._klampt_robot.driver(i) for i in range(self._klampt_robot.numDrivers())]
+        driver_vec_tester = [1 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
+        active_driver_idxs = list(locate(driver_vec_tester, lambda x: x == 1))
+
+        assert (
+            len(active_driver_idxs) == self.n_dofs
+        ), f"Error - the number of active drivers != n_dofs ({len(active_driver_idxs)} != {self.n_dofs})"
+        return active_driver_idxs
+
+    # TODO(@jstm): Consider changing this to take (batch x ndofs)
+    def _driver_vec_from_x(self, x: np.ndarray) -> List[float]:
+        """Format a joint angle vector into a klampt driver vector. Non user specified joints will have a value of 0.
+
+        Args:
+            x (np.ndarray): (self.n_dofs,) joint angle vector
+
+        Returns:
+            List[float]: A list with the joint angle vector formatted in the klampt driver format.
+        """
+
+        assert x.size == self.n_dofs, f"x must have ndofs values - {self.n_dofs} != {x.size}"
+        assert x.shape == (self.n_dofs,), f"x.shape must be (n_dofs,) - ({(self.n_dofs,)}) != {x.shape}"
+
+        # return x as a list if there are no additional active joints in the urdf
+        if x.size == self._klampt_driver_vec_dim:
+            return x.tolist()
+
+        # TODO(@jstm): Consider a non iterative implementation for this
+        driver_vec = [0] * self._klampt_driver_vec_dim
+
+        for i in self._klampt_active_driver_idxs:
+            driver_vec[i] = x[i]
+        return driver_vec
+
+    # TODO(@jstm): Consider changing this to take (batch x driver_vec_dim)
+    def _x_from_driver_vec(self, driver_vec: List[float]) -> List[float]:
+        """Remove the non relevant joints from the klampt driver vector."""
+        if len(driver_vec) == self.n_dofs:
+            return driver_vec
+        # TODO(@jstm): Consider a non iterative implementation for this
+        return [driver_vec[i] for i in self._klampt_active_driver_idxs]
 
     def _x_to_qs(self, x: np.ndarray) -> List[List[float]]:
         """Return a list of klampt configurations (qs) from an array of joint angles (x)
@@ -157,21 +241,23 @@ class Robot:
         Returns:
             A list of configurations representing the robots state in klampt
         """
-        assert len(x.shape) == 2
-        assert x.shape[1] == self.n_dofs
+        assert isinstance(x, np.ndarray), f"Expected x to be a numpy array but got {type(x)}"
+        assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
+        assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"
 
         n = x.shape[0]
         qs = []
         for i in range(n):
-            qs.append(self._klampt_robot.configFromDrivers(x[i].tolist()))
+            driver_vec = self._driver_vec_from_x(x[i])
+            qs.append(self._klampt_robot.configFromDrivers(driver_vec))
         return qs
 
     def _qs_to_x(self, qs: List[List[float]]) -> np.array:
         """Calculate joint angle values (x) from klampt configurations (qs)"""
         res = np.zeros((len(qs), self.n_dofs))
         for idx, q in enumerate(qs):
-            drivers = self._klampt_robot.configToDrivers(q)
-            res[idx, :] = drivers
+            driver_vec = self._klampt_robot.configToDrivers(q)
+            res[idx, :] = self._x_from_driver_vec(driver_vec)
         return res
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -220,7 +306,7 @@ class Robot:
         """
         time0 = time()
         batch_size = x.shape[0]
-        assert x.shape[1] == self.n_dofs
+        assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"
 
         # TODO: This is broken for continuous joints (like wi/ Robosimian)
         # Update _fixed_rotations if this is a larger batch then we've seen before
