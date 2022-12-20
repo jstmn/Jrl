@@ -121,7 +121,9 @@ class TestInverseKinematics(unittest.TestCase):
                     ",",
                     sample_noisy,
                 )
-            n_successes_kl += 1 if klampt_valid else 0
+            else:
+                self.assertLess(l2_err, 1e-3)
+                n_successes_kl += 1
 
         print(f"Success rate, klampt: {round(100*(n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
 
@@ -144,7 +146,9 @@ class TestInverseKinematics(unittest.TestCase):
             klampt_valid, l2_err = self.solution_valid(robot, solution_klampt, pose_gt, positional_tol)
             if not klampt_valid:
                 print(f"Klampt failed ({i}/{n}). pose:", pose_gt, f"l2_err: {l2_err} (max is {positional_tol})")
-            n_successes_kl += 1 if klampt_valid else 0
+            else:
+                self.assertLess(l2_err, 1e-3)
+                n_successes_kl += 1
 
         print(f"Success rate, klampt: {round(100*(n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
 

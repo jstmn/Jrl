@@ -60,8 +60,11 @@ class Robot:
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
         self._batch_fk_enabled = batch_fk_enabled
 
-        # Cache fixed rotations between links
+        # Create and fill cache of fixed rotations between links.
         self._fixed_rotations = {}
+        self.forward_kinematics_batch(
+            torch.tensor(self.sample_joint_angles(1000), device=config.device, dtype=torch.float32)
+        )
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
@@ -75,14 +78,15 @@ class Robot:
         self._klampt_active_driver_idxs = self._get_klampt_active_driver_idxs()
 
         if verbose:
-            print(f"Created robot[{self.name}]")
-            print("  joints:")
-            for i, joint_name in enumerate(self.actuated_joint_names):
-                print(f"    {i} {joint_name}: {self.actuated_joints_limits[i][0]}, {self.actuated_joints_limits[i][1]}")
+            print("\n----------- Robot specs")
+            print(f"name: {self.name}")
+            print("joints:")
             sjld = 0
-            for l, u in self.actuated_joints_limits:
+            for i, (joint_name, (l, u)) in enumerate(zip(self.actuated_joint_names, self.actuated_joints_limits)):
+                print(f"  {i} {joint_name}:\t{round(l, 3)},\t{round(u, 3)}")
                 sjld += u - l
-            print(f"Sum joint range: {round(sjld, 4)} rads")
+            print(f"sum joint range: {round(sjld, 4)} rads")
+            print("-----------\n")
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -216,7 +220,7 @@ class Robot:
             List[float]: A list with the joint angle vector formatted in the klampt driver format.
         """
 
-        assert x.size == self.n_dofs, f"x must have ndofs values - {self.n_dofs} != {x.size}"
+        assert x.size == self.n_dofs, f"x doesn't have {self.n_dofs} (n_dofs) elements ({self.n_dofs} != {x.size})"
         assert x.shape == (self.n_dofs,), f"x.shape must be (n_dofs,) - ({(self.n_dofs,)}) != {x.shape}"
 
         # return x as a list if there are no additional active joints in the urdf
@@ -226,8 +230,11 @@ class Robot:
         # TODO(@jstm): Consider a non iterative implementation for this
         driver_vec = [0] * self._klampt_driver_vec_dim
 
+        j = 0
         for i in self._klampt_active_driver_idxs:
-            driver_vec[i] = x[i]
+            driver_vec[i] = x[j]
+            j += 1
+
         return driver_vec
 
     # TODO(@jstm): Consider changing this to take (batch x driver_vec_dim)
@@ -275,7 +282,7 @@ class Robot:
         if solver == "klampt":
             return self.forward_kinematics_klampt(x)
         elif solver == "batchfk":
-            return self.forward_kinematics_batchfk(x)
+            return self.forward_kinematics_batch(x)
         else:
             raise ValueError(f"Solver '{solver}' not recognized")
 
@@ -295,7 +302,7 @@ class Robot:
         return y
 
     def forward_kinematics_batch(
-        self, x: torch.tensor, device: str = config.device
+        self, x: torch.tensor, device: str = config.device, dtype=torch.float32
     ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
@@ -316,58 +323,85 @@ class Robot:
         time0 = time()
         batch_size = x.shape[0]
         assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"
+        assert str(x.device) == str(device), f"Expected x to be on device '{device}' but got '{x.device}'"
 
-        # TODO: This is broken for continuous joints (like wi/ Robosimian)
         # Update _fixed_rotations if this is a larger batch then we've seen before
         if (
             self._joint_chain[0].name not in self._fixed_rotations
             or self._fixed_rotations[self._joint_chain[0].name].shape[0] != batch_size
         ):
             for joint in self._joint_chain:
-                R = R_from_rpy_batch(joint.origin_rpy, device="cpu").unsqueeze(0).repeat(batch_size, 1, 1)
+                # TODO: Confirm that its faster to run `R_from_rpy_batch` on the cpu and then send to the gpu
+                R = R_from_rpy_batch(joint.origin_rpy, device="cpu").unsqueeze(0).repeat(batch_size, 1, 1).to(device)
                 self._fixed_rotations[joint.name] = R
 
-        R0 = torch.eye(3)
-        t0 = torch.zeros(3)
+        R0 = torch.eye(3, dtype=dtype, device=device)
+        t0 = torch.zeros(3, dtype=dtype, device=device)
 
-        R = R0.unsqueeze(0).repeat(batch_size, 1, 1).to(device)  # ( batch_size x 3 x 3 )
-        t = t0.unsqueeze(0).repeat(batch_size, 1).to(device)  # ( batch_size x 3 )
-        default_rotation_amt = torch.zeros((batch_size, 1), device=device)
+        # Rotation from body/base link to joint along the joint chain
+        R_body_t_joint = R0.unsqueeze(0).repeat(batch_size, 1, 1)  # [ batch x 3 x 3 ]
+        t_body_t_joint = t0.unsqueeze(0).repeat(batch_size, 1)  # [ batch x 3 ]
 
         # set fixed_rotations to current device
         for fixed_rotation_i in self._fixed_rotations:
-            R_i = self._fixed_rotations[fixed_rotation_i].to(device)
-            self._fixed_rotations[fixed_rotation_i] = R_i
+            # R_i = self._fixed_rotations[fixed_rotation_i].to(device)
+            # self._fixed_rotations[fixed_rotation_i] = R_i
+            self._fixed_rotations[fixed_rotation_i].to(device)
 
         # Iterate through each joint in the joint chain
         x_i = 0
         for joint in self._joint_chain:
-            t = t + torch.matmul(R, torch.tensor(joint.origin_xyz, device=device))
-
-            # Rotation between joint frames
-            R_parent_to_child = self._fixed_rotations[joint.name][0:batch_size, :, :]
-
-            rotation_axis = [1, 0, 0]
-            rotation_amt = default_rotation_amt
-
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
 
-            if joint.joint_type == "revolute":
+            # first move the pose by `origin_xyz` in the parent frame
+            t_body_t_joint = t_body_t_joint + torch.matmul(
+                R_body_t_joint, torch.tensor(joint.origin_xyz, device=device)
+            )
+
+            # Rotate joint frame by `origin_rpy`
+            R_parent_to_child = self._fixed_rotations[joint.name][0:batch_size, :, :]
+            R_body_t_joint = R_body_t_joint.bmm(R_parent_to_child)
+
+            if joint.joint_type == "revolute" or joint.joint_type == "continuous":
+                # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
                 rotation_amt = x[:, x_i]
                 rotation_axis = joint.axis_xyz
-                x_i += 1
+                joint_rotation = R_from_axis_angle(rotation_axis, rotation_amt, device=device)[
+                    :, 0:3, 0:3
+                ]  # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy? or quaternions?
+                R_body_t_joint = R_body_t_joint.bmm(joint_rotation)
 
-            elif joint.joint_type == "continuous":
-                raise NotImplementedError(
-                    "Need to implement this. It should be the same implentation as 'revolute' I think"
-                )
+            elif joint.joint_type == "prismatic":
+                t = torch.tensor(joint.axis_xyz, device=device, dtype=dtype)  # [ batch x 3 ]
+                print("x[:, x_i]:", x[:, x_i].shape)
 
-            # actuator rotation about joint.axis_xyz by x[:, x_i] degrees.
-            rotation_amt = rotation_amt.to(device)
-            joint_rotation = R_from_axis_angle(rotation_axis, rotation_amt, device=device)[:, 0:3, 0:3]
+                # Note: [..., None] is a trick to expand the x[:,x_i] tensor. expands it from [batch] to [batch x 1]
+                t_translated: torch.Tensor = t * x[:, x_i, None]  # [batch x 3]
+                assert t_translated.shape == (batch_size, 3)
+                assert R_body_t_joint.shape == (batch_size, 3, 3)
 
-            R = R.bmm(R_parent_to_child).bmm(joint_rotation)
-        return t, R, time() - time0
+                t_translated = torch.matmul(R_body_t_joint, t_translated)
+                # t_translated = torch.matmul(t_translated, R_body_t_joint)
+                # t_translated = t_translated.bmm(R_body_t_joint)
+
+                assert t_translated.shape == (
+                    batch_size,
+                    3,
+                ), f"t_translated should be [{batch_size} x 3] but is [{t_translated.shape}]"
+
+                t_body_t_joint += t_translated
+
+            elif joint.joint_type == "fixed":
+                pass
+            else:
+                raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
+
+            x_i += 1
+
+        assert t_body_t_joint.shape == (batch_size, 3)
+        assert R_body_t_joint.shape == (batch_size, 3, 3)
+
+        return t_body_t_joint, R_body_t_joint, time() - time0
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
