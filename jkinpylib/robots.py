@@ -36,9 +36,7 @@ class Fetch(Robot):
         ]
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath(f"urdfs/fetch/fetch_formatted.urdf")
-        Robot.__init__(
-            self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=True, verbose=True
-        )
+        Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
 class PandaArm(Robot):
@@ -84,10 +82,8 @@ class PandaArmStanford(Robot):
         Robot.__init__(self, PandaArmStanford.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
-# ALL_CLCS = [Fetch]
-ALL_CLCS = [PandaArmStanford, PandaArm]
-# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch]
-# ALL_CLCS = [PandaArmStanford, Baxter]
+ALL_CLCS = [PandaArmStanford, PandaArm, Fetch]
+# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch, Baxter]
 
 
 def get_all_robots() -> List[Robot]:
