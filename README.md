@@ -10,7 +10,6 @@ Recommended: clone the repo and install with pip
 ```
 git clone https://github.com/jstmn/jkinpylib.git && cd jkinpylib/
 pip install -e .
-
 ```
 or:
 ```
