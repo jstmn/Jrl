@@ -217,18 +217,20 @@ class Robot:
             x (np.ndarray): (self.n_dofs,) joint angle vector
 
         Returns:
-            List[float]: A list with the joint angle vector formatted in the klampt driver format.
+            List[float]: A list with the joint angle vector formatted in the klampt driver format. Note that klampt 
+                            needs a list of floats when recieving a driver vector.
         """
 
         assert x.size == self.n_dofs, f"x doesn't have {self.n_dofs} (n_dofs) elements ({self.n_dofs} != {x.size})"
         assert x.shape == (self.n_dofs,), f"x.shape must be (n_dofs,) - ({(self.n_dofs,)}) != {x.shape}"
+        x = x.tolist()
 
         # return x as a list if there are no additional active joints in the urdf
-        if x.size == self._klampt_driver_vec_dim:
-            return x.tolist()
+        if len(x) == self._klampt_driver_vec_dim:
+            return x
 
         # TODO(@jstm): Consider a non iterative implementation for this
-        driver_vec = [0] * self._klampt_driver_vec_dim
+        driver_vec = [0.0] * self._klampt_driver_vec_dim 
 
         j = 0
         for i in self._klampt_active_driver_idxs:
