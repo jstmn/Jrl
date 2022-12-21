@@ -465,30 +465,44 @@ class Robot:
         _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
         assert xs_current.shape[0] == target_poses.shape[0]
 
-        N = target_poses.shape[0]
+        n = target_poses.shape[0]
 
         # Get the jacobian of the end effector with respect to the current joint angles
         J = self.jacobian_batch_np(xs_current)
         J_pinv = np.linalg.pinv(J)  # Jacobian pseudo-inverse
+
+        print("\njacobian:")
+        print(J)
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics_klampt(xs_current)
         assert current_poses.shape == target_poses.shape
 
         # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
-        pose_errors = np.zeros((N, 6, 1))
+        pose_errors = np.zeros((n, 6, 1))
         for i in range(3):
             pose_errors[:, i, 0] = target_poses[:, i] - current_poses[:, i]
 
-        current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
-        rotation_error_quat = quaternion_multiply_np(target_poses[:, 3:], current_pose_quat_inv)
-        rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
-        pose_errors[:, 3:, 0] = rotation_error_rpy
+        # Skip rotational errors for now
+        # current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
+        # rotation_error_quat = quaternion_multiply_np(target_poses[:, 3:], current_pose_quat_inv)
+        # rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
+        # pose_errors[:, 3:, 0] = rotation_error_rpy # should this be for the first 3 rows instead?
+        print("\npose_errors:")
+        print(pose_errors)
 
+        # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
+
+        print("delta_x:")
+        print(delta_x)
+
         # delta_x = np.reshape(J_pinv @ pose_errors, (N, self.n_dofs))
         # delta_x = np.reshape(J_pinv @ np.reshape(pose_errors, (N, 6, 1)), (N, self.n_dofs))
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
+
+        print("xs_updated - xs_current:")
+        print(xs_updated - xs_current)
 
         return xs_updated, time() - t0
 
