@@ -11,7 +11,9 @@ Recommended: clone the repo and install with pip
 git clone https://github.com/jstmn/jkinpylib.git && cd jkinpylib/
 pip install -e .
 
-# or:
+```
+or:
+```
 pip install -e ".[dev]"
 ```
 
@@ -22,6 +24,6 @@ pip install jkinpylib
 
 
 ## Todos
-- [ ] Remove `fix_urdf.py` hackery - don't change joint types. Maintain the original urdf, save an additional one for klampt (with problematic elements removed)
+- [x] Remove `fix_urdf.py` hackery - don't change joint types. Maintain the original urdf, save a formatted one with minor tweaks
 - [ ] Add additional robots (from the ikflow repo)
 - [ ] batched IK optimization steps
