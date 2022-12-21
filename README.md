@@ -8,9 +8,11 @@ Note: This project uses the `w,x,y,z` format for quaternions.
 
 Recommended: clone the repo and install with pip
 ```
-git clone https://github.com/jstmn/jkinpylib.git
-cd jkinpylib/
+git clone https://github.com/jstmn/jkinpylib.git && cd jkinpylib/
 pip install -e .
+
+# or:
+pip install -e ".[dev]"
 ```
 
 Second option: Install from pypi (not recomended - the pypi version will likely be out of date until this project hardens)

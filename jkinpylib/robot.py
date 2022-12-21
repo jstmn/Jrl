@@ -1,14 +1,8 @@
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Optional
 from time import time
 from dataclasses import dataclass
 from time import time
 from more_itertools import locate
-
-from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion_to_rpy_batch
-from jkinpylib import config
-
-# from jkinpylib.math_utils import matrix_to_quaternion, quaternion_invert, quaternion_multiply # TODO: Find these functions
-from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
 
 import torch
 import numpy as np
@@ -17,6 +11,13 @@ import klampt
 from klampt import IKSolver
 from klampt.model import ik
 from klampt.math import so3
+
+from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion_to_rpy_batch
+from jkinpylib import config
+
+# TODO: Find these functions
+# from jkinpylib.math_utils import matrix_to_quaternion, quaternion_invert, quaternion_multiply
+from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
 
 
 @dataclass
@@ -217,7 +218,7 @@ class Robot:
             x (np.ndarray): (self.n_dofs,) joint angle vector
 
         Returns:
-            List[float]: A list with the joint angle vector formatted in the klampt driver format. Note that klampt 
+            List[float]: A list with the joint angle vector formatted in the klampt driver format. Note that klampt
                             needs a list of floats when recieving a driver vector.
         """
 
@@ -230,7 +231,7 @@ class Robot:
             return x
 
         # TODO(@jstm): Consider a non iterative implementation for this
-        driver_vec = [0.0] * self._klampt_driver_vec_dim 
+        driver_vec = [0.0] * self._klampt_driver_vec_dim
 
         j = 0
         for i in self._klampt_active_driver_idxs:
@@ -355,13 +356,14 @@ class Robot:
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
             assert base_T_joint.shape == (batch_size, 4, 4)
 
-            if joint.joint_type == "revolute" or joint.joint_type == "continuous":
+            if joint.joint_type in {"revolute", "continuous"}:
                 # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
                 rotation_amt = x[:, x_i]
                 rotation_axis = joint.axis_xyz
-                joint_rotation = R_from_axis_angle(
-                    rotation_axis, rotation_amt, device=device
-                )  # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy? or quaternions?
+
+                # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
+                # or quaternions?
+                joint_rotation = R_from_axis_angle(rotation_axis, rotation_amt, device=device)
                 assert joint_rotation.shape == (batch_size, 3, 3)
 
                 # TODO(@jstmn): determine which of these two implementations if faster
@@ -496,7 +498,8 @@ class Robot:
             solver.add(obj)
             solver.setActiveDofs(self._klampt_active_dofs)
             solver.setMaxIters(max_iterations)
-            # TODO(@jstmn): What does 'tolarance' mean for klampt? Positional error? Positional error + orientation error?
+            # TODO(@jstmn): What does 'tolarance' mean for klampt? Positional error? Positional error + orientation
+            # error?
             solver.setTolerance(positional_tolerance)
 
             # `sampleInitial()` needs to come after `setActiveDofs()`, otherwise x,y,z,r,p,y of the robot will
@@ -564,39 +567,3 @@ def forward_kinematics_kinpy(robot, x: np.array) -> np.array:
         y[i, 0:3] = transform.pos
         y[i, 3:] = transform.rot
     return y
-
-
-"""
-def jac_pinvstep_single_pose_np(model_wrapper, x: np.array, y_targets_np, alpha) -> config.MakeSamplesResult:
-	Perform
-	#TODO(@jeremysm): Working for single value, failing for batch of values
-
-	N = x.shape[0] if len(x.shape) > 1 else 1
-	x_torch = torch.FloatTensor(x, device="cpu")
-
-	# Compute the forward kinematics
-	x_fk_t, x_fk_R = model_wrapper.batch_fk_calc.batch_fk(x_torch, device="cpu")
-
-	# Jacobian
-	# TODO(@jeremysm): jacobian must be wrong
-	J = model_wrapper.robot_model.jacobian(x[:, 0:model_wrapper.dim_x])
-
-	# Jacobian pseudo-inverse
-	J_pinv = np.linalg.pinv(J)
-
-	#
-	y_deltas = np.zeros((N, 6))
-	for i in range(3):
-		y_deltas[:, i] = y_targets_np[i] - x_fk_t[:, i]
-
-	y_target_quat = torch.from_numpy(np.tile(y_targets_np[3:], (N, 1)))
-	x_fk_quat = pytorch3d.transforms.matrix_to_quaternion(x_fk_R)
-	x_fk_quat_inv = pytorch3d.transforms.quaternion_invert(x_fk_quat)
-	delta_quat = pytorch3d.transforms.quaternion_multiply(y_target_quat, x_fk_quat_inv)
-	delta_rpy = quaternion_to_rpy_batch(delta_quat)
-	y_deltas[:, 3:] = delta_rpy
-
-	delta_x = np.reshape(J_pinv @ np.reshape(y_deltas, (N, 6, 1)), (N, model_wrapper.dim_x))
-	x = x[:, 0:model_wrapper.dim_x] + alpha * delta_x
-	return ret
-"""

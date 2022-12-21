@@ -1,7 +1,7 @@
-from jkinpylib import config
-
 import torch
 import numpy as np
+
+from jkinpylib import config
 
 
 def geodesic_distance(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
@@ -138,13 +138,14 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
     """
 
     if not isinstance(angle_axis, torch.Tensor):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(angle_axis)))
+        raise TypeError(f"Input type is not a torch.Tensor. Got {type(angle_axis)}")
 
     if not angle_axis.shape[-1] == 3:
-        raise ValueError("Input size must be a (*, 3) tensor. Got {}".format(angle_axis.shape))
+        raise ValueError(f"Input size must be a (*, 3) tensor. Got {angle_axis.shape}")
 
     def _compute_rotation_matrix(angle_axis, theta2, eps=1e-6):
-        """A simple fix is to add the already previously defined eps to theta2 instead of to theta. Although that could result in theta being very small compared to eps, so I've included theta2+eps and theta+eps.
+        """A simple fix is to add the already previously defined eps to theta2 instead of to theta. Although that could
+        result in theta being very small compared to eps, so I've included theta2+eps and theta+eps.
         """
 
         # We want to be careful to only evaluate the square root if the

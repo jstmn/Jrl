@@ -1,7 +1,7 @@
-import pkg_resources
 import os
 import random
 
+import pkg_resources
 import torch
 import numpy as np
 

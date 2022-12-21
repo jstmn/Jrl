@@ -1,6 +1,7 @@
-from setuptools import setup
 import os
 import pathlib
+
+from setuptools import setup
 
 
 def package_files(directory: str, ignore_ext: list = []) -> list:
@@ -33,8 +34,10 @@ setup(
     description="Jeremy's Kinematics Python Library",
     py_modules=[],
     long_description=open("README.md").read(),
-    # Note: black and PyQt5 are non essential. They can be commented out if they are causing issues. Needed for linting and visualizing respectively
-    install_requires=["klampt", "numpy", "torch", "kinpy", "black", "PyQt5"],
+    # Note: black and PyQt5 are non essential. They can be commented out if they are causing issues. Needed for linting
+    # and visualizing respectively
+    install_requires=["klampt", "numpy", "torch", "kinpy", "more_itertools"],
+    extras_require={"dev": ["black", "pylint", "PyQt5"]},
     include_package_data=True,
     packages=["jkinpylib"],
     package_data={"jkinpylib": urdf_files},

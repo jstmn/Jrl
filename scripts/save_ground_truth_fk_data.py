@@ -1,12 +1,12 @@
 import argparse
 
+import numpy as np
+import torch
+
 from jkinpylib.robots import get_robot
 from jkinpylib.robot import forward_kinematics_kinpy
 from jkinpylib.math_utils import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
-
-import numpy as np
-import torch
 
 set_seed()
 

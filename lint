@@ -1,2 +1,9 @@
-python -m black *.py --line-length=120 --preview
-python -m black **/*.py --line-length=120 --preview
+echo "_____________"
+echo "Running black"
+python -m black *.py --line-length=120 --target-version=py38 --preview
+python -m black **/*.py --line-length=120 --target-version=py38 --preview
+
+echo "______________"
+echo "Running pylint"
+python -m pylint *.py 
+python -m pylint **/*.py 

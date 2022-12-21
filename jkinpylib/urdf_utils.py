@@ -50,11 +50,11 @@ class Joint:
             ), f"lower limit should be less or equal than upper limit, currently {self.limits[0]} <= {self.limits[1]}"
 
         # If joint_type is 'fixed' we can ignore `axis_xyz`
-        if not self.joint_type == "fixed":
+        if self.joint_type != "fixed":
             assert len(self.axis_xyz) == 3
 
-        assert isinstance(self.limits[0], int) or isinstance(self.limits[0], float)
-        assert isinstance(self.limits[1], int) or isinstance(self.limits[1], float)
+        assert isinstance(self.limits[0], (int, float))
+        assert isinstance(self.limits[1], (int, float))
 
     def __str__(self):
         ret = f"\n<Joint(), '{self.name}'>\n"
@@ -188,7 +188,7 @@ def get_joint_chain(urdf_filepath: str, active_joints: List[str], end_effector_n
 
     assert (
         all_joints[active_joints[-1]].child == end_effector_name
-    ), f"Error: the final joint's child != end_effector_link_name ('{self.end_effector_link_name}')"
+    ), f"Error: the final joint's child != end_effector_name ('{end_effector_name}')"
 
     joint_chain = [all_joints[joint_name] for joint_name in active_joints]
     return joint_chain

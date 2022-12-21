@@ -1,0 +1,7 @@
+[MESSAGES CONTROL]
+
+disable=missing-module-docstring,invalid-name,missing-function-docstring,missing-class-docstring,no-member,fixme
+
+[FORMAT]
+
+max-line-length=120

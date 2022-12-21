@@ -12,7 +12,7 @@ class Baxter(Robot):
     def __init__(self):
         joint_chain = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
         end_effector_link_name = "left_hand"
-        urdf_filepath = get_filepath(f"urdfs/baxter/baxter.urdf")
+        urdf_filepath = get_filepath("urdfs/baxter/baxter.urdf")
         Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=False)
 
 
@@ -35,7 +35,7 @@ class Fetch(Robot):
             "gripper_axis",  # fixed
         ]
         end_effector_link_name = "gripper_link"
-        urdf_filepath = get_filepath(f"urdfs/fetch/fetch_formatted.urdf")
+        urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
         Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
@@ -55,7 +55,7 @@ class PandaArm(Robot):
             "panda_joint8",
             "panda_hand_joint",
         ]
-        urdf_filepath = get_filepath(f"urdfs/panda_arm/panda_arm_hand_formatted.urdf")
+        urdf_filepath = get_filepath("urdfs/panda_arm/panda_arm_hand_formatted.urdf")
         end_effector_link_name = "panda_hand"
         Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
 
@@ -77,7 +77,7 @@ class PandaArmStanford(Robot):
             "panda_joint8",
             "panda_hand_joint",
         ]
-        urdf_filepath = get_filepath(f"urdfs/panda_arm_stanford/panda_formatted.urdf")
+        urdf_filepath = get_filepath("urdfs/panda_arm_stanford/panda_formatted.urdf")
         end_effector_link_name = "panda_hand"
         Robot.__init__(self, PandaArmStanford.name, urdf_filepath, joint_chain, end_effector_link_name)
 
@@ -101,6 +101,7 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
     for cls in ALL_CLCS:
         if cls.name == name:
             return cls.formal_robot_name
+    raise ValueError(f"Unable to find robot '{robot_name}'")
 
 
 if __name__ == "__main__":
