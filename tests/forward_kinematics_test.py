@@ -4,7 +4,7 @@ import unittest
 from jkinpylib import config
 from jkinpylib.robots import get_all_robots
 from jkinpylib.robot import Robot, forward_kinematics_kinpy
-from jkinpylib.math_utils import geodesic_distance_between_quaternions
+from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 
 import torch
 import numpy as np
@@ -50,7 +50,7 @@ class TestForwardKinematics(unittest.TestCase):
         """Check that the rotation of each pose is nearly the same"""
         if threshold is None:
             threshold = MAX_ALLOWABLE_ANG_ERR
-        rotational_errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
+        rotational_errors = geodesic_distance_between_quaternions_np(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
         for i in range(rotational_errors.shape[0]):
             self.assertLess(rotational_errors[i], threshold)
 
@@ -150,7 +150,7 @@ class TestForwardKinematics(unittest.TestCase):
                         fk_i = forward_kinematics_kinpy(robot, sample)
 
                         positional_diff = np.linalg.norm(fk_i[0, 0:3] - samples_fks[sample_i, 0:3])
-                        angular_diff = geodesic_distance_between_quaternions(
+                        angular_diff = geodesic_distance_between_quaternions_np(
                             fk_i[0, 3:].reshape((1, 4)), samples_fks[sample_i, 3:].reshape((1, 4))
                         )[0]
 

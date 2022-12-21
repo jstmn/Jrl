@@ -21,6 +21,13 @@ Second option: Install from pypi (not recomended - the pypi version will likely 
 pip install jkinpylib
 ```
 
+## Batch IK stats
+
+function name  | library used  | jacobian function | inverse method | runtime for 10 | runtime for 100
+-------------  | ----------------- | ----------------- | -------------- | -------------- | ---------------
+inverse_kinematics_single_step_batch_np | numpy   | klampt jacobian   | pseudo-inverse | -1  | -1
+
+
 
 ## Todos
 - [x] Remove `fix_urdf.py` hackery - don't change joint types. Maintain the original urdf, save a formatted one with minor tweaks

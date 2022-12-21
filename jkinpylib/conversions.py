@@ -1,10 +1,20 @@
+""" This file contains conversion functions between rotation representations, as well as implementations for various 
+mathematical operations. 
+
+A couple notes:
+    1. Quaternions are assumed to be in w,x,y,z format 
+    2. RPY format is a rotation about x, y, z axes in that order
+    3. Functions that end with '_np' accept numpy arrays, those that end with '_pt' accept torch tensors
+    4. All functions except those that end with '_single' accept batches of inputs.  
+"""
+
 import torch
 import numpy as np
 
 from jkinpylib import config
 
 
-def geodesic_distance(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
+def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
     """Calculate the geodesic distance between rotation matrices
 
     Args:
@@ -23,25 +33,21 @@ def geodesic_distance(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
     return theta
 
 
-def geodesic_distance_between_quaternions(q1: np.array, q2: np.array) -> np.array:
+# TODO: Reimplement. There must be a more efficient way
+def geodesic_distance_between_quaternions_np(q1: np.array, q2: np.array) -> np.array:
     """Given rows of quaternions q1 and q2, compute the geodesic distance between each
 
-    Args:
-        q1 (np.array): _description_
-        q2 (np.array): _description_
-
     Returns:
-        np.array: _description_
+        np.array: [batch] rotational differences between q1, q2. Between 0 and pi for each comparison
     """
-
     assert len(q1.shape) == 2
     assert len(q2.shape) == 2
     assert q1.shape[0] == q2.shape[0]
     assert q1.shape[1] == q2.shape[1]
 
-    q1_R9 = rotation_matrix_from_quaternion(torch.Tensor(q1).to(config.device))
-    q2_R9 = rotation_matrix_from_quaternion(torch.Tensor(q2).to(config.device))
-    return geodesic_distance(q1_R9, q2_R9).cpu().data.numpy()
+    q1_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q1, device=config.device))
+    q2_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q2, device=config.device))
+    return geodesic_distance_between_rotation_matrices(q1_R9, q2_R9).cpu().data.numpy()
 
 
 def normalize_vector(v: torch.Tensor) -> torch.Tensor:
@@ -61,7 +67,12 @@ def normalize_vector(v: torch.Tensor) -> torch.Tensor:
     return v
 
 
-def rotation_matrix_from_quaternion(quaternion: torch.Tensor) -> torch.Tensor:
+# ======================================================================================================================
+# quaternion conversions
+#
+
+
+def quaternion_to_rotation_matrix_pt(quaternion: torch.Tensor) -> torch.Tensor:
     """TODO: document
 
     Args:
@@ -95,11 +106,10 @@ def rotation_matrix_from_quaternion(quaternion: torch.Tensor) -> torch.Tensor:
     row2 = torch.cat((2 * xz - 2 * yw, 2 * yz + 2 * xw, 1 - 2 * xx - 2 * yy), 1)  # batch*3
 
     matrix = torch.cat((row0.view(batch, 1, 3), row1.view(batch, 1, 3), row2.view(batch, 1, 3)), 1)  # batch*3*3
-
     return matrix
 
 
-def quaternion_to_rpy(q: np.array):
+def quaternion_to_rpy_np_single(q: np.array):
     """Return roll pitch yaw"""
     roll = np.arctan2(2 * (q[0] * q[1] + q[2] * q[3]), 1 - 2 * (q[1] ** 2 + q[2] ** 2))
     pitch = np.arcsin(2 * (q[0] * q[2] - q[3] * q[1]))
@@ -107,24 +117,95 @@ def quaternion_to_rpy(q: np.array):
     return np.array([roll, pitch, yaw])
 
 
-def quaternion_to_rpy_batch(q: torch.Tensor, device: str) -> torch.Tensor:
+def quaternion_to_rpy_pt(q: torch.Tensor, device: str) -> torch.Tensor:
     assert len(q.shape) == 2
     assert q.shape[1] == 4
-
     batch = q.shape[0]
     q0 = q[:, 0]
     q1 = q[:, 1]
     q2 = q[:, 2]
     q3 = q[:, 3]
-
     p = torch.asin(2 * (q0 * q2 - q3 * q1))
-
-    rpy = torch.zeros((batch, 3)).to(device)
+    rpy = torch.zeros((batch, 3), device=device)
     rpy[:, 0] = torch.atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
     rpy[:, 1] = p
     rpy[:, 2] = torch.atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2**2 + q3**2))
     return rpy
 
+
+def quaternion_to_rpy_np(q: np.ndarray) -> np.ndarray:
+    assert len(q.shape) == 2
+    assert q.shape[1] == 4
+
+    n = q.shape[0]
+    q0 = q[:, 0]
+    q1 = q[:, 1]
+    q2 = q[:, 2]
+    q3 = q[:, 3]
+    p = np.arcsin(2 * (q0 * q2 - q3 * q1))
+    rpy = np.zeros((n, 3))
+    rpy[:, 0] = np.arctan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
+    rpy[:, 1] = p
+    rpy[:, 2] = np.arctan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2**2 + q3**2))
+    return rpy
+
+
+def quaternion_conjugate_np(qs: np.ndarray) -> np.ndarray:
+    """ """
+    assert len(qs.shape) == 2
+    assert qs.shape[1] == 4
+    q_conj = np.zeros(qs.shape)
+    q_conj[:, 0] = qs[:, 0]
+    q_conj[:, 1] = -qs[:, 1]
+    q_conj[:, 2] = -qs[:, 2]
+    q_conj[:, 3] = -qs[:, 3]
+    return q_conj
+
+
+def quaternion_norm_np(qs: np.ndarray) -> np.ndarray:
+    """ """
+    assert len(qs.shape) == 2
+    assert qs.shape[1] == 4
+    return np.linalg.norm(qs, axis=1)
+
+
+def quaternion_inverse_np(qs: np.ndarray) -> np.ndarray:
+    """Per "CS184: Using Quaternions to Represent Rotation": The inverse of a unit quaternion is its conjugate, q-1=q'
+    (https://personal.utdallas.edu/~sxb027100/dock/quaternion.html#)
+
+    Check that the quaternion is a unit quaternion, then return its conjugate
+    """
+    assert len(qs.shape) == 2
+    assert qs.shape[1] == 4
+    norms = quaternion_norm_np(qs)
+    np.testing.assert_allclose(norms, np.ones(norms.shape), atol=1e-4)
+    return quaternion_conjugate_np(qs)
+
+
+def quaternion_multiply_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
+    assert (len(qs_1.shape) == 2) and (len(qs_2.shape) == 2)
+    assert (qs_1.shape[1] == 4) and (qs_2.shape[1] == 4)
+
+    w1 = qs_1[:, 0]
+    x1 = qs_1[:, 1]
+    y1 = qs_1[:, 2]
+    z1 = qs_1[:, 3]
+    w2 = qs_2[:, 0]
+    x2 = qs_2[:, 1]
+    y2 = qs_2[:, 2]
+    z2 = qs_2[:, 3]
+
+    q = np.zeros(qs_1.shape)
+    q[:, 0] = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    q[:, 1] = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+    q[:, 2] = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
+    q[:, 3] = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
+    return q
+
+
+# ======================================================================================================================
+# __ conversion
+#
 
 # TODO: Consider reimplmenting
 def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
@@ -207,7 +288,7 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
     return rotation_matrix  # Nx4x4
 
 
-def R_from_rpy_batch(rpy, device: str):
+def rpy_to_rotation_matrix(rpy, device: str):
     """_summary_
 
     Args:
@@ -222,19 +303,19 @@ def R_from_rpy_batch(rpy, device: str):
     p = rpy[1]
     y = rpy[2]
 
-    Rx = torch.eye(3).to(device)
+    Rx = torch.eye(3, device=device)
     Rx[1, 1] = np.cos(r)
     Rx[1, 2] = -np.sin(r)
     Rx[2, 1] = np.sin(r)
     Rx[2, 2] = np.cos(r)
 
-    Ry = torch.eye(3).to(device)
+    Ry = torch.eye(3, device=device)
     Ry[0, 0] = np.cos(p)
     Ry[0, 2] = np.sin(p)
     Ry[2, 0] = -np.sin(p)
     Ry[2, 2] = np.cos(p)
 
-    Rz = torch.eye(3).to(device)
+    Rz = torch.eye(3, device=device)
     Rz[0, 0] = np.cos(y)
     Rz[0, 1] = -np.sin(y)
     Rz[1, 0] = np.sin(y)
@@ -244,12 +325,12 @@ def R_from_rpy_batch(rpy, device: str):
     return R
 
 
-def R_from_axis_angle(axis, ang: torch.tensor, device: str):
+def axis_angle_to_rotation_matrix(axis, ang: torch.tensor, device: str):
     """
     axis: (3,) vector
     ang:  (batch_sz, 1) matrix
     """
-    angleaxis = torch.tensor(axis).unsqueeze(0).repeat(ang.shape[0], 1).to(device)
+    angleaxis = torch.tensor(axis, device=device).unsqueeze(0).repeat(ang.shape[0], 1)
     ang = ang.view(-1, 1)
     angleaxis = angleaxis * ang
     R = angle_axis_to_rotation_matrix(angleaxis)

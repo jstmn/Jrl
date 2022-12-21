@@ -43,7 +43,7 @@ class PandaArm(Robot):
     name = "panda_arm"
     formal_robot_name = "Panda"
 
-    def __init__(self):
+    def __init__(self, verbose: bool = False):
         joint_chain = [
             "panda_joint1",
             "panda_joint2",
@@ -57,7 +57,7 @@ class PandaArm(Robot):
         ]
         urdf_filepath = get_filepath("urdfs/panda_arm/panda_arm_hand_formatted.urdf")
         end_effector_link_name = "panda_hand"
-        Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name)
+        Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
 
 
 class PandaArmStanford(Robot):

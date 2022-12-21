@@ -6,10 +6,18 @@ from jkinpylib.robots import get_all_robots, get_robot, Fetch, PandaArm
 import torch
 import numpy as np
 
+np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
+
 ROBOTS = get_all_robots()
 
 
 class RobotTest(unittest.TestCase):
+    def test_jacobian_np(self):
+        for robot in ROBOTS:
+            x = np.zeros(robot.n_dofs)
+            J = robot.jacobian_np(x)
+            self.assertEqual(J.shape, (6, robot.n_dofs))
+
     def test_list_from_str(self):
         inputs = [
             "0 0 0.333",

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from time import time
 from dataclasses import dataclass
 from time import time
@@ -12,20 +12,31 @@ from klampt import IKSolver
 from klampt.model import ik
 from klampt.math import so3
 
-from jkinpylib.math_utils import R_from_rpy_batch, R_from_axis_angle, quaternion_to_rpy_batch
+from jkinpylib.conversions import (
+    rpy_to_rotation_matrix,
+    axis_angle_to_rotation_matrix,
+    quaternion_inverse_np,
+    quaternion_multiply_np,
+    quaternion_to_rpy_np,
+)
 from jkinpylib import config
-
-# TODO: Find these functions
-# from jkinpylib.math_utils import matrix_to_quaternion, quaternion_invert, quaternion_multiply
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
 
 
-@dataclass
-class IKResult:
-    n_steps: int
-    runtime: float
-    target_pose: torch.Tensor
-    solutions: torch.Tensor
+def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
+    assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
+
+
+def _assert_is_pose_matrix(poses: Union[torch.Tensor, np.ndarray]):
+    _assert_is_2d(poses)
+    assert poses.shape[1] == 7, f"Expected matrix to be [n x 7] but got {poses.shape}"
+
+
+def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], n_dofs: int):
+    _assert_is_2d(xs)
+    assert (
+        xs.shape[1] == n_dofs
+    ), f"Expected matrix to be [n x n_dofs] ([{xs.shape[0]} x {n_dofs}]) but got {poses.shape}"
 
 
 class Robot:
@@ -81,6 +92,8 @@ class Robot:
         if verbose:
             print("\n----------- Robot specs")
             print(f"name: {self.name}")
+            print("klampt config size: ", self._klampt_config_dim)
+            print("klampt drivers size:", self._klampt_driver_vec_dim)
             print("joints:")
             sjld = 0
             for i, (joint_name, (l, u)) in enumerate(zip(self.actuated_joint_names, self.actuated_joints_limits)):
@@ -221,7 +234,6 @@ class Robot:
             List[float]: A list with the joint angle vector formatted in the klampt driver format. Note that klampt
                             needs a list of floats when recieving a driver vector.
         """
-
         assert x.size == self.n_dofs, f"x doesn't have {self.n_dofs} (n_dofs) elements ({self.n_dofs} != {x.size})"
         assert x.shape == (self.n_dofs,), f"x.shape must be (n_dofs,) - ({(self.n_dofs,)}) != {x.shape}"
         x = x.tolist()
@@ -258,8 +270,7 @@ class Robot:
             A list of configurations representing the robots state in klampt
         """
         assert isinstance(x, np.ndarray), f"Expected x to be a numpy array but got {type(x)}"
-        assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
-        assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"
+        _assert_is_joint_angle_matrix(x, self.n_dofs)
 
         n = x.shape[0]
         qs = []
@@ -325,7 +336,7 @@ class Robot:
 
         time0 = time()
         batch_size = x.shape[0]
-        assert x.shape[1] == self.n_dofs, f"Expected x matrix width to be ndof {x.shape[1]} != {self.n_dofs}"
+        _assert_is_joint_angle_matrix(x, self.n_dofs)
         assert str(x.device) == str(device), f"Expected x to be on device '{device}' but got '{x.device}'"
 
         # Update _fixed_rotations if this is a larger batch then we've seen before
@@ -335,8 +346,8 @@ class Robot:
         ):
             for joint in self._joint_chain:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=device, dtype=dtype))
-                # TODO(@jstmn): Confirm that its faster to run `R_from_rpy_batch` on the cpu and then send to the gpu
-                R = R_from_rpy_batch(joint.origin_rpy, device="cpu")
+                # TODO(@jstmn): Confirm that its faster to run `rpy_to_rotation_matrix` on the cpu and then send to the gpu
+                R = rpy_to_rotation_matrix(joint.origin_rpy, device="cpu")
                 T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
@@ -363,7 +374,7 @@ class Robot:
 
                 # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
                 # or quaternions?
-                joint_rotation = R_from_axis_angle(rotation_axis, rotation_amt, device=device)
+                joint_rotation = axis_angle_to_rotation_matrix(rotation_axis, rotation_amt, device=device)
                 assert joint_rotation.shape == (batch_size, 3, 3)
 
                 # TODO(@jstmn): determine which of these two implementations if faster
@@ -398,65 +409,88 @@ class Robot:
     # ---                                             Inverse Kinematics                                             ---
     # ---                                                                                                            ---
 
-    def jacobian(self, x: torch.tensor) -> np.ndarray:
-        raise NotImplementedError()
+    def jacobian_np(self, x: np.ndarray) -> np.ndarray:
+        """Return the jacobian of the end effector link with respect to the joint angles x.
 
-    # see https://github.com/cbames/nn_ik/commit/d99fb10429f2529a94a284bfdafd08f8776877a4
-    def inverse_kinematics_single_step_batch(
-        self,
-        target_pose: torch.Tensor,
-        n_steps: int,
-        alpha: float,
-        device: str,
-        x_init: Optional[torch.Tensor] = None,
-    ) -> IKResult:
-        """_summary_
-
-        original title: jac_pinvstep_single_pose_np
+        Note: per Klamp't, the format for the returned orientation:
+            > The x axis is "roll", y is "pitch", and z is "yaw"
 
         Args:
-            robot (Robot): _description_
-            target_pose (torch.Tensor): _description_
-            n_steps (int): _description_
-            alpha (float): _description_
-            device (str): _description_
-            x_init (Optional[torch.Tensor], optional): _description_. Defaults to None.
+            x (np.ndarray): The joint angle to the jacobian with respect to
 
         Returns:
-            IKResult: _description_
+            np.ndarray: a [6 x ndof] matrix, where the top 3 rows are the orientation derivatives, and the bottom three
+                        rows are the positional derivatives.
         """
-        N = target_pose.shape[0]
-        dofs = self.n_dofs
-        target_pose_np = target_pose.cpu().detach().numpy()
+        self.set_klampt_robot_config(x)
+        J_full = self._klampt_ee_link.getJacobian([0, 0, 0])  # [6 x klampt_config_dimension]
+        J = J_full[:, self._klampt_active_dofs]  # see https://stackoverflow.com/a/8386737/5191069
+        return J
 
-        x = x_init
-        if x is None:
-            x = torch.rand((N, dofs), device=device)
+    def jacobian_batch_np(self, xs: np.ndarray) -> np.ndarray:
+        """Return a batch of jacobian matrices for the given joint angle vectors. See 'jacobian_np()' for details on
+        the jacobian
 
-        # for step_i in range(n_steps):
+        Args:
+            xs (np.ndarray): [batch x ndof] matrix of joint angle vectors
 
-        # Compute the forward kinematics
-        x_fk_t, x_fk_R, _ = self.forward_kinematics_batch(x, device="cpu")
-        J = self.jacobian(x[:, 0:dofs])
+        Returns:
+            np.ndarray: _description_
+        """
+        _assert_is_joint_angle_matrix(xs, self.n_dofs)
+        n = xs.shape[0]
+        Js = np.zeros((n, 6, self.n_dofs))
+        for i in range(n):
+            Js[i] = self.jacobian_np(xs[i])
+        return Js
 
-        # Jacobian pseudo-inverse
-        J_pinv = np.linalg.pinv(J)
+    def inverse_kinematics_single_step_batch_np(
+        self, target_poses: np.ndarray, xs_current: np.ndarray, alpha: float = 0.25
+    ) -> Tuple[np.ndarray, float]:
+        """Perform a single inverse kinematics step on a batch of joint angle vectors
 
-        #
-        y_deltas = np.zeros((N, 6))
+        Note: the previous title for this function was jac_pinvstep_single_pose_np (see
+                https://github.com/cbames/nn_ik/commit/d99fb10429f2529a94a284bfdafd08f8776877a4)
+
+        Args:
+            target_poses (np.ndarray): [batch x 7] poses to optimize the joint angles towards
+            xs_current (np.ndarray): [batch x ndofs] joint angles to start the optimization from
+            alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
+
+        Returns:
+            Tuple[np.ndarray, float]: _description_
+        """
+        t0 = time()
+        _assert_is_pose_matrix(target_poses)
+        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
+        assert xs_current.shape[0] == target_poses.shape[0]
+
+        N = target_poses.shape[0]
+
+        # Get the jacobian of the end effector with respect to the current joint angles
+        J = self.jacobian_batch_np(xs_current)
+        J_pinv = np.linalg.pinv(J)  # Jacobian pseudo-inverse
+
+        # Run the xs_current through FK to get their realized poses
+        current_poses = self.forward_kinematics_klampt(xs_current)
+        assert current_poses.shape == target_poses.shape
+
+        # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
+        pose_errors = np.zeros((N, 6, 1))
         for i in range(3):
-            y_deltas[:, i] = target_pose_np[i] - x_fk_t[:, i]
+            pose_errors[:, i, 0] = target_poses[:, i] - current_poses[:, i]
 
-        y_target_quat = torch.from_numpy(np.tile(target_pose_np[3:], (N, 1)))
-        x_fk_quat = matrix_to_quaternion(x_fk_R)
-        x_fk_quat_inv = quaternion_invert(x_fk_quat)
-        delta_quat = quaternion_multiply(y_target_quat, x_fk_quat_inv)
-        delta_rpy = quaternion_to_rpy_batch(delta_quat)
-        y_deltas[:, 3:] = delta_rpy
+        current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_multiply_np(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
+        pose_errors[:, 3:, 0] = rotation_error_rpy
 
-        delta_x = np.reshape(J_pinv @ np.reshape(y_deltas, (N, 6, 1)), (N, dofs))
-        x = x[:, 0:dofs] + alpha * delta_x
-        return x
+        delta_x = J_pinv @ pose_errors
+        # delta_x = np.reshape(J_pinv @ pose_errors, (N, self.n_dofs))
+        # delta_x = np.reshape(J_pinv @ np.reshape(pose_errors, (N, 6, 1)), (N, self.n_dofs))
+        xs_updated = xs_current + alpha * delta_x[:, :, 0]
+
+        return xs_updated, time() - t0
 
     def inverse_kinematics_klampt(
         self,
@@ -539,12 +573,11 @@ class Robot:
         return None
 
 
-# TODO: Where to move this? The klampt FK function is much faster
-def forward_kinematics_kinpy(robot, x: np.array) -> np.array:
+def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:
     """
     Returns the pose of the end effector for each joint parameter setting in x
     """
-    assert len(x.shape) == 2, f"x must be (m, n), currently: {x.shape}"
+    _assert_is_joint_angle_matrix(x, robot.n_dofs)
 
     with open(robot.urdf_filepath) as f:
         kinpy_fk_chain = kp.build_chain_from_urdf(f.read().encode("utf-8"))

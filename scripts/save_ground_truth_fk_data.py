@@ -5,7 +5,7 @@ import torch
 
 from jkinpylib.robots import get_robot
 from jkinpylib.robot import forward_kinematics_kinpy
-from jkinpylib.math_utils import geodesic_distance_between_quaternions
+from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 from jkinpylib.utils import set_seed
 
 set_seed()
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_klampt[:, 0:3])
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_batchfk[:, 0:3, 3].detach().cpu().numpy(), atol=5e-4)
-    rotational_errros = geodesic_distance_between_quaternions(poses_kinpy[:, 3:7], poses_klampt[:, 3:7])
+    rotational_errros = geodesic_distance_between_quaternions_np(poses_kinpy[:, 3:7], poses_klampt[:, 3:7])
     assert max(rotational_errros) < 5e-4, f"Error, max(rotational_errros) > 5e-4 ({max(rotational_errros)} vs 0.0005)"
 
     np.save(f"data/ground_truth_fk_data/{robot.name}__joint_angles.npy", joint_angles)
