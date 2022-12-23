@@ -2,6 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib.robot import Robot
+from jkinpylib import config
 from jkinpylib.robots import PandaArmStanford, get_all_robots
 from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 from jkinpylib.utils import set_seed
@@ -42,17 +43,6 @@ class TestInverseKinematics(unittest.TestCase):
         rotational_errors = geodesic_distance_between_quaternions_np(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
         for i in range(rotational_errors.shape[0]):
             self.assertLess(rotational_errors[i], max_allowable_rotational_err)
-
-    def get_fk_poses(self, robot: Robot, samples: np.array) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
-        """Return fk solutions calculated by kinpy, klampt, and batch_fk"""
-        kinpy_fk = robot.forward_kinematics_kinpy(samples)
-        klampt_fk = robot.forward_kinematics_klampt(samples)
-        batch_fk_t, batch_fk_R = robot.forward_kinematics_batch(torch.from_numpy(samples).float())
-
-        assert batch_fk_t.shape[0] == kinpy_fk.shape[0]
-        assert batch_fk_R.shape[0] == kinpy_fk.shape[0]
-        # TODO(@jeremysm): Get batch_fk_R to quaternion and return (n x 7) array
-        return kinpy_fk, klampt_fk, (batch_fk_t.cpu().data.numpy(), batch_fk_R.cpu().data.numpy())
 
     def solution_valid(self, robot: Robot, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
         if solution is None:

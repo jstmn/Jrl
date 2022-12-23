@@ -61,7 +61,7 @@ class TestForwardKinematics(unittest.TestCase):
 
         if robot._batch_fk_enabled:
             batch_fk_T, batch_fk_runtime = robot.forward_kinematics_batch(
-                torch.tensor(samples, dtype=torch.float32, device=DEVICE), device=DEVICE
+                torch.tensor(samples, dtype=torch.float32, device=DEVICE), device=DEVICE, return_runtime=True
             )
             """
             w precaching 1000

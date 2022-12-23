@@ -28,7 +28,7 @@ if __name__ == "__main__":
     joint_angles = robot.sample_joint_angles(10)
     poses_kinpy = forward_kinematics_kinpy(robot, joint_angles)
     poses_klampt = robot.forward_kinematics_klampt(joint_angles)
-    poses_batchfk, _ = robot.forward_kinematics_batch(torch.tensor(joint_angles, dtype=torch.float32, device="cuda"))
+    poses_batchfk = robot.forward_kinematics_batch(torch.tensor(joint_angles, dtype=torch.float32, device="cuda"))
 
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_klampt[:, 0:3])
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_batchfk[:, 0:3, 3].detach().cpu().numpy(), atol=5e-4)

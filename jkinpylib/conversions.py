@@ -182,7 +182,7 @@ def quaternion_inverse_np(qs: np.ndarray) -> np.ndarray:
     return quaternion_conjugate_np(qs)
 
 
-def quaternion_multiply_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
+def quaternion_product_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
     assert (len(qs_1.shape) == 2) and (len(qs_2.shape) == 2)
     assert (qs_1.shape[1] == 4) and (qs_2.shape[1] == 4)
 

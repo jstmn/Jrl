@@ -58,12 +58,3 @@ class TestSolutionRerfinement(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-"""
-xs_current, _ = self.forward_kinematics_batch(xs_current, device=config.device)
-        xs_current_np = xs_current.detach().cpu().numpy()
-        xs_current_np_R = xs_current_np[:, 0:3, 0:3]
-        current_pose_quat = matrix_to_quaternion(xs_current_np_R)
-
-"""

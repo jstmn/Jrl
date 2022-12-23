@@ -16,7 +16,7 @@ from jkinpylib.conversions import (
     rpy_to_rotation_matrix,
     axis_angle_to_rotation_matrix,
     quaternion_inverse_np,
-    quaternion_multiply_np,
+    quaternion_product_np,
     quaternion_to_rpy_np,
 )
 from jkinpylib import config
@@ -129,6 +129,10 @@ class Robot:
     @property
     def actuated_joint_names(self) -> List[str]:
         return self._actuated_joint_names
+
+    @property
+    def actuated_joint_types(self) -> List[str]:
+        return [joint.joint_type for joint in self._joint_chain if joint.is_actuated]
 
     @property
     def actuated_joints_limits(self) -> List[Tuple[float, float]]:
@@ -316,7 +320,7 @@ class Robot:
         return y
 
     def forward_kinematics_batch(
-        self, x: torch.tensor, device: str = config.device, dtype=torch.float32
+        self, x: torch.tensor, device: str = config.device, dtype=torch.float32, return_runtime: bool = False
     ) -> Tuple[torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
@@ -402,7 +406,9 @@ class Robot:
             x_i += 1
 
         assert base_T_joint.shape == (batch_size, 4, 4)
-        return base_T_joint, time() - time0
+        if return_runtime:
+            return base_T_joint, time() - time0
+        return base_T_joint
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -485,7 +491,7 @@ class Robot:
 
         # Skip rotational errors for now
         # current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
-        # rotation_error_quat = quaternion_multiply_np(target_poses[:, 3:], current_pose_quat_inv)
+        # rotation_error_quat = quaternion_product_np(target_poses[:, 3:], current_pose_quat_inv)
         # rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
         # pose_errors[:, 3:, 0] = rotation_error_rpy # should this be for the first 3 rows instead?
         print("\npose_errors:")
