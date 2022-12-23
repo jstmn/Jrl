@@ -1,6 +1,8 @@
 from typing import Tuple
 import unittest
 
+import numpy as np
+
 from jkinpylib.robot import Robot
 from jkinpylib.robots import PandaArm
 from jkinpylib.conversions import geodesic_distance_between_quaternions_np

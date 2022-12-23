@@ -477,8 +477,8 @@ class Robot:
         J = self.jacobian_batch_np(xs_current)
         J_pinv = np.linalg.pinv(J)  # Jacobian pseudo-inverse
 
-        print("\njacobian:")
-        print(J)
+        # print("\njacobian:")
+        # print(J)
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics_klampt(xs_current)
@@ -487,15 +487,17 @@ class Robot:
         # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
         pose_errors = np.zeros((n, 6, 1))
         for i in range(3):
-            pose_errors[:, i, 0] = target_poses[:, i] - current_poses[:, i]
+            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
 
         # Skip rotational errors for now
-        # current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
-        # rotation_error_quat = quaternion_product_np(target_poses[:, 3:], current_pose_quat_inv)
-        # rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
+        current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product_np(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
+        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
         # pose_errors[:, 3:, 0] = rotation_error_rpy # should this be for the first 3 rows instead?
-        print("\npose_errors:")
-        print(pose_errors)
+
+        # print("\npose_errors:")
+        # print(pose_errors)
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors

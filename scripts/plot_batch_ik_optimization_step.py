@@ -34,9 +34,16 @@ def plot_pose(vis_name: str, pose: np.ndarray):
     vis.add(vis_name, (so3.from_quaternion(pose[3:]), pose[0:3]), length=0.15, width=2)
 
 
+""" 
+
+python scripts/plot_batch_ik_optimization_step.py
+
+"""
+
+
 if __name__ == "__main__":
     robot = PandaArm()
-    alpha = 0.5
+    alpha = 0.25
 
     # Get the current poses (these will be the seeds)
     x_current = np.array([[0, 1.5707, 0, 0, 0, 3.141592, 0]])
@@ -44,7 +51,7 @@ if __name__ == "__main__":
 
     # Get the target poses
     target_poses = robot.forward_kinematics(np.array([[1.0, 1.5707, 0, 0, 0, 3.141592, 0]]))
-    # target_poses = np.ndarray([[ 0.43601941,  0.67906,     0.42107767,  0.07573132, -0.4435556,  -0.55064561, -0.70307368]])
+    # -> np.ndarray([[ 0.43601941,  0.67906,     0.42107767,  0.07573132, -0.4435556,  -0.55064561, -0.70307368]])
     l2_errs_original = np.linalg.norm(target_poses[:, 0:3] - current_poses[:, 0:3], axis=1)
     print("target_poses:", target_poses)
 
@@ -75,7 +82,15 @@ if __name__ == "__main__":
 
     while vis.shown():
         vis.lock()
-        # robot.set_klampt_robot_config(x)
+        print("Setting initial pose")
+        robot.set_klampt_robot_config(x_current[0])
         vis.unlock()
-        sleep(0.1)
+        sleep(10)
+
+        vis.lock()
+        print("Setting updated pose")
+        robot.set_klampt_robot_config(x_updated[0])
+        vis.unlock()
+        sleep(10)
+
     vis.kill()
