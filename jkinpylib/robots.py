@@ -16,7 +16,6 @@ class Baxter(Robot):
         Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=False)
 
 
-# TODO(@jstmn): Implement prismatic joint in forward_kinematics_batch
 class Fetch(Robot):
     name = "fetch"
     formal_robot_name = "Fetch"
@@ -37,6 +36,29 @@ class Fetch(Robot):
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
         Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name)
+
+
+# TODO: Add base link to 'Robot'
+# class FetchNoPrismatic(Robot):
+#     name = "fetch_no_prismatic"
+#     formal_robot_name = "Fetch - No lift joint"
+
+#     def __init__(self):
+#         # Sum joint range:
+#         joint_chain = [
+#             # "torso_lift_joint",
+#             "shoulder_pan_joint",
+#             "shoulder_lift_joint",
+#             "upperarm_roll_joint",  # continuous
+#             "elbow_flex_joint",
+#             "forearm_roll_joint",  # continuous
+#             "wrist_flex_joint",
+#             "wrist_roll_joint",  # continous
+#             "gripper_axis",  # fixed
+#         ]
+#         end_effector_link_name = "gripper_link"
+#         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
+#         Robot.__init__(self, FetchNoPrismatic.name, urdf_filepath, joint_chain, end_effector_link_name)
 
 
 class PandaArm(Robot):
@@ -83,7 +105,7 @@ class PandaArmStanford(Robot):
 
 
 ALL_CLCS = [PandaArmStanford, PandaArm, Fetch]
-# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch, Baxter]
+# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch, Baxter, FetchNoPrismatic]
 
 
 def get_all_robots() -> List[Robot]:
@@ -101,7 +123,7 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
     for cls in ALL_CLCS:
         if cls.name == name:
             return cls.formal_robot_name
-    raise ValueError(f"Unable to find robot '{robot_name}'")
+    raise ValueError(f"Unable to find robot '{name}'")
 
 
 if __name__ == "__main__":

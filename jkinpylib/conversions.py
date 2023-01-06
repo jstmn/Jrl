@@ -8,13 +8,17 @@ A couple notes:
     4. All functions except those that end with '_single' accept batches of inputs.  
 """
 
+from typing import Union
 import torch
 import numpy as np
+import roma.mappings
 
 from jkinpylib import config
 
+_DEFAULT_TORCH_TYPE = torch.float32
 
-def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
+
+def geodesic_distance_between_rotation_matrices_pt(m1: torch.Tensor, m2: torch.Tensor) -> torch.Tensor:
     """Calculate the geodesic distance between rotation matrices
 
     Args:
@@ -33,7 +37,7 @@ def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tens
     return theta
 
 
-# TODO: Reimplement. There must be a more efficient way
+# TODO: Reimplement. There should be a more efficient way
 def geodesic_distance_between_quaternions_np(q1: np.array, q2: np.array) -> np.array:
     """Given rows of quaternions q1 and q2, compute the geodesic distance between each
 
@@ -45,9 +49,10 @@ def geodesic_distance_between_quaternions_np(q1: np.array, q2: np.array) -> np.a
     assert q1.shape[0] == q2.shape[0]
     assert q1.shape[1] == q2.shape[1]
 
-    q1_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q1, device=config.device))
-    q2_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q2, device=config.device))
-    return geodesic_distance_between_rotation_matrices(q1_R9, q2_R9).cpu().data.numpy()
+    # TODO: figure out if 'quaternion_to_rotation_matrix_pt()' runs faster on the cpu or the gpu
+    q1_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q1, dtype=_DEFAULT_TORCH_TYPE, device=config.device))
+    q2_R9 = quaternion_to_rotation_matrix_pt(torch.tensor(q2, dtype=_DEFAULT_TORCH_TYPE, device=config.device))
+    return geodesic_distance_between_rotation_matrices_pt(q1_R9, q2_R9).cpu().data.numpy()
 
 
 def normalize_vector(v: torch.Tensor) -> torch.Tensor:
@@ -68,8 +73,49 @@ def normalize_vector(v: torch.Tensor) -> torch.Tensor:
 
 
 # ======================================================================================================================
+#  rotation matrix conversions
+#
+
+
+def rotation_matrix_to_quaternion(m: torch.Tensor) -> torch.Tensor:
+    """Converts a batch of rotation matrices to quaternions
+
+    Args:
+        m (torch.Tensor): [batch x 3 x 3] tensor of rotation matrices
+
+    Returns:
+        torch.Tensor: [batch x 4] tensor of quaternions
+    """
+    is_np = False
+    if isinstance(m, np.ndarray):
+        m = torch.tensor(m, dtype=_DEFAULT_TORCH_TYPE, device=config.device)
+        is_np = True
+
+    quat = roma.mappings.rotmat_to_unitquat(m)
+    quat = quaternion_xyzw_to_wxyz(quat)
+
+    if is_np:
+        return quat.cpu().numpy()
+    return quat
+
+
+# ======================================================================================================================
 # quaternion conversions
 #
+
+
+def quaternion_xyzw_to_wxyz(quaternion: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    """Convert a batch of quaternions from xyzw to wxyz format
+
+    Args:
+        quaternion (Union[torch.Tensor, np.ndarray]): A [batch x 4] tensor or numpy array of quaternions
+    """
+    if isinstance(quaternion, np.ndarray):
+        return np.concatenate([quaternion[:, 3:4], quaternion[:, 0:3]], axis=1)
+    elif isinstance(quaternion, torch.Tensor):
+        return torch.cat([quaternion[:, 3:4], quaternion[:, 0:3]], dim=1)
+    else:
+        raise ValueError(f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})")
 
 
 def quaternion_to_rotation_matrix_pt(quaternion: torch.Tensor) -> torch.Tensor:
@@ -109,7 +155,7 @@ def quaternion_to_rotation_matrix_pt(quaternion: torch.Tensor) -> torch.Tensor:
     return matrix
 
 
-def quaternion_to_rpy_np_single(q: np.array):
+def quaternion_to_rpy_single(q: np.array):
     """Return roll pitch yaw"""
     roll = np.arctan2(2 * (q[0] * q[1] + q[2] * q[3]), 1 - 2 * (q[1] ** 2 + q[2] ** 2))
     pitch = np.arcsin(2 * (q[0] * q[2] - q[3] * q[1]))
@@ -117,23 +163,18 @@ def quaternion_to_rpy_np_single(q: np.array):
     return np.array([roll, pitch, yaw])
 
 
-def quaternion_to_rpy_pt(q: torch.Tensor, device: str) -> torch.Tensor:
-    assert len(q.shape) == 2
-    assert q.shape[1] == 4
-    batch = q.shape[0]
-    q0 = q[:, 0]
-    q1 = q[:, 1]
-    q2 = q[:, 2]
-    q3 = q[:, 3]
-    p = torch.asin(2 * (q0 * q2 - q3 * q1))
-    rpy = torch.zeros((batch, 3), device=device)
-    rpy[:, 0] = torch.atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
-    rpy[:, 1] = p
-    rpy[:, 2] = torch.atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2**2 + q3**2))
-    return rpy
+def quaternion_to_rpy(q: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+    """_summary_
 
+    Args:
+        q (Union[np.ndarray, torch.Tensor]): _description_
 
-def quaternion_to_rpy_np(q: np.ndarray) -> np.ndarray:
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        Union[np.ndarray, torch.Tensor]: _description_
+    """
     assert len(q.shape) == 2
     assert q.shape[1] == 4
 
@@ -142,19 +183,37 @@ def quaternion_to_rpy_np(q: np.ndarray) -> np.ndarray:
     q1 = q[:, 1]
     q2 = q[:, 2]
     q3 = q[:, 3]
-    p = np.arcsin(2 * (q0 * q2 - q3 * q1))
-    rpy = np.zeros((n, 3))
-    rpy[:, 0] = np.arctan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
+
+    if isinstance(q, np.ndarray):
+        rpy = np.zeros((n, 3))
+        p = np.arcsin(2 * (q0 * q2 - q3 * q1))
+        atan2 = np.arctan2
+    elif isinstance(q, torch.Tensor):
+        rpy = torch.zeros((n, 3), device=q.device, dtype=_DEFAULT_TORCH_TYPE)
+        p = torch.arcsin(2 * (q0 * q2 - q3 * q1))
+        atan2 = torch.arctan2
+    else:
+        raise ValueError(f"q must be a numpy array or a torch tensor (got {type(q)})")
+
+    # handle singularity
+    rpy[:, 0] = atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
     rpy[:, 1] = p
-    rpy[:, 2] = np.arctan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2**2 + q3**2))
+    rpy[:, 2] = atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2**2 + q3**2))
     return rpy
 
 
-def quaternion_conjugate_np(qs: np.ndarray) -> np.ndarray:
+def quaternion_conjugate(qs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
     """ """
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
-    q_conj = np.zeros(qs.shape)
+
+    if isinstance(qs, np.ndarray):
+        q_conj = np.zeros(qs.shape)
+    elif isinstance(qs, torch.Tensor):
+        q_conj = torch.zeros(qs.shape, device=qs.device, dtype=_DEFAULT_TORCH_TYPE)
+    else:
+        raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
+
     q_conj[:, 0] = qs[:, 0]
     q_conj[:, 1] = -qs[:, 1]
     q_conj[:, 2] = -qs[:, 2]
@@ -162,14 +221,19 @@ def quaternion_conjugate_np(qs: np.ndarray) -> np.ndarray:
     return q_conj
 
 
-def quaternion_norm_np(qs: np.ndarray) -> np.ndarray:
+def quaternion_norm(qs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
     """ """
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
-    return np.linalg.norm(qs, axis=1)
+    if isinstance(qs, np.ndarray):
+        return np.linalg.norm(qs, axis=1)
+    elif isinstance(qs, torch.Tensor):
+        return torch.norm(qs, dim=1)
+    else:
+        raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
 
 
-def quaternion_inverse_np(qs: np.ndarray) -> np.ndarray:
+def quaternion_inverse(qs: np.ndarray) -> np.ndarray:
     """Per "CS184: Using Quaternions to Represent Rotation": The inverse of a unit quaternion is its conjugate, q-1=q'
     (https://personal.utdallas.edu/~sxb027100/dock/quaternion.html#)
 
@@ -177,12 +241,18 @@ def quaternion_inverse_np(qs: np.ndarray) -> np.ndarray:
     """
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
-    norms = quaternion_norm_np(qs)
-    np.testing.assert_allclose(norms, np.ones(norms.shape), atol=1e-4)
-    return quaternion_conjugate_np(qs)
+
+    # Check that the quaternions are valid
+    norms = quaternion_norm(qs)
+    if max(norms) > 1.01 or min(norms) < 0.99:
+        raise RuntimeError("quaternion is not a unit quaternion")
+
+    return quaternion_conjugate(qs)
 
 
-def quaternion_product_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
+def quaternion_product(
+    qs_1: Union[np.ndarray, torch.Tensor], qs_2: Union[np.ndarray, torch.Tensor]
+) -> Union[np.ndarray, torch.Tensor]:
     assert (len(qs_1.shape) == 2) and (len(qs_2.shape) == 2)
     assert (qs_1.shape[1] == 4) and (qs_2.shape[1] == 4)
 
@@ -195,7 +265,13 @@ def quaternion_product_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
     y2 = qs_2[:, 2]
     z2 = qs_2[:, 3]
 
-    q = np.zeros(qs_1.shape)
+    if isinstance(qs_1, np.ndarray):
+        q = np.zeros(qs_1.shape)
+    elif isinstance(qs_1, torch.Tensor):
+        q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=_DEFAULT_TORCH_TYPE)
+    else:
+        raise ValueError(f"qs_1 must be a numpy array or a torch tensor (got {type(qs_1)})")
+
     q[:, 0] = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
     q[:, 1] = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
     q[:, 2] = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
@@ -204,8 +280,9 @@ def quaternion_product_np(qs_1: np.ndarray, qs_2: np.ndarray) -> np.ndarray:
 
 
 # ======================================================================================================================
-# __ conversion
+# angle-axis conversions
 #
+
 
 # TODO: Consider reimplmenting
 def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
@@ -288,6 +365,11 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
     return rotation_matrix  # Nx4x4
 
 
+# ======================================================================================================================
+#  euler/rpy conversions
+#
+
+
 def rpy_to_rotation_matrix(rpy, device: str):
     """_summary_
 
@@ -303,19 +385,19 @@ def rpy_to_rotation_matrix(rpy, device: str):
     p = rpy[1]
     y = rpy[2]
 
-    Rx = torch.eye(3, device=device)
+    Rx = torch.eye(3, dtype=_DEFAULT_TORCH_TYPE, device=device)
     Rx[1, 1] = np.cos(r)
     Rx[1, 2] = -np.sin(r)
     Rx[2, 1] = np.sin(r)
     Rx[2, 2] = np.cos(r)
 
-    Ry = torch.eye(3, device=device)
+    Ry = torch.eye(3, dtype=_DEFAULT_TORCH_TYPE, device=device)
     Ry[0, 0] = np.cos(p)
     Ry[0, 2] = np.sin(p)
     Ry[2, 0] = -np.sin(p)
     Ry[2, 2] = np.cos(p)
 
-    Rz = torch.eye(3, device=device)
+    Rz = torch.eye(3, dtype=_DEFAULT_TORCH_TYPE, device=device)
     Rz[0, 0] = np.cos(y)
     Rz[0, 1] = -np.sin(y)
     Rz[1, 0] = np.sin(y)
@@ -323,6 +405,11 @@ def rpy_to_rotation_matrix(rpy, device: str):
 
     R = Rz.mm(Ry.mm(Rx))
     return R
+
+
+# ======================================================================================================================
+#  axis angle conversions
+#
 
 
 def axis_angle_to_rotation_matrix(axis, ang: torch.tensor, device: str):

@@ -1,7 +1,5 @@
 from typing import List, Tuple, Optional, Union
 from time import time
-from dataclasses import dataclass
-from time import time
 from more_itertools import locate
 
 import torch
@@ -15,12 +13,15 @@ from klampt.math import so3
 from jkinpylib.conversions import (
     rpy_to_rotation_matrix,
     axis_angle_to_rotation_matrix,
-    quaternion_inverse_np,
-    quaternion_product_np,
-    quaternion_to_rpy_np,
+    quaternion_inverse,
+    quaternion_product,
+    quaternion_to_rpy,
+    rotation_matrix_to_quaternion,
 )
 from jkinpylib import config
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
+
+_DEFAULT_TORCH_DTYPE = torch.float32
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -34,16 +35,21 @@ def _assert_is_pose_matrix(poses: Union[torch.Tensor, np.ndarray]):
 
 def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], n_dofs: int):
     _assert_is_2d(xs)
-    assert (
-        xs.shape[1] == n_dofs
-    ), f"Expected matrix to be [n x n_dofs] ([{xs.shape[0]} x {n_dofs}]) but got {poses.shape}"
+    assert xs.shape[1] == n_dofs, f"Expected matrix to be [n x n_dofs] ([{xs.shape[0]} x {n_dofs}]) but got {xs.shape}"
 
 
+def _assert_is_np(x: np.ndarray, variable_name: str = "input"):
+    assert isinstance(x, np.ndarray), f"Expected {variable_name} to be a numpy array but got {type(x)}"
+
+
+# TODO: Add base link
 class Robot:
     def __init__(
         self,
         name: str,
         urdf_filepath: str,
+        # TODO: Rename to active joints, or 'disabled_joints', then remove all joints in 'disabled_joints' from those in
+        # the path from the base to end effector
         joint_path: List[str],
         end_effector_link_name: str,
         batch_fk_enabled: bool = True,
@@ -75,7 +81,7 @@ class Robot:
         # Create and fill cache of fixed rotations between links.
         self._fixed_rotations = {}
         self.forward_kinematics_batch(
-            torch.tensor(self.sample_joint_angles(500), device=config.device, dtype=torch.float32)
+            torch.tensor(self.sample_joint_angles(500), device=config.device, dtype=_DEFAULT_TORCH_DTYPE)
         )
 
         # Initialize klampt
@@ -169,7 +175,7 @@ class Robot:
 
     def set_klampt_robot_config(self, x: np.ndarray):
         """Set the internal klampt robots config with the given joint angle vector"""
-        assert isinstance(x, np.ndarray), f"Expected x to be a numpy array but got {type(x)}"
+        _assert_is_np(x)
         assert x.shape == (self.n_dofs,), f"Expected x to be of shape ({self.n_dofs},) but got {x.shape}"
         q = self._x_to_qs(np.resize(x, (1, self.n_dofs)))[0]
         self._klampt_robot.setConfig(q)
@@ -273,7 +279,7 @@ class Robot:
         Returns:
             A list of configurations representing the robots state in klampt
         """
-        assert isinstance(x, np.ndarray), f"Expected x to be a numpy array but got {type(x)}"
+        _assert_is_np(x)
         _assert_is_joint_angle_matrix(x, self.n_dofs)
 
         n = x.shape[0]
@@ -296,7 +302,7 @@ class Robot:
     # ---                                             Forward Kinematics                                             ---
     # ---                                                                                                            ---
 
-    def forward_kinematics(self, x: np.array, solver="klampt") -> np.array:
+    def forward_kinematics(self, x: Union[np.array, torch.Tensor], solver="klampt") -> np.array:
         if solver == "klampt":
             return self.forward_kinematics_klampt(x)
         elif solver == "batchfk":
@@ -319,15 +325,23 @@ class Robot:
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
 
+    # TODO: Return as quaternion format
     def forward_kinematics_batch(
-        self, x: torch.tensor, device: str = config.device, dtype=torch.float32, return_runtime: bool = False
+        self,
+        x: torch.tensor,
+        out_device: Optional[str] = None,
+        dtype: torch.dtype = _DEFAULT_TORCH_DTYPE,
+        return_quaternion: bool = True,
+        return_runtime: bool = False,
     ) -> Tuple[torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
 
         Args:
             x (torch.tensor): [N x n_dofs] tensor, representing the joint angle values to calculate the robots FK with
-            device (str): The device to save tensors to.
+            out_device (str): The device to save tensors to.
+            return_quaternion (bool): Return format is [N x 7] where [:, 0:3] are xyz, and [:, 3:7] are quaternions.
+                                        Otherwise return [N x 4 x 4] homogenious transformation matrices
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor, float]:
@@ -336,12 +350,14 @@ class Robot:
                 3. The total runtime of the function. For convenience
         """
         if not self._batch_fk_enabled:
-            raise NotImplementedError()
+            raise NotImplementedError(f"BatchFK is not enabled for the {self.name} robot.")
 
         time0 = time()
         batch_size = x.shape[0]
         _assert_is_joint_angle_matrix(x, self.n_dofs)
-        assert str(x.device) == str(device), f"Expected x to be on device '{device}' but got '{x.device}'"
+        # assert str(x.device) == str(device), f"Expected joint angles to be on device '{device}' but got '{x.device}'"
+        if out_device is None:
+            out_device = x.device
 
         # Update _fixed_rotations if this is a larger batch then we've seen before
         if (
@@ -349,17 +365,17 @@ class Robot:
             or self._fixed_rotations[self._joint_chain[0].name].shape[0] < batch_size
         ):
             for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device=device, dtype=dtype))
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_to_rotation_matrix` on the cpu and then send to the gpu
                 R = rpy_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(device)
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]
                 self._fixed_rotations[joint.name] = T
 
         # Rotation from body/base link to joint along the joint chain
-        base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=device, dtype=dtype))
+        base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
 
         # Iterate through each joint in the joint chain
         x_i = 0
@@ -369,7 +385,6 @@ class Robot:
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
             parent_T_child_fixed = self._fixed_rotations[joint.name][0:batch_size]
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
-            assert base_T_joint.shape == (batch_size, 4, 4)
 
             if joint.joint_type in {"revolute", "continuous"}:
                 # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
@@ -378,7 +393,7 @@ class Robot:
 
                 # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
                 # or quaternions?
-                joint_rotation = axis_angle_to_rotation_matrix(rotation_axis, rotation_amt, device=device)
+                joint_rotation = axis_angle_to_rotation_matrix(rotation_axis, rotation_amt, device=out_device)
                 assert joint_rotation.shape == (batch_size, 3, 3)
 
                 # TODO(@jstmn): determine which of these two implementations if faster
@@ -389,12 +404,14 @@ class Robot:
                 base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
 
             elif joint.joint_type == "prismatic":
-                # Note: [..., None] is a trick to expand the x[:,x_i] tensor.
-                translations = torch.tensor(joint.axis_xyz, device=device, dtype=dtype) * x[:, x_i, None]  # [batch x 3]
+                # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
+                translations = (
+                    torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype) * x[:, x_i, None]
+                )  # [batch x 3]
                 assert translations.shape == (batch_size, 3)
 
                 # TODO(@jstmn): consider making this more space efficient
-                joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=device, dtype=dtype))
+                joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 joint_fixed_T_joint[:, 0:3, 3] = translations
                 base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
 
@@ -405,7 +422,11 @@ class Robot:
 
             x_i += 1
 
-        assert base_T_joint.shape == (batch_size, 4, 4)
+        if return_quaternion:
+            quaternions = rotation_matrix_to_quaternion(base_T_joint[:, 0:3, 0:3])
+            translations = base_T_joint[:, 0:3, 3]
+            base_T_joint = torch.cat([translations, quaternions], dim=1)
+
         if return_runtime:
             return base_T_joint, time() - time0
         return base_T_joint
@@ -470,15 +491,11 @@ class Robot:
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
         assert xs_current.shape[0] == target_poses.shape[0]
-
         n = target_poses.shape[0]
 
         # Get the jacobian of the end effector with respect to the current joint angles
         J = self.jacobian_batch_np(xs_current)
         J_pinv = np.linalg.pinv(J)  # Jacobian pseudo-inverse
-
-        # print("\njacobian:")
-        # print(J)
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics_klampt(xs_current)
@@ -489,29 +506,72 @@ class Robot:
         for i in range(3):
             pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
 
-        # Skip rotational errors for now
-        current_pose_quat_inv = quaternion_inverse_np(current_poses[:, 3:7])
-        rotation_error_quat = quaternion_product_np(target_poses[:, 3:], current_pose_quat_inv)
-        rotation_error_rpy = quaternion_to_rpy_np(rotation_error_quat)  # check
+        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)  # check
         pose_errors[:, 0:3, 0] = rotation_error_rpy  #
-        # pose_errors[:, 3:, 0] = rotation_error_rpy # should this be for the first 3 rows instead?
-
-        # print("\npose_errors:")
-        # print(pose_errors)
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
+        xs_updated = xs_current + alpha * delta_x[:, :, 0]
+        return xs_updated, time() - t0
 
-        print("delta_x:")
-        print(delta_x)
+    def inverse_kinematics_single_step_batch_pt(
+        self,
+        target_poses: torch.Tensor,
+        xs_current: torch.Tensor,
+        alpha: float = 0.25,
+        # device: str = None,
+        dtype: torch.dtype = _DEFAULT_TORCH_DTYPE,
+    ) -> Tuple[torch.Tensor, float]:
+        """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch
 
-        # delta_x = np.reshape(J_pinv @ pose_errors, (N, self.n_dofs))
-        # delta_x = np.reshape(J_pinv @ np.reshape(pose_errors, (N, 6, 1)), (N, self.n_dofs))
+        Args:
+            target_poses (torch.Tensor): [batch x 7] poses to optimize the joint angles towards
+            xs_current (torch.Tensor): [batch x ndofs] joint angles to start the optimization from
+            alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
+
+        Returns:
+            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function
+        """
+        t0 = time()
+        _assert_is_pose_matrix(target_poses)
+        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
+        assert xs_current.shape[0] == target_poses.shape[0]
+        n = target_poses.shape[0]
+        # if device is None:
+        #     device = xs_current.device
+        # else:
+        #     assert (
+        #         device == xs_current.device
+        #     )  # TODO: This check will fail if device is a string and xs_current.device is a torch.device
+
+        # Get the jacobian of the end effector with respect to the current joint angles
+        J = torch.tensor(self.jacobian_batch_np(xs_current.detach().cpu().numpy()), device="cpu", dtype=dtype)
+        J_pinv = torch.linalg.pinv(J)  # Jacobian pseudo-inverse
+        J_pinv = J_pinv.to(xs_current.device)
+
+        # Run the xs_current through FK to get their realized poses
+        current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=dtype)
+        assert (
+            current_poses.shape == target_poses.shape
+        ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+
+        # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
+        pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=dtype)
+        for i in range(3):
+            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
+
+        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)  # check
+        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
+
+        # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
+        delta_x = J_pinv @ pose_errors
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
 
-        print("xs_updated - xs_current:")
-        print(xs_updated - xs_current)
-
+        assert xs_current.device == xs_updated.device
         return xs_updated, time() - t0
 
     def inverse_kinematics_klampt(
@@ -540,7 +600,7 @@ class Robot:
         assert len(pose.shape) == 1
         assert pose.size == 7
         if seed is not None:
-            assert isinstance(seed, np.ndarray), f"seed must be a numpy array (currently {type(seed)})"
+            _assert_is_np(seed, variable_name="seed")
             assert len(seed.shape) == 1, f"Seed must be a 1D array (currently: {seed.shape})"
             assert seed.size == self.n_dofs
             seed_q = self._x_to_qs(seed.reshape((1, self.n_dofs)))[0]

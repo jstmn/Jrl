@@ -60,9 +60,13 @@ class TestForwardKinematics(unittest.TestCase):
         klampt_fk = robot.forward_kinematics_klampt(samples)
 
         if robot._batch_fk_enabled:
-            batch_fk_T, batch_fk_runtime = robot.forward_kinematics_batch(
-                torch.tensor(samples, dtype=torch.float32, device=DEVICE), device=DEVICE, return_runtime=True
+            batch_fk, batch_fk_runtime = robot.forward_kinematics_batch(
+                torch.tensor(samples, dtype=torch.float32, device=DEVICE),
+                out_device=DEVICE,
+                return_runtime=True,
+                return_quaternion=True,
             )
+            batch_fk = batch_fk.cpu().numpy()
             """
             w precaching 1000
                 Took 5.38 ms to get 500 poses
@@ -72,11 +76,6 @@ class TestForwardKinematics(unittest.TestCase):
                 Took 5.131 ms to get 10 poses
             """
             print(f"Took {round(batch_fk_runtime*1000, 3)} ms to get {samples.shape[0]} poses")
-            batch_fk_t = batch_fk_T[:, 0:3, 3]
-            batch_fk_R = batch_fk_T[:, 0:3, 0:3]
-            assert batch_fk_t.shape[0] == kinpy_fk.shape[0]
-            assert batch_fk_R.shape[0] == kinpy_fk.shape[0]
-            batch_fk = (batch_fk_t.cpu().data.numpy(), batch_fk_R.cpu().data.numpy())
         else:
             batch_fk = (None, None)
 
@@ -87,19 +86,50 @@ class TestForwardKinematics(unittest.TestCase):
     # Tests
     #
 
+    def test_forward_kinematics_batch(self):
+        """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
+        matrices"""
+        for robot in ROBOTS:
+            # Check 1: Return is correct for homogeneous transformation format
+            samples = robot.sample_joint_angles(25)
+            kinpy_fk = forward_kinematics_kinpy(robot, samples)
+            batch_fk_T = robot.forward_kinematics_batch(
+                torch.tensor(samples, dtype=torch.float32, device=DEVICE), out_device=DEVICE, return_quaternion=False
+            )
+            self.assertEqual(batch_fk_T.shape, (25, 4, 4))
+            batch_fk_t = batch_fk_T[:, 0:3, 3].detach().cpu().numpy()
+            np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk_t, atol=1e-4)
+
+            # Check 2: Return is correct for quaternion format
+            samples = robot.sample_joint_angles(25)
+            kinpy_fk = forward_kinematics_kinpy(robot, samples)
+            klampt_fk = robot.forward_kinematics_klampt(samples)
+            batch_fk = (
+                robot.forward_kinematics_batch(
+                    torch.tensor(samples, dtype=torch.float32, device=DEVICE), out_device=DEVICE, return_quaternion=True
+                )
+                .cpu()
+                .numpy()
+            )
+            self.assertEqual(batch_fk.shape, (25, 7))
+            np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk[:, 0:3], atol=1e-4)
+            self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
+
     def test_fk_matches_saved_data(self):
         """
         Test that the all three forward kinematics functions return the expected value for saved input
         """
         for robot in ROBOTS:
             samples, endpoints_expected = get_gt_samples_and_endpoints(robot.name)
-            kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
+            kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
 
             if robot._batch_fk_enabled:
-                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t, "kinpy_fk", "batch_fk_t")
+                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk_t")
                 self.assert_endpose_position_almost_equal(
-                    batch_fk_t, endpoints_expected, "batch_fk_t", "endpoints_expected"
+                    batch_fk, endpoints_expected, "batch_fk", "endpoints_expected"
                 )
+                self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
+                self.assert_endpose_rotation_almost_equal(batch_fk, endpoints_expected)
 
             # fks batch eachother
             self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
@@ -119,12 +149,13 @@ class TestForwardKinematics(unittest.TestCase):
         n_samples = 500
         for robot in ROBOTS:
             samples = robot.sample_joint_angles(n_samples)
-            kinpy_fk, klampt_fk, (batch_fk_t, batch_fk_R) = self.get_fk_poses(robot, samples)
+            kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
             self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
             self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
 
             if robot._batch_fk_enabled:
-                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk_t, "kinpy_fk", "batch_fk_t")
+                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk")
+                self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
 
     def test_each_dimension_actuated(self):
         """

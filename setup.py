@@ -36,7 +36,7 @@ setup(
     long_description=open("README.md").read(),
     # Note: black and PyQt5 are non essential. They can be commented out if they are causing issues. Needed for linting
     # and visualizing respectively
-    install_requires=["klampt", "numpy", "torch", "kinpy", "more_itertools"],
+    install_requires=["klampt", "numpy", "torch", "kinpy", "more_itertools", "roma"],
     extras_require={"dev": ["black", "pylint", "PyQt5"]},
     include_package_data=True,
     packages=["jkinpylib"],
