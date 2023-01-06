@@ -1,11 +1,11 @@
-""" This file contains conversion functions between rotation representations, as well as implementations for various 
-mathematical operations. 
+""" This file contains conversion functions between rotation representations, as well as implementations for various
+mathematical operations.
 
 A couple notes:
-    1. Quaternions are assumed to be in w,x,y,z format 
+    1. Quaternions are assumed to be in w,x,y,z format
     2. RPY format is a rotation about x, y, z axes in that order
     3. Functions that end with '_np' accept numpy arrays, those that end with '_pt' accept torch tensors
-    4. All functions except those that end with '_single' accept batches of inputs.  
+    4. All functions except those that end with '_single' accept batches of inputs.
 """
 
 from typing import Union
@@ -112,10 +112,10 @@ def quaternion_xyzw_to_wxyz(quaternion: Union[torch.Tensor, np.ndarray]) -> Unio
     """
     if isinstance(quaternion, np.ndarray):
         return np.concatenate([quaternion[:, 3:4], quaternion[:, 0:3]], axis=1)
-    elif isinstance(quaternion, torch.Tensor):
+    if isinstance(quaternion, torch.Tensor):
         return torch.cat([quaternion[:, 3:4], quaternion[:, 0:3]], dim=1)
-    else:
-        raise ValueError(f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})")
+
+    raise ValueError(f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})")
 
 
 def quaternion_to_rotation_matrix_pt(quaternion: torch.Tensor) -> torch.Tensor:
@@ -203,7 +203,7 @@ def quaternion_to_rpy(q: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, t
 
 
 def quaternion_conjugate(qs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
-    """ """
+    """TODO: document"""
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
 
@@ -222,15 +222,14 @@ def quaternion_conjugate(qs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarra
 
 
 def quaternion_norm(qs: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
-    """ """
+    """TODO: document"""
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
     if isinstance(qs, np.ndarray):
         return np.linalg.norm(qs, axis=1)
-    elif isinstance(qs, torch.Tensor):
+    if isinstance(qs, torch.Tensor):
         return torch.norm(qs, dim=1)
-    else:
-        raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
+    raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
 
 
 def quaternion_inverse(qs: np.ndarray) -> np.ndarray:
@@ -253,6 +252,7 @@ def quaternion_inverse(qs: np.ndarray) -> np.ndarray:
 def quaternion_product(
     qs_1: Union[np.ndarray, torch.Tensor], qs_2: Union[np.ndarray, torch.Tensor]
 ) -> Union[np.ndarray, torch.Tensor]:
+    """TODO: document"""
     assert (len(qs_1.shape) == 2) and (len(qs_2.shape) == 2)
     assert (qs_1.shape[1] == 4) and (qs_2.shape[1] == 4)
 

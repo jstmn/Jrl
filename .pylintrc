@@ -1,6 +1,6 @@
 [MESSAGES CONTROL]
 
-disable=missing-module-docstring,invalid-name,missing-function-docstring,missing-class-docstring,no-member,fixme
+disable=missing-module-docstring,invalid-name,missing-function-docstring,missing-class-docstring,no-member,fixme,consider-using-f-string
 
 [FORMAT]
 

@@ -19,7 +19,7 @@ from jkinpylib.conversions import (
     rotation_matrix_to_quaternion,
 )
 from jkinpylib import config
-from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES, Joint
+from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
 
 _DEFAULT_TORCH_DTYPE = torch.float32
 
@@ -59,9 +59,9 @@ class Robot:
 
         Args:
             urdf_filepath (str): _description_
-            joint_path (List[str]): The name of the joints that form the kinematic chain that is being represented. There
-                                are no restrictions on where it starts. It must end at the end effector however. NOTE:
-                                This may include fixed joints
+            joint_path (List[str]): The name of the joints that form the kinematic chain that is being represented.
+                                    There are no restrictions on where it starts. It must end at the end effector
+                                    however. NOTE: This may include fixed joints
             end_effector_link_name (str): _description_
 
         Raises:
@@ -153,12 +153,11 @@ class Robot:
     # ---                                             External Functions                                             ---
     # ---                                                                                                            ---
 
-    def sample_joint_angles(self, n: int, solver=None) -> np.ndarray:
+    def sample_joint_angles(self, n: int) -> np.ndarray:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors
 
         Args:
             n (int): _description_
-            solver (_type_, optional): _description_. Defaults to None.
 
         Returns:
             np.ndarray: _description_
@@ -305,10 +304,9 @@ class Robot:
     def forward_kinematics(self, x: Union[np.array, torch.Tensor], solver="klampt") -> np.array:
         if solver == "klampt":
             return self.forward_kinematics_klampt(x)
-        elif solver == "batchfk":
+        if solver == "batchfk":
             return self.forward_kinematics_batch(x)
-        else:
-            raise ValueError(f"Solver '{solver}' not recognized")
+        raise ValueError(f"Solver '{solver}' not recognized")
 
     def forward_kinematics_klampt(self, x: np.array) -> np.array:
         """Forward kinematics using the klampt library"""
@@ -366,7 +364,8 @@ class Robot:
         ):
             for joint in self._joint_chain:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                # TODO(@jstmn): Confirm that its faster to run `rpy_to_rotation_matrix` on the cpu and then send to the gpu
+                # TODO(@jstmn): Confirm that its faster to run `rpy_to_rotation_matrix` on the cpu and then send to the
+                # gpu
                 R = rpy_to_rotation_matrix(joint.origin_rpy, device="cpu")
                 T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]

@@ -1,17 +1,13 @@
-from typing import Tuple
 from time import sleep
-import unittest
-
-from jkinpylib.robot import Robot
-from jkinpylib.robots import PandaArm
-from jkinpylib.conversions import geodesic_distance_between_quaternions_np
-from jkinpylib.utils import set_seed
 
 from klampt import vis
 from klampt.model import coordinates, trajectory
 from klampt.math import so3
-import torch
 import numpy as np
+
+from jkinpylib.robot import Robot
+from jkinpylib.robots import PandaArm
+from jkinpylib.utils import set_seed
 
 set_seed()
 
@@ -21,7 +17,7 @@ _TERRAIN_FILEPATH = "scripts/visualization_resources/plane.off"
 
 def _init_vis(robot: Robot, window_title: str):
     vis.init()
-    assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{terrain_filepath}'"
+    assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{_TERRAIN_FILEPATH}'"
     vis.add("world", robot.klampt_world_model)
     vis.add("coordinates", coordinates.manager())
     vis.add("x_axis", trajectory.Trajectory([1, 0], [[1, 0, 0], [0, 0, 0]]))

@@ -15,7 +15,7 @@ _TERRAIN_FILEPATH = "scripts/visualization_resources/plane.off"
 
 def _init_vis(robot: Robot, window_title: str):
     vis.init()
-    assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{terrain_filepath}'"
+    assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{_TERRAIN_FILEPATH}'"
     vis.add("world", robot.klampt_world_model)
     vis.add("coordinates", coordinates.manager())
     vis.add("x_axis", trajectory.Trajectory([1, 0], [[1, 0, 0], [0, 0, 0]]))
