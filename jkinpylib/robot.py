@@ -1,7 +1,7 @@
 from typing import List, Tuple, Optional, Union
 from time import time
-from more_itertools import locate
 
+from more_itertools import locate
 import torch
 import numpy as np
 import kinpy as kp
@@ -17,6 +17,7 @@ from jkinpylib.conversions import (
     quaternion_product,
     quaternion_to_rpy,
     rotation_matrix_to_quaternion,
+    quaternion_norm
 )
 from jkinpylib import config
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
@@ -26,11 +27,14 @@ _DEFAULT_TORCH_DTYPE = torch.float32
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
     assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
+    assert isinstance(x, (torch.Tensor, np.ndarray)), f"Expected x to be a torch.Tensor or np.ndarray but got {type(x)}"
 
 
 def _assert_is_pose_matrix(poses: Union[torch.Tensor, np.ndarray]):
     _assert_is_2d(poses)
-    assert poses.shape[1] == 7, f"Expected matrix to be [n x 7] but got {poses.shape}"
+    assert poses.shape[1] == 7, f"Expected poses matrix to be [n x 7] but got {poses.shape}"
+    norms = quaternion_norm(poses[:, 3:7])
+    assert max(norms) < 1.01 and min(norms) > 0.99, "quaternion(s) are not unit quaternion(s)"
 
 
 def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], n_dofs: int):
@@ -86,8 +90,8 @@ class Robot:
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
-        self._klampt_world_model = klampt.WorldModel()
-        self._klampt_world_model.loadRobot(self._urdf_filepath)
+        self._klampt_world_model = klampt.WorldModel() 
+        self._klampt_world_model.loadRobot(self._urdf_filepath) # TODO: supress output of loadRobot call
         self._klampt_robot: klampt.robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._klampt_ee_link: klampt.robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
         self._klampt_config_dim = len(self._klampt_robot.getConfig())
@@ -409,7 +413,7 @@ class Robot:
                 )  # [batch x 3]
                 assert translations.shape == (batch_size, 3)
 
-                # TODO(@jstmn): consider making this more space efficient
+                # TODO(@jstmn): consider making this more space efficient. create once and override?
                 joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 joint_fixed_T_joint[:, 0:3, 3] = translations
                 base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
@@ -520,30 +524,31 @@ class Robot:
         target_poses: torch.Tensor,
         xs_current: torch.Tensor,
         alpha: float = 0.25,
-        # device: str = None,
         dtype: torch.dtype = _DEFAULT_TORCH_DTYPE,
+        return_runtime: bool = True,
     ) -> Tuple[torch.Tensor, float]:
-        """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch
+        """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
+
+        Notes:
+            1. `target_poses` and `xs_current` need to be on the same device.
+            2. the returned tensor will be on the same device as `target_poses` and `xs_current`
 
         Args:
-            target_poses (torch.Tensor): [batch x 7] poses to optimize the joint angles towards
-            xs_current (torch.Tensor): [batch x ndofs] joint angles to start the optimization from
+            target_poses (torch.Tensor): [batch x 7] poses to optimize the joint angles towards.
+            xs_current (torch.Tensor): [batch x ndofs] joint angles to start the optimization from.
             alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
 
         Returns:
-            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function
+            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function.
         """
         t0 = time()
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
         assert xs_current.shape[0] == target_poses.shape[0]
+        assert (
+            xs_current.device == target_poses.device
+        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
         n = target_poses.shape[0]
-        # if device is None:
-        #     device = xs_current.device
-        # else:
-        #     assert (
-        #         device == xs_current.device
-        #     )  # TODO: This check will fail if device is a string and xs_current.device is a torch.device
 
         # Get the jacobian of the end effector with respect to the current joint angles
         J = torch.tensor(self.jacobian_batch_np(xs_current.detach().cpu().numpy()), device="cpu", dtype=dtype)
@@ -563,15 +568,29 @@ class Robot:
 
         current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
         rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
-        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)  # check
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
         pose_errors[:, 0:3, 0] = rotation_error_rpy  #
+
+        if torch.isnan(pose_errors).sum() > 0:
+            for row_i in range(pose_errors.shape[0]):
+                if torch.isnan(pose_errors[row_i]).sum() > 0:
+                    print(f"\npose_errors[{row_i}] contains NaNs")
+                    print(f"target_pose:  {target_poses[row_i].data}")
+                    print(f"current_pose: {current_poses[row_i].data}")
+                    print(f"pose_error:   {pose_errors[row_i, :, 0].data}")
+        assert torch.isnan(pose_errors).sum() == 0, f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
+
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
 
+        assert torch.isnan(xs_updated).sum() == 0, "xs_updated contains NaNs"
         assert xs_current.device == xs_updated.device
-        return xs_updated, time() - t0
+
+        if return_runtime:
+            return xs_updated, time() - t0
+        return xs_updated
 
     def inverse_kinematics_klampt(
         self,

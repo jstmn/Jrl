@@ -116,14 +116,14 @@ def get_robot(robot_name: str) -> Robot:
     for clc in ALL_CLCS:
         if clc.name == robot_name:
             return clc()
-    raise ValueError(f"Unable to find robot '{robot_name}'")
+    raise ValueError(f"Unable to find robot '{robot_name}' (available: {[clc.name for clc in ALL_CLCS]})")
 
 
 def robot_name_to_fancy_robot_name(name: str) -> str:
     for cls in ALL_CLCS:
         if cls.name == name:
             return cls.formal_robot_name
-    raise ValueError(f"Unable to find robot '{name}'")
+    raise ValueError(f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})")
 
 
 if __name__ == "__main__":
