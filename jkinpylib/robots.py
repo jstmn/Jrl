@@ -60,9 +60,9 @@ class Fetch(Robot):
 #         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
 #         Robot.__init__(self, FetchNoPrismatic.name, urdf_filepath, joint_chain, end_effector_link_name)
 
-
-class PandaArm(Robot):
-    name = "panda_arm"
+# TODO: Rename to 'Panda'
+class Panda(Robot):
+    name = "panda"
     formal_robot_name = "Panda"
 
     def __init__(self, verbose: bool = False):
@@ -77,35 +77,13 @@ class PandaArm(Robot):
             "panda_joint8",
             "panda_hand_joint",
         ]
-        urdf_filepath = get_filepath("urdfs/panda_arm/panda_arm_hand_formatted.urdf")
+        urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
         end_effector_link_name = "panda_hand"
-        Robot.__init__(self, PandaArm.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
+        Robot.__init__(self, Panda.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
 
 
-class PandaArmStanford(Robot):
-    name = "panda_arm_stanford"
-    formal_robot_name = "Panda"
-
-    def __init__(self):
-        # joint_chain may include non actuated joints.
-        joint_chain = [
-            "panda_joint1",
-            "panda_joint2",
-            "panda_joint3",
-            "panda_joint4",
-            "panda_joint5",
-            "panda_joint6",
-            "panda_joint7",
-            "panda_joint8",
-            "panda_hand_joint",
-        ]
-        urdf_filepath = get_filepath("urdfs/panda_arm_stanford/panda_formatted.urdf")
-        end_effector_link_name = "panda_hand"
-        Robot.__init__(self, PandaArmStanford.name, urdf_filepath, joint_chain, end_effector_link_name)
-
-
-ALL_CLCS = [PandaArmStanford, PandaArm, Fetch]
-# ALL_CLCS = [PandaArmStanford, PandaArm, Fetch, Baxter, FetchNoPrismatic]
+ALL_CLCS = [Panda, Fetch]
+# ALL_CLCS = [Panda, Fetch, Baxter, FetchNoPrismatic]
 
 
 def get_all_robots() -> List[Robot]:

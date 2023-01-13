@@ -100,20 +100,19 @@ def transition_between(robot: Robot, configs: List[List[float]]):
 """ Example usage
 
 # Oscillate joints
-python scripts/visualize_robot.py --robot_name=panda_arm
-python scripts/visualize_robot.py --robot_name=panda_arm_stanford
+python scripts/visualize_robot.py --robot_name=panda
 python scripts/visualize_robot.py --robot_name=baxter
 
 # Move between configs
 python scripts/visualize_robot.py \
-    --robot_name=panda_arm \
+    --robot_name=panda \
     --start_config 0   1.5707 0 0 0 3.141592 0 \
     --end_config   1.0 1.5707 0 0 0 3.141592 0
 """
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="evaluate.py - evaluates IK models")
-    parser.add_argument("--robot_name", type=str, help="Example: 'panda_arm', 'baxter', ...")
+    parser.add_argument("--robot_name", type=str, help="Example: 'panda', 'baxter', ...")
     parser.add_argument(
         "--start_config",
         nargs="+",

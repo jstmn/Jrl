@@ -7,7 +7,7 @@ import torch
 import numpy as np
 
 from jkinpylib.robot import Robot
-from jkinpylib.robots import PandaArm
+from jkinpylib.robots import Panda
 from jkinpylib.utils import set_seed
 from jkinpylib.config import device
 
@@ -38,7 +38,7 @@ python scripts/plot_batch_ik_optimization.py
 """
 
 if __name__ == "__main__":
-    robot = PandaArm()
+    robot = Panda()
     alpha = 0.1
 
     target_poses = robot.forward_kinematics(np.array([[1.0, 1.5707, 0, 0, 0, 3.141592, 0]]))

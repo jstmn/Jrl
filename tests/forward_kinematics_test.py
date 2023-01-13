@@ -2,7 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib import config
-from jkinpylib.robots import get_all_robots, PandaArm, PandaArmStanford
+from jkinpylib.robots import get_all_robots, Panda
 from jkinpylib.robot import Robot, forward_kinematics_kinpy
 from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 
@@ -85,28 +85,6 @@ class TestForwardKinematics(unittest.TestCase):
     # ==================================================================================================================
     # Tests
     #
-
-    def test_panda_robots(self):
-        """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
-        matrices"""
-        panda = PandaArm()
-        panda_stanford = PandaArmStanford()
-        
-        # Test 1: samples from panda
-        samples = panda.sample_joint_angles(25)
-        panda_fk = forward_kinematics_kinpy(panda, samples)
-        panda_stanford_fk = forward_kinematics_kinpy(panda_stanford, samples)
-
-        self.assert_endpose_position_almost_equal(panda_fk, panda_stanford_fk)
-        self.assert_endpose_rotation_almost_equal(panda_fk, panda_stanford_fk)
-        
-        # Test 2: samples from panda_stanford
-        samples = panda_stanford.sample_joint_angles(25)
-        panda_fk = forward_kinematics_kinpy(panda, samples)
-        panda_stanford_fk = forward_kinematics_kinpy(panda_stanford, samples)
-
-        self.assert_endpose_position_almost_equal(panda_fk, panda_stanford_fk)
-        self.assert_endpose_rotation_almost_equal(panda_fk, panda_stanford_fk)
 
     def test_forward_kinematics_batch(self):
         """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation

@@ -6,7 +6,7 @@ from klampt.math import so3
 import numpy as np
 
 from jkinpylib.robot import Robot
-from jkinpylib.robots import PandaArm
+from jkinpylib.robots import Panda
 from jkinpylib.utils import set_seed
 
 set_seed()
@@ -38,7 +38,7 @@ python scripts/plot_batch_ik_optimization_step.py
 
 
 if __name__ == "__main__":
-    robot = PandaArm()
+    robot = Panda()
     alpha = 0.25
 
     # Get the current poses (these will be the seeds)

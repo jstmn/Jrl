@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from jkinpylib.robot import Robot
-from jkinpylib.robots import PandaArm
+from jkinpylib.robots import Panda
 from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 from jkinpylib.utils import set_seed
 from jkinpylib.config import device
@@ -20,11 +20,11 @@ np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
 class TestSolutionRerfinement(unittest.TestCase):
     @classmethod
     def setUpClass(clc):
-        clc.panda_arm = PandaArm()
+        clc.panda = Panda()
 
     # def test_inverse_kinematics_single_step_batch_np(self):
     #     """Test that ik steps made with inverse_kinematics_single_step_batch_np() are making progress"""
-    #     robot = self.panda_arm
+    #     robot = self.panda
     #     alpha = 0.1
 
     #     # Get the current poses (these will be the seeds)
@@ -61,7 +61,7 @@ class TestSolutionRerfinement(unittest.TestCase):
 
     def test_inverse_kinematics_single_step_batch_pytorch(self):
         """Test that ik steps made with inverse_kinematics_single_step_batch_pt() are making progress"""
-        robot = self.panda_arm
+        robot = self.panda
         alpha = 0.25
 
         # Get the current poses (these will be the seeds)

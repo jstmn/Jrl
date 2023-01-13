@@ -2,8 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib.robot import Robot
-from jkinpylib import config
-from jkinpylib.robots import PandaArmStanford, get_all_robots
+from jkinpylib.robots import get_all_robots, Panda
 from jkinpylib.conversions import geodesic_distance_between_quaternions_np
 from jkinpylib.utils import set_seed
 
@@ -23,8 +22,8 @@ MAX_ALLOWABLE_ANG_ERR = 0.01  # degrees
 class TestInverseKinematics(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.panda_arm_stanford = PandaArmStanford()
         self.robots = get_all_robots()
+        self.panda = Panda()
 
     # Helper functions
     def assert_pose_position_almost_equal(
@@ -67,11 +66,11 @@ class TestInverseKinematics(unittest.TestCase):
         pose = np.array([-0.45741714, -0.08548167, 0.87084611, 0.09305326, -0.49179573, -0.86208266, 0.07931919])
         seed = np.array([0.46013147, -0.71480753, 1.74743252, -0.34429741, 1.08508085, 0.64453392, 1.82583597])
         positional_tol = 1e-3
-        solution = self.panda_arm_stanford.inverse_kinematics_klampt(
+        solution = self.panda.inverse_kinematics_klampt(
             pose, seed=seed, positional_tolerance=positional_tol, verbosity=0
         )
         self.assertIsInstance(solution, np.ndarray)
-        solution_pose = self.panda_arm_stanford.forward_kinematics_klampt(solution)
+        solution_pose = self.panda.forward_kinematics_klampt(solution)
         l2_err = np.linalg.norm(pose[0:3] - solution_pose[0, 0:3])
         self.assertLess(l2_err, 2 * positional_tol)
 
@@ -130,7 +129,7 @@ class TestInverseKinematics(unittest.TestCase):
         n_tries = 50
         positional_tol = 1e-4
         verbosity = 0
-        robot = self.panda_arm_stanford
+        robot = self.panda
 
         for robot in self.robots:
             print(f"Testing {robot}")

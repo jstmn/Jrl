@@ -1,7 +1,7 @@
 import unittest
 
 from jkinpylib.urdf_utils import _len3_tuple_from_str
-from jkinpylib.robots import get_all_robots, get_robot, Fetch, PandaArm
+from jkinpylib.robots import get_all_robots, get_robot, Fetch, Panda
 
 import torch
 import numpy as np
@@ -35,8 +35,7 @@ class RobotTest(unittest.TestCase):
 
     def test_n_dofs(self):
         ground_truth_n_dofs = {
-            "panda_arm": 7,
-            "panda_arm_stanford": 7,
+            "panda": 7,
             "baxter": 7,
             "fetch": 8,
         }
@@ -55,16 +54,7 @@ class RobotTest(unittest.TestCase):
                 (-2.16, 2.16),  # wrist_flex_joint
                 (-np.pi, np.pi),  # wrist_roll_joint
             ],
-            "panda_arm_stanford": [
-                (-2.9671, 2.9671),
-                (-1.8326, 1.8326),
-                (-2.9671, 2.9671),
-                (-3.1416, 0.0),
-                (-2.9671, 2.9671),
-                (-0.0873, 3.8223),
-                (-2.9671, 2.9671),
-            ],
-            "panda_arm": [
+            "panda": [
                 (-2.8973, 2.8973),
                 (-1.7628, 1.7628),
                 (-2.8973, 2.8973),
@@ -91,16 +81,7 @@ class RobotTest(unittest.TestCase):
 
     def test_actuated_joint_names(self):
         ground_truth_actuated_joints = {
-            "panda_arm_stanford": [
-                "panda_joint1",
-                "panda_joint2",
-                "panda_joint3",
-                "panda_joint4",
-                "panda_joint5",
-                "panda_joint6",
-                "panda_joint7",
-            ],
-            "panda_arm": [
+            "panda": [
                 "panda_joint1",
                 "panda_joint2",
                 "panda_joint3",
@@ -149,8 +130,7 @@ class RobotTest(unittest.TestCase):
     def test_x_driver_vec_conversion_panda(self):
         gt_klampt_vector_dimensionality = {
             "fetch": 14,  # 24 total joints, 10 of them are fixed
-            "panda_arm": 8,  # panda has 1 non user specified actuated joint
-            "panda_arm_stanford": 8,
+            "panda": 8,  # panda has 1 non user specified actuated joint
         }
 
         for robot in ROBOTS:
