@@ -78,7 +78,8 @@ def _len3_tuple_from_str(s) -> Tuple[float, float, float]:
     s = s.strip()
     s = s.replace("[", "")
     s = s.replace("]", "")
-    s = s.replace("  ", " ")
+    while "  " in s:
+        s = s.replace("   ", " ")
     space_split = s.split(" ")
     out = tuple(float(dig) for dig in space_split)
     return out
@@ -115,6 +116,12 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                             # Per (http://library.isr.ist.utl.pt/docs/roswiki/urdf(2f)XML(2f)Joint.html):
                             #       "rpy (optional: defaults 'to zero vector 'if not specified)"
                             origin_rpy = [0, 0, 0]
+                        except ValueError:
+                            raise ValueError(
+                                f"Error: _len3_tuple_from_str() returned ValueError for joint '{child.get('name')}'."
+                                f" 'rpy': {subelem.attrib['rpy']}"
+                            )
+
                         try:
                             origin_xyz = _len3_tuple_from_str(subelem.attrib["xyz"])
                         except RuntimeError:

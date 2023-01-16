@@ -17,7 +17,7 @@ from jkinpylib.conversions import (
     quaternion_product,
     quaternion_to_rpy,
     rotation_matrix_to_quaternion,
-    quaternion_norm
+    quaternion_norm,
 )
 from jkinpylib import config
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
@@ -90,8 +90,8 @@ class Robot:
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
-        self._klampt_world_model = klampt.WorldModel() 
-        self._klampt_world_model.loadRobot(self._urdf_filepath) # TODO: supress output of loadRobot call
+        self._klampt_world_model = klampt.WorldModel()
+        self._klampt_world_model.loadRobot(self._urdf_filepath)  # TODO: supress output of loadRobot call
         self._klampt_robot: klampt.robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._klampt_ee_link: klampt.robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
         self._klampt_config_dim = len(self._klampt_robot.getConfig())
@@ -578,8 +578,9 @@ class Robot:
                     print(f"target_pose:  {target_poses[row_i].data}")
                     print(f"current_pose: {current_poses[row_i].data}")
                     print(f"pose_error:   {pose_errors[row_i, :, 0].data}")
-        assert torch.isnan(pose_errors).sum() == 0, f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
-
+        assert (
+            torch.isnan(pose_errors).sum() == 0
+        ), f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors

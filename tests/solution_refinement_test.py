@@ -17,6 +17,7 @@ set_seed()
 np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
 
 
+# TODO: Turn this into an actual test
 class TestSolutionRerfinement(unittest.TestCase):
     @classmethod
     def setUpClass(clc):

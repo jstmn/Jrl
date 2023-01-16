@@ -19,12 +19,8 @@ class RobotTest(unittest.TestCase):
             self.assertEqual(J.shape, (6, robot.n_dofs))
 
     def test_list_from_str(self):
-        inputs = [
-            "0 0 0.333",
-            "0 0 1.0",
-            "0 0 1",
-        ]
-        expected_outputs = [(0, 0, 0.333), (0, 0, 1.0), (0, 0, 1.0)]
+        inputs = ["0 0 0.333", "0 0 1.0", "0 0 1", "1.5707963267948966   0 3.141592653589793"]
+        expected_outputs = [(0, 0, 0.333), (0, 0, 1.0), (0, 0, 1.0), (1.5707963267948966, 0, 3.141592653589793)]
         for input_, expected_output in zip(inputs, expected_outputs):
             output = _len3_tuple_from_str(input_)
             self.assertIsInstance(output, tuple)
@@ -38,6 +34,7 @@ class RobotTest(unittest.TestCase):
             "panda": 7,
             "baxter": 7,
             "fetch": 8,
+            "iiwa7": 7,
         }
         for robot in ROBOTS:
             self.assertEqual(robot.n_dofs, ground_truth_n_dofs[robot.name])
@@ -71,6 +68,15 @@ class RobotTest(unittest.TestCase):
                 (-3.059, 3.059),
                 (-1.57079632679, 2.094),
                 (-3.059, 3.059),
+            ],
+            "iiwa7": [
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-3.0543261909900763, 3.0543261909900763),
             ],
         }
         for robot in ROBOTS:
@@ -109,6 +115,15 @@ class RobotTest(unittest.TestCase):
                 "wrist_flex_joint",
                 "wrist_roll_joint",  # continous
             ],
+            "iiwa7": [
+                "iiwa_joint_1",
+                "iiwa_joint_2",
+                "iiwa_joint_3",
+                "iiwa_joint_4",
+                "iiwa_joint_5",
+                "iiwa_joint_6",
+                "iiwa_joint_7",
+            ],
         }
         for robot in ROBOTS:
             self.assertEqual(len(robot.actuated_joint_names), robot.n_dofs)
@@ -131,6 +146,7 @@ class RobotTest(unittest.TestCase):
         gt_klampt_vector_dimensionality = {
             "fetch": 14,  # 24 total joints, 10 of them are fixed
             "panda": 8,  # panda has 1 non user specified actuated joint
+            "iiwa7": 7,  #
         }
 
         for robot in ROBOTS:

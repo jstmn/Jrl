@@ -60,7 +60,7 @@ class Fetch(Robot):
 #         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
 #         Robot.__init__(self, FetchNoPrismatic.name, urdf_filepath, joint_chain, end_effector_link_name)
 
-# TODO: Rename to 'Panda'
+
 class Panda(Robot):
     name = "panda"
     formal_robot_name = "Panda"
@@ -82,7 +82,27 @@ class Panda(Robot):
         Robot.__init__(self, Panda.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
 
 
-ALL_CLCS = [Panda, Fetch]
+class Iiwa7(Robot):
+    name = "iiwa7"
+    formal_robot_name = "Kuka LBR IIWA7"
+
+    def __init__(self, verbose: bool = False):
+        joint_chain = [
+            "iiwa_joint_1",
+            "iiwa_joint_2",
+            "iiwa_joint_3",
+            "iiwa_joint_4",
+            "iiwa_joint_5",
+            "iiwa_joint_6",
+            "iiwa_joint_7",
+            "iiwa_joint_ee",  # fixed
+        ]
+        urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
+        end_effector_link_name = "iiwa_link_ee"
+        Robot.__init__(self, Iiwa7.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
+
+
+ALL_CLCS = [Panda, Fetch, Iiwa7]
 # ALL_CLCS = [Panda, Fetch, Baxter, FetchNoPrismatic]
 
 
@@ -105,4 +125,4 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    r = Fetch()
+    r = Iiwa7(verbose=True)
