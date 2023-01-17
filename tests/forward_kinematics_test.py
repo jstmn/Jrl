@@ -86,6 +86,17 @@ class TestForwardKinematics(unittest.TestCase):
     # Tests
     #
 
+    def test_forward_kinematics_batch_differentiability(self):
+        """Test that forward_kinematics_batch is differenetiable"""
+
+        robot = Panda()
+        samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
+        out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
+        
+        # Should be able to progogate the gradient of the error (out.mean()) through forward_kinematics_batch() 
+        out.mean().backward()
+
+
     def test_forward_kinematics_batch(self):
         """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
         matrices"""

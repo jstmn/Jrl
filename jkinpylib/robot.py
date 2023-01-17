@@ -400,11 +400,13 @@ class Robot:
                 assert joint_rotation.shape == (batch_size, 3, 3)
 
                 # TODO(@jstmn): determine which of these two implementations if faster
-                # T = torch.diag_embed(torch.ones(batch_size, 4, device=device, dtype=dtype))
-                # T[:, 0:3, 0:3] = joint_rotation
-                # base_T_joint = base_T_joint.bmm(T)
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
+                T[:, 0:3, 0:3] = joint_rotation
+                base_T_joint = base_T_joint.bmm(T)
 
-                base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
+                # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
+                # as a reminder
+                # base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
 
             elif joint.joint_type == "prismatic":
                 # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
