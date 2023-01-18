@@ -11,8 +11,8 @@ from klampt.model import ik
 from klampt.math import so3
 
 from jkinpylib.conversions import (
-    rpy_to_rotation_matrix,
-    axis_angle_to_rotation_matrix,
+    rpy_tuple_to_rotation_matrix,
+    single_axis_angle_to_rotation_matrix,
     quaternion_inverse,
     quaternion_product,
     quaternion_to_rpy,
@@ -368,9 +368,9 @@ class Robot:
         ):
             for joint in self._joint_chain:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                # TODO(@jstmn): Confirm that its faster to run `rpy_to_rotation_matrix` on the cpu and then send to the
+                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send to the
                 # gpu
-                R = rpy_to_rotation_matrix(joint.origin_rpy, device="cpu")
+                R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
                 T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
@@ -396,7 +396,9 @@ class Robot:
 
                 # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
                 # or quaternions?
-                joint_rotation = axis_angle_to_rotation_matrix(rotation_axis, rotation_amt, device=out_device)
+                joint_rotation = single_axis_angle_to_rotation_matrix(
+                    rotation_axis, rotation_amt, out_device=out_device
+                )
                 assert joint_rotation.shape == (batch_size, 3, 3)
 
                 # TODO(@jstmn): determine which of these two implementations if faster

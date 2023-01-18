@@ -5,7 +5,7 @@ import torch
 
 from jkinpylib.robots import get_robot
 from jkinpylib.robot import forward_kinematics_kinpy
-from jkinpylib.conversions import geodesic_distance_between_quaternions_np
+from jkinpylib.conversions import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
 
 set_seed()
@@ -37,13 +37,11 @@ if __name__ == "__main__":
     # Check that klampt, kinpy, and batchfk agree before saving
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_klampt[:, 0:3])
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_batchfk[:, 0:3], atol=5e-4)
-    rotational_errors_kinpy_klampt = geodesic_distance_between_quaternions_np(poses_kinpy[:, 3:7], poses_klampt[:, 3:7])
+    rotational_errors_kinpy_klampt = geodesic_distance_between_quaternions(poses_kinpy[:, 3:7], poses_klampt[:, 3:7])
     assert (
         max(rotational_errors_kinpy_klampt) < 5e-4
     ), f"Error, max(rotational_errors_kinpy_klampt) > 5e-4 ({max(rotational_errors_kinpy_klampt)} vs 0.0005)"
-    rotational_errors_kinpy_batchfk = geodesic_distance_between_quaternions_np(
-        poses_kinpy[:, 3:7], poses_batchfk[:, 3:7]
-    )
+    rotational_errors_kinpy_batchfk = geodesic_distance_between_quaternions(poses_kinpy[:, 3:7], poses_batchfk[:, 3:7])
     assert (
         max(rotational_errors_kinpy_batchfk) < 5e-4
     ), f"Error, max(rotational_errors_kinpy_batchfk) > 5e-4 ({max(rotational_errors_kinpy_batchfk)} vs 0.0005)"

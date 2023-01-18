@@ -3,7 +3,7 @@ import unittest
 
 from jkinpylib.robot import Robot
 from jkinpylib.robots import get_all_robots, Panda
-from jkinpylib.conversions import geodesic_distance_between_quaternions_np
+from jkinpylib.conversions import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
 
 import torch
@@ -39,7 +39,7 @@ class TestInverseKinematics(unittest.TestCase):
         self, endpoints1: np.array, endpoints2: np.array, max_allowable_rotational_err=MAX_ALLOWABLE_ANG_ERR
     ):
         """Check that the rotation of each pose is nearly the same"""
-        rotational_errors = geodesic_distance_between_quaternions_np(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
+        rotational_errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
         for i in range(rotational_errors.shape[0]):
             self.assertLess(rotational_errors[i], max_allowable_rotational_err)
 

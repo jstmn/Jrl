@@ -6,7 +6,7 @@ import torch
 
 from jkinpylib.robot import Robot
 from jkinpylib.robots import Panda
-from jkinpylib.conversions import geodesic_distance_between_quaternions_np
+from jkinpylib.conversions import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
 from jkinpylib.config import device
 
