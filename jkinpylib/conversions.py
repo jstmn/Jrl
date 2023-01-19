@@ -15,11 +15,11 @@ import roma.mappings
 
 from jkinpylib import config
 
-_DEFAULT_TORCH_DTYPE = torch.float32
+DEFAULT_TORCH_DTYPE = torch.float32
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
 
-_TORCH_EPS_CPU = torch.tensor(1e-8, dtype=_DEFAULT_TORCH_DTYPE, device="cpu")
-_TORCH_EPS_CUDA = torch.tensor(1e-8, dtype=_DEFAULT_TORCH_DTYPE, device="cuda")
+_TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
+_TORCH_EPS_CUDA = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cuda")
 
 
 def enforce_pt_np_input(func: Callable):
@@ -77,7 +77,7 @@ def rotation_matrix_to_quaternion(m: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     is_np = False
     if isinstance(m, np.ndarray):
-        m = torch.tensor(m, dtype=_DEFAULT_TORCH_DTYPE, device=config.device)
+        m = torch.tensor(m, dtype=DEFAULT_TORCH_DTYPE, device=config.device)
         is_np = True
 
     quat = roma.mappings.rotmat_to_unitquat(m)
@@ -185,7 +185,7 @@ def quaternion_to_rpy(q: PT_NP_TYPE) -> PT_NP_TYPE:
         p = np.arcsin(2 * (q0 * q2 - q3 * q1))
         atan2 = np.arctan2
     elif isinstance(q, torch.Tensor):
-        rpy = torch.zeros((n, 3), device=q.device, dtype=_DEFAULT_TORCH_DTYPE)
+        rpy = torch.zeros((n, 3), device=q.device, dtype=DEFAULT_TORCH_DTYPE)
         p = torch.arcsin(2 * (q0 * q2 - q3 * q1))
         atan2 = torch.arctan2
     else:
@@ -207,7 +207,7 @@ def quaternion_conjugate(qs: PT_NP_TYPE) -> PT_NP_TYPE:
     if isinstance(qs, np.ndarray):
         q_conj = np.zeros(qs.shape)
     elif isinstance(qs, torch.Tensor):
-        q_conj = torch.zeros(qs.shape, device=qs.device, dtype=_DEFAULT_TORCH_DTYPE)
+        q_conj = torch.zeros(qs.shape, device=qs.device, dtype=DEFAULT_TORCH_DTYPE)
     else:
         raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
 
@@ -266,7 +266,7 @@ def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
     if isinstance(qs_1, np.ndarray):
         q = np.zeros(qs_1.shape)
     elif isinstance(qs_1, torch.Tensor):
-        q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=_DEFAULT_TORCH_DTYPE)
+        q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=DEFAULT_TORCH_DTYPE)
     else:
         raise ValueError(f"qs_1 must be a numpy array or a torch tensor (got {type(qs_1)})")
 
@@ -285,15 +285,14 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
-
     assert len(q1.shape) == 2
     assert len(q2.shape) == 2
     assert q1.shape[0] == q2.shape[0]
     assert q1.shape[1] == q2.shape[1]
 
     if isinstance(q1, np.ndarray):
-        q1_R9 = quaternion_to_rotation_matrix(torch.tensor(q1, device="cpu", dtype=_DEFAULT_TORCH_DTYPE))
-        q2_R9 = quaternion_to_rotation_matrix(torch.tensor(q2, device="cpu", dtype=_DEFAULT_TORCH_DTYPE))
+        q1_R9 = quaternion_to_rotation_matrix(torch.tensor(q1, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
+        q2_R9 = quaternion_to_rotation_matrix(torch.tensor(q2, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
 
     if isinstance(q1, torch.Tensor):
         q1_R9 = quaternion_to_rotation_matrix(q1)
@@ -415,19 +414,19 @@ def rpy_tuple_to_rotation_matrix(
     p = rpy[1]
     y = rpy[2]
 
-    Rx = torch.eye(3, dtype=_DEFAULT_TORCH_DTYPE, device=device)
+    Rx = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
     Rx[1, 1] = np.cos(r)  # TODO: wtf, why is this not using torch.cos?
     Rx[1, 2] = -np.sin(r)
     Rx[2, 1] = np.sin(r)
     Rx[2, 2] = np.cos(r)
 
-    Ry = torch.eye(3, dtype=_DEFAULT_TORCH_DTYPE, device=device)
+    Ry = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
     Ry[0, 0] = np.cos(p)
     Ry[0, 2] = np.sin(p)
     Ry[2, 0] = -np.sin(p)
     Ry[2, 2] = np.cos(p)
 
-    Rz = torch.eye(3, dtype=_DEFAULT_TORCH_DTYPE, device=device)
+    Rz = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
     Rz[0, 0] = np.cos(y)
     Rz[0, 1] = -np.sin(y)
     Rz[1, 0] = np.sin(y)

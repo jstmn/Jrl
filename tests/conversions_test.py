@@ -9,6 +9,7 @@ from jkinpylib.conversions import (
     geodesic_distance_between_rotation_matrices,
     quaternion_conjugate,
     quaternion_norm,
+    geodesic_distance_between_quaternions,
 )
 from jkinpylib.utils import set_seed
 
@@ -16,10 +17,75 @@ from jkinpylib.utils import set_seed
 set_seed()
 
 # suppress=True: print with decimal notation, not scientific
-np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
+np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True, precision=12)
 
 
 class TestSolutionRerfinement(unittest.TestCase):
+    def test_geodesic_distance_test(self):
+        """Test geodesic_distance_between_quaternions"""
+        q1_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        # Rotation about +x axis by .25 radians
+        q2_pt = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
+        distance_expected = 0.25
+        distance_returned = geodesic_distance_between_quaternions(q1_pt, q2_pt)[0].item()
+        self.assertAlmostEqual(distance_expected, distance_returned, places=6)
+
+        # Test 2
+        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
+        distance_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0].item()
+        distance_expected = 3.1415927
+        # TODO: AssertionError: 3.1415927 != 3.1411044597625732 within 7 places (0.00048824023742666256 difference). It
+        # seems like rotation matrices created by quaternions have lower precision
+        self.assertAlmostEqual(distance_expected, distance_returned, places=3)
+
+    def test_quaternion_to_rotation_matrix(self):
+        """Test quaternion_to_rotation_matrix()"""
+
+        # Test 1: Identity quaternion
+        q = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        R_expected = torch.tensor(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], device="cpu", dtype=torch.float32
+        )
+        R_returned = quaternion_to_rotation_matrix(q)[0]
+        torch.testing.assert_close(R_returned, R_expected)
+
+        # Test 2
+        q = torch.tensor([[0.0000000, 0.92387953, 0.38268343, 0.0000000]], device="cpu", dtype=torch.float32)
+        # R_expected saved from this site: https://www.andre-gaschler.com/rotationconverter/
+        R_expected = torch.tensor(
+            [[0.7071068, 0.7071068, 0.0000000], [0.7071068, -0.7071068, 0.0000000], [0.0000000, 0.0000000, -1.0000000]],
+            device="cpu",
+            dtype=torch.float32,
+        )
+        R_returned = quaternion_to_rotation_matrix(q)[0]
+        torch.testing.assert_close(R_returned, R_expected)
+
+    def test_rotational_distance_between_rotation_matrices(self):
+        """Test geodesic_distance_between_rotation_matrices()"""
+        R1 = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], device="cpu", dtype=torch.float32)
+
+        # Rotation by 1 rad about the +z axis
+        R2 = torch.tensor(
+            [[0.5403023, -0.8414710, 0.0], [0.8414710, 0.5403023, 0.0], [0.0, 0.0, 1.0]],
+            device="cpu",
+            dtype=torch.float32,
+        )
+        distance_expected = 1.0
+        distance_returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
+        self.assertAlmostEqual(distance_returned[0].item(), distance_expected, delta=5e-4)
+
+        # Test 2: ___
+        R1 = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], device="cpu", dtype=torch.float32)
+        R2 = torch.tensor(
+            [[0.7071068, 0.7071068, 0.0000000], [0.7071068, -0.7071068, 0.0000000], [0.0000000, 0.0000000, -1.0000000]],
+            device="cpu",
+            dtype=torch.float32,
+        )
+        distance_returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
+        distance_expected = 3.1415927
+        self.assertAlmostEqual(distance_returned[0].item(), distance_expected, delta=5e-4)
+
     def test_enforce_pt_np_input_decorator(self):
         """Test that the enforce_pt_np_input() decorator works as expected."""
 

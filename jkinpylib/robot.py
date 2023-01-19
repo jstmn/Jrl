@@ -18,11 +18,10 @@ from jkinpylib.conversions import (
     quaternion_to_rpy,
     rotation_matrix_to_quaternion,
     quaternion_norm,
+    DEFAULT_TORCH_DTYPE,
 )
 from jkinpylib import config
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
-
-_DEFAULT_TORCH_DTYPE = torch.float32
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -83,9 +82,10 @@ class Robot:
         self._batch_fk_enabled = batch_fk_enabled
 
         # Create and fill cache of fixed rotations between links.
-        self._fixed_rotations = {}
+        self._fixed_rotations_cuda = {}
+        self._fixed_rotations_cpu = {}
         self.forward_kinematics_batch(
-            torch.tensor(self.sample_joint_angles(500), device=config.device, dtype=_DEFAULT_TORCH_DTYPE)
+            torch.tensor(self.sample_joint_angles(500), device=config.device, dtype=DEFAULT_TORCH_DTYPE)
         )
 
         # Initialize klampt
@@ -332,7 +332,7 @@ class Robot:
         self,
         x: torch.tensor,
         out_device: Optional[str] = None,
-        dtype: torch.dtype = _DEFAULT_TORCH_DTYPE,
+        dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_quaternion: bool = True,
         return_runtime: bool = False,
     ) -> Tuple[torch.Tensor, float]:
@@ -361,10 +361,10 @@ class Robot:
         if out_device is None:
             out_device = x.device
 
-        # Update _fixed_rotations if this is a larger batch then we've seen before
+        # Update _fixed_rotations_cuda if this is a larger batch then we've seen before
         if (
-            self._joint_chain[0].name not in self._fixed_rotations
-            or self._fixed_rotations[self._joint_chain[0].name].shape[0] < batch_size
+            self._joint_chain[0].name not in self._fixed_rotations_cuda
+            or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
         ):
             for joint in self._joint_chain:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
@@ -375,7 +375,8 @@ class Robot:
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]
-                self._fixed_rotations[joint.name] = T
+                self._fixed_rotations_cuda[joint.name] = T
+                self._fixed_rotations_cpu[joint.name] = T.to("cpu")
 
         # Rotation from body/base link to joint along the joint chain
         base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
@@ -386,7 +387,8 @@ class Robot:
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
 
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
-            parent_T_child_fixed = self._fixed_rotations[joint.name][0:batch_size]
+            fixed_rotation_dict = self._fixed_rotations_cpu if out_device == "cpu" else self._fixed_rotations_cuda
+            parent_T_child_fixed = fixed_rotation_dict[joint.name][0:batch_size]
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
 
             if joint.joint_type in {"revolute", "continuous"}:
@@ -528,7 +530,7 @@ class Robot:
         target_poses: torch.Tensor,
         xs_current: torch.Tensor,
         alpha: float = 0.25,
-        dtype: torch.dtype = _DEFAULT_TORCH_DTYPE,
+        dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_runtime: bool = True,
     ) -> Tuple[torch.Tensor, float]:
         """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
