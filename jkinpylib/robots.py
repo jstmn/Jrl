@@ -13,7 +13,16 @@ class Baxter(Robot):
         joint_chain = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
         end_effector_link_name = "left_hand"
         urdf_filepath = get_filepath("urdfs/baxter/baxter.urdf")
-        Robot.__init__(self, Baxter.name, urdf_filepath, joint_chain, end_effector_link_name, batch_fk_enabled=False)
+        ignored_collision_pairs = []
+        Robot.__init__(
+            self,
+            Baxter.name,
+            urdf_filepath,
+            joint_chain,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            batch_fk_enabled=False,
+        )
 
 
 class Fetch(Robot):
@@ -35,7 +44,13 @@ class Fetch(Robot):
         ]
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
-        Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name)
+        ignored_collision_pairs = [
+            ("torso_lift_link", "torso_fixed_link"),
+            ("r_gripper_finger_link", "l_gripper_finger_link"),
+            ("bellows_link2", "base_link"),
+            ("bellows_link2", "torso_fixed_link"),
+        ]
+        Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name, ignored_collision_pairs)
 
 
 # TODO: Add base link to 'Robot'
@@ -79,7 +94,16 @@ class Panda(Robot):
         ]
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
         end_effector_link_name = "panda_hand"
-        Robot.__init__(self, Panda.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
+        ignored_collision_pairs = [("panda_hand", "panda_link7"), ("panda_rightfinger", "panda_leftfinger")]
+        Robot.__init__(
+            self,
+            Panda.name,
+            urdf_filepath,
+            joint_chain,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            verbose=verbose,
+        )
 
 
 class Iiwa7(Robot):
@@ -99,7 +123,17 @@ class Iiwa7(Robot):
         ]
         urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
         end_effector_link_name = "iiwa_link_ee"
-        Robot.__init__(self, Iiwa7.name, urdf_filepath, joint_chain, end_effector_link_name, verbose=verbose)
+
+        ignored_collision_pairs = []
+        Robot.__init__(
+            self,
+            Iiwa7.name,
+            urdf_filepath,
+            joint_chain,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            verbose=verbose,
+        )
 
 
 ALL_CLCS = [Panda, Fetch, Iiwa7]

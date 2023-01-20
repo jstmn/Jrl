@@ -28,9 +28,9 @@ def _init_vis(robot: Robot, window_title: str):
 def oscillate_joints(robot: Robot):
     """Move the robot around"""
 
-    inc = 0.02
+    inc = 0.0025
     time_p_loop = 1 / 60  # 60Hz, in theory
-    klampt_robot = robot.klampt_world_model.robot(0)
+
     _init_vis(robot, "oscillate joints")
 
     x = np.array([(u + l) / 2.0 for (l, u) in robot.actuated_joints_limits])

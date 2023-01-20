@@ -5,10 +5,11 @@ from more_itertools import locate
 import torch
 import numpy as np
 import kinpy as kp
-import klampt
-from klampt import IKSolver
+from klampt import IKSolver, WorldModel
 from klampt.model import ik
 from klampt.math import so3
+from klampt import robotsim
+from klampt.model.collide import WorldCollider
 
 from jkinpylib.conversions import (
     rpy_tuple_to_rotation_matrix,
@@ -19,6 +20,7 @@ from jkinpylib.conversions import (
     rotation_matrix_to_quaternion,
     quaternion_norm,
     DEFAULT_TORCH_DTYPE,
+    PT_NP_TYPE,
 )
 from jkinpylib import config
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
@@ -55,6 +57,7 @@ class Robot:
         # the path from the base to end effector
         joint_path: List[str],
         end_effector_link_name: str,
+        ignored_collision_pairs: List[Tuple[str, str]],
         batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
@@ -90,10 +93,18 @@ class Robot:
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
-        self._klampt_world_model = klampt.WorldModel()
+        self._klampt_world_model = WorldModel()
         self._klampt_world_model.loadRobot(self._urdf_filepath)  # TODO: supress output of loadRobot call
-        self._klampt_robot: klampt.robotsim.RobotModel = self._klampt_world_model.robot(0)
-        self._klampt_ee_link: klampt.robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
+        self._klampt_robot: robotsim.RobotModel = self._klampt_world_model.robot(0)
+        ignored_collision_pairs_formatted = [
+            (self._klampt_robot.link(link1_name), self._klampt_robot.link(link2_name))
+            for link1_name, link2_name in ignored_collision_pairs
+        ]
+        self._klampt_collision_checker = WorldCollider(
+            self._klampt_world_model, ignore=ignored_collision_pairs_formatted
+        )
+        self._ignored_collision_pairs = ignored_collision_pairs + [(l2, l1) for l1, l2 in ignored_collision_pairs]
+        self._klampt_ee_link: robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
         self._klampt_config_dim = len(self._klampt_robot.getConfig())
         self._klampt_driver_vec_dim = self._klampt_robot.numDrivers()
         self._klampt_active_dofs = self._get_klampt_active_dofs()
@@ -149,7 +160,7 @@ class Robot:
         return self._actuated_joint_limits
 
     @property
-    def klampt_world_model(self) -> klampt.WorldModel:
+    def klampt_world_model(self) -> WorldModel:
         return self._klampt_world_model
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -183,13 +194,41 @@ class Robot:
         q = self._x_to_qs(np.resize(x, (1, self.n_dofs)))[0]
         self._klampt_robot.setConfig(q)
 
-    def __str__(self) -> str:
-        s = "<Robot[{}] name:{}, ndofs:{}>".format(
-            self.__class__.__name__,
-            self.name,
-            self.n_dofs,
-        )
-        return s
+    def clamp_to_joint_limits(self, x: PT_NP_TYPE):
+        """Clamp the given joint angle vectors to the joint limits
+
+        Args:
+            x (PT_NP_TYPE): [batch x ndofs] tensor of joint angles
+        """
+        assert isinstance(x, (np.ndarray, torch.Tensor))
+        assert x.shape[1] == self.n_dofs
+        clamp_fn = torch.clamp if isinstance(x, torch.Tensor) else np.clip
+        for i, (l, u) in enumerate(self.actuated_joints_limits):
+            x[:, i] = clamp_fn(x[:, i], l, u)
+        return x
+
+    def config_self_collides(self, x: PT_NP_TYPE, debug_mode: bool = False) -> bool:
+        """Returns True if the given joint angle vector causes the robot to self collide
+
+        Args:
+            x (PT_NP_TYPE): [ndofs] tensor of joint angles
+        """
+        assert isinstance(x, (np.ndarray, torch.Tensor))
+        if isinstance(x, torch.Tensor):
+            x = x.detach().cpu().numpy()
+        self.set_klampt_robot_config(x)
+        collisions = self._klampt_collision_checker.robotSelfCollisions(self._klampt_robot)
+        if debug_mode:
+            is_collision = False
+        for link1, link2 in collisions:
+            if debug_mode:
+                print(f"Collision between {link1.getName()} and {link2.getName()}")
+                is_collision = True
+            else:
+                return True
+        if debug_mode and is_collision:
+            return True
+        return False
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -299,6 +338,14 @@ class Robot:
             driver_vec = self._klampt_robot.configToDrivers(q)
             res[idx, :] = self._x_from_driver_vec(driver_vec)
         return res
+
+    def __str__(self) -> str:
+        s = "<Robot[{}] name:{}, ndofs:{}>".format(
+            self.__class__.__name__,
+            self.name,
+            self.n_dofs,
+        )
+        return s
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---

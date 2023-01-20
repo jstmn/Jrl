@@ -13,9 +13,9 @@ import torch
 import numpy as np
 import roma.mappings
 
+from jkinpylib.config import DEFAULT_TORCH_DTYPE
 from jkinpylib import config
 
-DEFAULT_TORCH_DTYPE = torch.float32
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
