@@ -102,6 +102,7 @@ class RobotTest(unittest.TestCase):
             "panda": 7,
             "baxter": 7,
             "fetch": 8,
+            "fetch_arm": 8,
             "iiwa7": 7,
         }
         for robot in ROBOTS:
@@ -111,6 +112,15 @@ class RobotTest(unittest.TestCase):
         ground_truth_joint_limits = {
             "fetch": [
                 (0, 0.38615),
+                (-1.6056, 1.6056),
+                (-1.221, 1.518),  # shoulder_lift_joint
+                (-np.pi, np.pi),  # upperarm_roll_joint
+                (-2.251, 2.251),  # elbow_flex_joint
+                (-np.pi, np.pi),  # forearm_roll_joint
+                (-2.16, 2.16),  # wrist_flex_joint
+                (-np.pi, np.pi),  # wrist_roll_joint
+            ],
+            "fetch_arm": [
                 (-1.6056, 1.6056),
                 (-1.221, 1.518),  # shoulder_lift_joint
                 (-np.pi, np.pi),  # upperarm_roll_joint
@@ -183,6 +193,15 @@ class RobotTest(unittest.TestCase):
                 "wrist_flex_joint",
                 "wrist_roll_joint",  # continous
             ],
+            "fetch_arm": [
+                "shoulder_pan_joint",
+                "shoulder_lift_joint",
+                "upperarm_roll_joint",  # continuous
+                "elbow_flex_joint",
+                "forearm_roll_joint",  # continuous
+                "wrist_flex_joint",
+                "wrist_roll_joint",  # continous
+            ],
             "iiwa7": [
                 "iiwa_joint_1",
                 "iiwa_joint_2",
@@ -213,6 +232,7 @@ class RobotTest(unittest.TestCase):
     def test_x_driver_vec_conversion_panda(self):
         gt_klampt_vector_dimensionality = {
             "fetch": 14,  # 24 total joints, 10 of them are fixed
+            "fetch_arm": 14,  # 24 total joints, 10 of them are fixed
             "panda": 8,  # panda has 1 non user specified actuated joint
             "iiwa7": 7,  #
         }

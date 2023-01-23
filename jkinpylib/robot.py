@@ -168,23 +168,27 @@ class Robot:
     # ---                                             External Functions                                             ---
     # ---                                                                                                            ---
 
-    def sample_joint_angles(self, n: int) -> np.ndarray:
-        """Returns a [N x ndof] matrix of randomly drawn joint angle vectors
-
-        Args:
-            n (int): _description_
-
-        Returns:
-            np.ndarray: _description_
+    def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:
+        """Returns a [N x ndof] matrix of randomly drawn joint angle vectors. The joint angles are sampled from the
+        range [lower+joint_limit_eps, upper-joint_limit_eps]
         """
         angs = np.random.rand(n, self.n_dofs)  # between [0, 1)
 
         # Sample
-        for i in range(self.n_dofs):
-            range_ = self._actuated_joint_limits[i][1] - self._actuated_joint_limits[i][0]
+        for i, (lower, upper) in enumerate(self.actuated_joints_limits):
+            # Add eps padding to avoid the joint limits
+            upper = upper - joint_limit_eps
+            lower = lower + joint_limit_eps
+
+            range_ = upper - lower
             assert range_ > 0
             angs[:, i] *= range_
-            angs[:, i] += self._actuated_joint_limits[i][0]
+            angs[:, i] += lower
+        # for i in range(self.n_dofs):
+        #     range_ = self._actuated_joint_limits[i][1] - self._actuated_joint_limits[i][0]
+        #     assert range_ > 0
+        #     angs[:, i] *= range_
+        #     angs[:, i] += self._actuated_joint_limits[i][0]
         return angs
 
     def set_klampt_robot_config(self, x: np.ndarray):
@@ -374,7 +378,7 @@ class Robot:
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
 
-    # TODO: Return as quaternion format
+    # TODO: Do FK starting at 'base_link' instead of the first joint.
     def forward_kinematics_batch(
         self,
         x: torch.tensor,
@@ -572,6 +576,7 @@ class Robot:
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
         return xs_updated, time() - t0
 
+    # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
         self,
         target_poses: torch.Tensor,

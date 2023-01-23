@@ -53,27 +53,39 @@ class Fetch(Robot):
         Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name, ignored_collision_pairs)
 
 
-# TODO: Add base link to 'Robot'
-# class FetchNoPrismatic(Robot):
-#     name = "fetch_no_prismatic"
-#     formal_robot_name = "Fetch - No lift joint"
+class FetchArm(Robot):
+    name = "fetch_arm"
+    formal_robot_name = "Fetch - Arm (no lift joint)"
 
-#     def __init__(self):
-#         # Sum joint range:
-#         joint_chain = [
-#             # "torso_lift_joint",
-#             "shoulder_pan_joint",
-#             "shoulder_lift_joint",
-#             "upperarm_roll_joint",  # continuous
-#             "elbow_flex_joint",
-#             "forearm_roll_joint",  # continuous
-#             "wrist_flex_joint",
-#             "wrist_roll_joint",  # continous
-#             "gripper_axis",  # fixed
-#         ]
-#         end_effector_link_name = "gripper_link"
-#         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
-#         Robot.__init__(self, FetchNoPrismatic.name, urdf_filepath, joint_chain, end_effector_link_name)
+    def __init__(self, verbose: bool = False):
+        # Sum joint range: 33.6218 rads
+        joint_chain = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "upperarm_roll_joint",  # continuous
+            "elbow_flex_joint",
+            "forearm_roll_joint",  # continuous
+            "wrist_flex_joint",
+            "wrist_roll_joint",  # continous
+            "gripper_axis",  # fixed
+        ]
+        end_effector_link_name = "gripper_link"
+        urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
+        ignored_collision_pairs = [
+            ("torso_lift_link", "torso_fixed_link"),
+            ("r_gripper_finger_link", "l_gripper_finger_link"),
+            ("bellows_link2", "base_link"),
+            ("bellows_link2", "torso_fixed_link"),
+        ]
+        Robot.__init__(
+            self,
+            FetchArm.name,
+            urdf_filepath,
+            joint_chain,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            verbose=verbose,
+        )
 
 
 class Panda(Robot):
@@ -136,8 +148,8 @@ class Iiwa7(Robot):
         )
 
 
+# ALL_CLCS = [FetchArm]
 ALL_CLCS = [Panda, Fetch, Iiwa7]
-# ALL_CLCS = [Panda, Fetch, Baxter, FetchNoPrismatic]
 
 
 def get_all_robots() -> List[Robot]:
@@ -159,4 +171,4 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    r = Iiwa7(verbose=True)
+    r = FetchArm(verbose=True)

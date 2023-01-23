@@ -114,6 +114,11 @@ class TestForwardKinematics(unittest.TestCase):
             samples = robot.sample_joint_angles(25)
             kinpy_fk = forward_kinematics_kinpy(robot, samples)
             klampt_fk = robot.forward_kinematics_klampt(samples)
+            # First - sanity check kinpy and klampt
+            np.testing.assert_allclose(kinpy_fk[:, 0:3], klampt_fk[:, 0:3], atol=1e-4)
+            self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
+
+            # Second - check batch_fk
             batch_fk = (
                 robot.forward_kinematics_batch(
                     torch.tensor(samples, dtype=torch.float32, device=DEVICE), out_device=DEVICE, return_quaternion=True
@@ -122,6 +127,9 @@ class TestForwardKinematics(unittest.TestCase):
                 .numpy()
             )
             self.assertEqual(batch_fk.shape, (25, 7))
+            print("positional errors:")
+            print(batch_fk[:, 0:3] - kinpy_fk[:, 0:3])
+
             np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk[:, 0:3], atol=1e-4)
             self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
 
