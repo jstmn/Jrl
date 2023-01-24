@@ -53,36 +53,51 @@ class Robot:
         self,
         name: str,
         urdf_filepath: str,
-        # TODO: Rename to active joints, or 'disabled_joints', then remove all joints in 'disabled_joints' from those in
-        # the path from the base to end effector
-        joint_path: List[str],
+        active_joints: List[str],
+        base_link: str,
         end_effector_link_name: str,
         ignored_collision_pairs: List[Tuple[str, str]],
         batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
-        """_summary_
+        """TODO
 
         Args:
+            name (str): _description_
+            base_link (str): _description_
             urdf_filepath (str): _description_
-            joint_path (List[str]): The name of the joints that form the kinematic chain that is being represented.
-                                    There are no restrictions on where it starts. It must end at the end effector
-                                    however. NOTE: This may include fixed joints
+            active_joints (List[str]): The name of the actuated joints in the kinematic chain that is being represented.
+                                        These joints must be along the link chain from the 'base_link' to the
+                                        'end_effector_link_name'. Note that all non-fixed joints in this chain that are
+                                        not in 'active_joints' will be ignored (by being changed to fixed joints).
             end_effector_link_name (str): _description_
-
-        Raises:
-            ValueError: _description_
+            ignored_collision_pairs (List[Tuple[str, str]]): _description_
+            batch_fk_enabled (bool, optional): _description_. Defaults to True.
+            verbose (bool, optional): _description_. Defaults to False.
         """
+        assert isinstance(name, str)
+        assert isinstance(base_link, str)
+        assert isinstance(urdf_filepath, str)
+        assert isinstance(active_joints, list)
+        assert isinstance(end_effector_link_name, str)
+        assert isinstance(ignored_collision_pairs, list)
         self._name = name
         self._urdf_filepath = urdf_filepath
+        self._base_link = base_link
         self._end_effector_link_name = end_effector_link_name
+        self._batch_fk_enabled = batch_fk_enabled
 
         # Note: `_joint_chain`, `_actuated_joint_limits`, `_actuated_joint_names` only includes the joints that were
         # specified by the subclass. It does not include all actuated joints in the urdf
-        self._joint_chain = get_joint_chain(self._urdf_filepath, joint_path, self._end_effector_link_name)
+        self._joint_chain = get_joint_chain(
+            self._urdf_filepath, active_joints, self._base_link, self._end_effector_link_name
+        )
         self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
-        self._batch_fk_enabled = batch_fk_enabled
+        assert len(active_joints) == self.n_dofs, (
+            f"Error - the number of active joints ({len(active_joints)}) does not match the degrees of freedom"
+            f" ({self.n_dofs})."
+        )
 
         # Create and fill cache of fixed rotations between links.
         self._fixed_rotations_cuda = {}
@@ -239,6 +254,16 @@ class Robot:
     # ---                                             Internal Functions                                             ---
     # ---                                                                                                            ---
 
+    def _get_actuated_joint_child_names(self) -> List[str]:
+        """Returns the names of the children of the actuated joints"""
+
+        def get_child_name_from_joint_name(joint_name: str) -> str:
+            for joint in self._joint_chain:
+                if joint.name == joint_name:
+                    return joint.child
+
+        return [get_child_name_from_joint_name(joint_name) for joint_name in self.actuated_joint_names]
+
     def _get_klampt_active_dofs(self) -> List[int]:
         """Hack: We need to know which indexes of the klampt q vector are from active joints.
 
@@ -247,9 +272,8 @@ class Robot:
                         joints
         """
         all_drivers = [self._klampt_robot.driver(i) for i in range(self._klampt_robot.numDrivers())]
-        actuated_joint_child_names = [joint.child for joint in self._joint_chain]
+        actuated_joint_child_names = self._get_actuated_joint_child_names()
         driver_vec_tester = [1000 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
-
         q_test_result = self._klampt_robot.configFromDrivers(driver_vec_tester)
         q_active_joint_idxs = list(locate(q_test_result, lambda x: x == 1000))
         assert len(q_active_joint_idxs) == self.n_dofs, (
@@ -268,8 +292,7 @@ class Robot:
         # Get the names of all the child links for each active joint.
         # Note: driver.getName() returns the joints' child link for some god awful reason. See L1161 in Robot.cpp
         # (https://github.com/krishauser/Klampt/blob/master/Cpp/Modeling/Robot.cpp#L1161)
-        actuated_joint_child_names = [joint.child for joint in self._joint_chain]
-
+        actuated_joint_child_names = self._get_actuated_joint_child_names()
         all_drivers = [self._klampt_robot.driver(i) for i in range(self._klampt_robot.numDrivers())]
         driver_vec_tester = [1 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
         active_driver_idxs = list(locate(driver_vec_tester, lambda x: x == 1))
@@ -463,6 +486,8 @@ class Robot:
                 # as a reminder
                 # base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
 
+                x_i += 1
+
             elif joint.joint_type == "prismatic":
                 # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
                 translations = (
@@ -475,12 +500,12 @@ class Robot:
                 joint_fixed_T_joint[:, 0:3, 3] = translations
                 base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
 
+                x_i += 1
+
             elif joint.joint_type == "fixed":
                 pass
             else:
                 raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
-
-            x_i += 1
 
         if return_quaternion:
             quaternions = rotation_matrix_to_quaternion(base_T_joint[:, 0:3, 0:3])

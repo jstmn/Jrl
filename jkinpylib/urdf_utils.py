@@ -15,8 +15,18 @@ UNHANDLED_JOINT_TYPES = ["floating", "planar"]
 class Link:
     name: str
 
+    # TODO: link Links and Joints
+    # parent_joints: List["Joint"] = None
+    # child_joints: List["Joint"] = None
+
     def __str__(self):
         return f"<Link(), '{self.name}'>\n"
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __eq__(self, __o: object) -> bool:
+        return self.name == __o.name
 
 
 @dataclass
@@ -25,6 +35,9 @@ class Joint:
     # parent, child are the name of the links that this joint connects to
     parent: str
     child: str
+    # TODO: link Links and Joints
+    # parent_link: Link
+    # child_link: Link
     origin_rpy: Tuple[float, float, float]
     origin_xyz: Tuple[float, float, float]
     axis_xyz: Tuple[float, float, float]
@@ -34,6 +47,11 @@ class Joint:
     @property
     def is_actuated(self) -> bool:
         return self.joint_type != "fixed"
+
+    def set_to_fixed(self):
+        self.joint_type = "fixed"
+        self.limits = (0, 0)
+        self.__post_init__()
 
     def __post_init__(self):
         assert len(self.origin_rpy) == 3
@@ -66,6 +84,30 @@ class Joint:
         ret += f"  axis_xyz:   {self.axis_xyz}\n"
         ret += f"  limits:     {self.limits}"
         return ret
+
+
+def _get_link_by_name(link_name: str, all_links: List[Link]) -> Link:
+    """Returns the link with the given name"""
+    matching = None
+    for link in all_links:
+        if link.name == link_name:
+            assert matching is None, f"Multiple links with name '{link_name}' found"
+            matching = link
+    assert matching is not None, f"link '{link_name}' not found (all known={[link.name for link in all_links]})"
+    assert isinstance(matching, Link)
+    return matching
+
+
+def _get_joint_by_name(joint_name: str, all_joints: List[Joint]) -> Joint:
+    """Returns the link with the given name"""
+    matching = None
+    for joint in all_joints:
+        if joint.name == joint_name:
+            assert matching is None, f"Multiple joints with name '{joint_name}' found"
+            matching = joint
+    assert matching is not None, f"joint '{joint_name}' not found (all known={[joint.name for joint in all_joints]})"
+    assert isinstance(matching, Joint)
+    return matching
 
 
 def _len3_tuple_from_str(s) -> Tuple[float, float, float]:
@@ -164,38 +206,125 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
     return joints, links
 
 
-def get_joint_chain(urdf_filepath: str, active_joints: List[str], end_effector_name: str) -> List[Joint]:
-    """Return the 'joint chain', which is the list of joints that form the kinematic chain that is being
-    represented. This list is in a sense a linked-list, where the child of each joint is the parent of the next
-    joint.
+class DFSSearcher:
+    def __init__(self, all_joints: List[Joint], all_links: List[Link], base_link: Link, end_effector_link: Link):
+        self._all_joints = all_joints
+        self._all_links = all_links
+        self._base_link = base_link
+        self._end_effector_link = end_effector_link
+        assert isinstance(self._base_link, Link)
+        assert isinstance(self._end_effector_link, Link)
+
+    def _get_child_links(self, link_name: str) -> List[Link]:
+        """Returns the names of all links that are children of the given link"""
+        return [
+            _get_link_by_name(joint.child, self._all_links) for joint in self._all_joints if joint.parent == link_name
+        ]
+
+    def _path_from_start(self, node: Tuple, child_to_parent_map: Dict):
+        path = [node]
+        child = node
+        while child in child_to_parent_map:
+            parent = child_to_parent_map[child]
+            path.append(parent)
+            child = parent
+        path.reverse()
+        return path
+
+    def dfs(self) -> List[Tuple]:
+        """Searches the graph using depth-first search
+
+        Returns:
+            List[Tuple]: The path found by the search
+        """
+
+        stack = [self._base_link]
+        visited = set()
+        child_to_parent_map = {}
+
+        def _is_goal_state(node):
+            return node == self._end_effector_link  # _eq_ is overloaded for Link
+
+        while len(stack) > 0:
+            parent = stack.pop(0)
+            if parent in visited:
+                continue
+
+            if _is_goal_state(parent):
+                return self._path_from_start(parent, child_to_parent_map)
+
+            visited.add(parent)
+            for child in self._get_child_links(parent.name):
+                child_to_parent_map[child] = parent
+                stack.insert(0, child)
+
+        raise RuntimeError("No path found")
+
+
+def joint_path_from_link_path(link_path: List[Link], all_joints: List[Joint]) -> List[Joint]:
+    """Returns the joint path corresponding to the given link path"""
+    path = []
+
+    for i in range(len(link_path) - 1):
+        joint_found = False
+        for joint in all_joints:
+            if link_path[i].name == joint.parent and link_path[i + 1].name == joint.child:
+                assert joint_found == False, "Found multiple joints between two links"
+                joint_found = True
+                path.append(joint)
+
+    return path
+
+
+def get_joint_chain(
+    urdf_filepath: str, active_joints: List[str], base_link_name: str, end_effector_name: str
+) -> List[Joint]:
+    """Returns a list of joints from the base link to the end effector. Runs DFS to find the path, and checks that the
+    path is valid before returning it.
 
     Args:
         active_joints (List[str]): The joints in the kinematic chain (specified by the user).
     """
-    all_joints, all_links = parse_urdf(urdf_filepath)
+    all_joints, all_links = parse_urdf(urdf_filepath)  # Dicts
+    all_joints = list(all_joints.values())
+    all_joint_names = tuple([j.name for j in all_joints])
+    all_links = list(all_links.values())
+    all_link_names = tuple([j.name for j in all_links])
 
-    # Check that all joints in `joints` are in the urdf
-    for joint in active_joints:
+    base_link = _get_link_by_name(base_link_name, all_links)
+    end_effector_link = _get_link_by_name(end_effector_name, all_links)
+
+    # Run DFS to find the path from the base link to the end effector
+    dfs_searcher = DFSSearcher(all_joints, all_links, base_link, end_effector_link)
+    link_path = dfs_searcher.dfs()
+    joint_path = joint_path_from_link_path(link_path, all_joints)
+    assert len(joint_path) >= len(active_joints), (
+        f"Expected as many joints in the joint_path as active_joints (expected {len(active_joints)} but got"
+        f" {len(joint_path)}"
+    )
+
+    # Set all joints not in `active_joints` to fixed
+    for joint in all_joints:
+        if joint.name not in active_joints:
+            joint.set_to_fixed()
+
+    # Check that all joints in `active_joints` are in the urdf
+    for active_joint_name in active_joints:
         assert (
-            joint in all_joints
-        ), f"joint '{joint}' not in the urdf (present active_joints: {list(x for x in all_links)})"
+            active_joint_name in all_joint_names
+        ), f"active joint '{active_joint_name}' not found in the urdf (all present: {all_joint_names})"
+        matching_joint = _get_joint_by_name(active_joint_name, all_joints)
+        assert matching_joint.joint_type != "fixed", f"active joint '{active_joint_name}' is fixed"
 
-    # Check that `end_effector_name` is in the urdf
-    assert (
-        end_effector_name in all_links
-    ), f"link '{end_effector_name}' not found in the urdf (present links: {list(x for x in all_links)})"
+    for joint in all_joints:
+        if joint.name in active_joints:
+            assert joint.joint_type != "fixed", f"joint '{joint.name}' should not be fixed, because it's active"
+        else:
+            assert joint.joint_type == "fixed", f"joint '{joint.name}' should be fixed, because it's in active_joints"
 
-    # Check that `active_joints` forms a linked list
-    for i in range(len(active_joints) - 1):
-        joint = all_joints[active_joints[i]]
-        next_joint = all_joints[active_joints[i + 1]]
-        assert (
-            joint.child == next_joint.parent
-        ), f"Error: joint('{joint.name}').child != joint_('{next_joint.name}').parent"
+    # Check that `end_effector_name` and `base_link_name` are in the urdf and in the link path
+    for link in (base_link, end_effector_link):
+        assert link in all_links, f"link '{link}' not found in the urdf (all links: {all_link_names})"
+        assert link in link_path, f"link '{link}' not found in the link_path (link_path: {link_path})"
 
-    assert (
-        all_joints[active_joints[-1]].child == end_effector_name
-    ), f"Error: the final joint's child != end_effector_name ('{end_effector_name}')"
-
-    joint_chain = [all_joints[joint_name] for joint_name in active_joints]
-    return joint_chain
+    return joint_path

@@ -102,7 +102,7 @@ class RobotTest(unittest.TestCase):
             "panda": 7,
             "baxter": 7,
             "fetch": 8,
-            "fetch_arm": 8,
+            "fetch_arm": 7,
             "iiwa7": 7,
         }
         for robot in ROBOTS:

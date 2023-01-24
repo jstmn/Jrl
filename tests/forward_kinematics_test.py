@@ -2,7 +2,7 @@ from typing import Tuple
 import unittest
 
 from jkinpylib import config
-from jkinpylib.robots import get_all_robots, Panda
+from jkinpylib.robots import get_all_robots
 from jkinpylib.robot import Robot, forward_kinematics_kinpy
 from jkinpylib.conversions import geodesic_distance_between_quaternions
 
@@ -89,12 +89,12 @@ class TestForwardKinematics(unittest.TestCase):
     def test_forward_kinematics_batch_differentiability(self):
         """Test that forward_kinematics_batch is differenetiable"""
 
-        robot = Panda()
-        samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
-        out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
+        for robot in ROBOTS:
+            samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
+            out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
 
-        # Should be able to progogate the gradient of the error (out.mean()) through forward_kinematics_batch()
-        out.mean().backward()
+            # Should be able to progogate the gradient of the error (out.mean()) through forward_kinematics_batch()
+            out.mean().backward()
 
     def test_forward_kinematics_batch(self):
         """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
@@ -127,9 +127,6 @@ class TestForwardKinematics(unittest.TestCase):
                 .numpy()
             )
             self.assertEqual(batch_fk.shape, (25, 7))
-            print("positional errors:")
-            print(batch_fk[:, 0:3] - kinpy_fk[:, 0:3])
-
             np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk[:, 0:3], atol=1e-4)
             self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
 

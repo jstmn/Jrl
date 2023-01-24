@@ -10,15 +10,19 @@ class Baxter(Robot):
     formal_robot_name = "Baxter"
 
     def __init__(self):
-        joint_chain = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
+        active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
+
+        base_link = "base"
         end_effector_link_name = "left_hand"
+
         urdf_filepath = get_filepath("urdfs/baxter/baxter.urdf")
         ignored_collision_pairs = []
         Robot.__init__(
             self,
             Baxter.name,
             urdf_filepath,
-            joint_chain,
+            active_joints,
+            base_link,
             end_effector_link_name,
             ignored_collision_pairs,
             batch_fk_enabled=False,
@@ -31,7 +35,7 @@ class Fetch(Robot):
 
     def __init__(self):
         # Sum joint range: 34.0079 rads
-        joint_chain = [
+        active_joints = [
             "torso_lift_joint",
             "shoulder_pan_joint",
             "shoulder_lift_joint",
@@ -40,8 +44,8 @@ class Fetch(Robot):
             "forearm_roll_joint",  # continuous
             "wrist_flex_joint",
             "wrist_roll_joint",  # continous
-            "gripper_axis",  # fixed
         ]
+        base_link = "base_link"
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
         ignored_collision_pairs = [
@@ -50,7 +54,9 @@ class Fetch(Robot):
             ("bellows_link2", "base_link"),
             ("bellows_link2", "torso_fixed_link"),
         ]
-        Robot.__init__(self, Fetch.name, urdf_filepath, joint_chain, end_effector_link_name, ignored_collision_pairs)
+        Robot.__init__(
+            self, Fetch.name, urdf_filepath, active_joints, base_link, end_effector_link_name, ignored_collision_pairs
+        )
 
 
 class FetchArm(Robot):
@@ -59,7 +65,7 @@ class FetchArm(Robot):
 
     def __init__(self, verbose: bool = False):
         # Sum joint range: 33.6218 rads
-        joint_chain = [
+        active_joints = [
             "shoulder_pan_joint",
             "shoulder_lift_joint",
             "upperarm_roll_joint",  # continuous
@@ -67,8 +73,8 @@ class FetchArm(Robot):
             "forearm_roll_joint",  # continuous
             "wrist_flex_joint",
             "wrist_roll_joint",  # continous
-            "gripper_axis",  # fixed
         ]
+        base_link = "base_link"
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
         ignored_collision_pairs = [
@@ -81,7 +87,8 @@ class FetchArm(Robot):
             self,
             FetchArm.name,
             urdf_filepath,
-            joint_chain,
+            active_joints,
+            base_link,
             end_effector_link_name,
             ignored_collision_pairs,
             verbose=verbose,
@@ -93,7 +100,7 @@ class Panda(Robot):
     formal_robot_name = "Panda"
 
     def __init__(self, verbose: bool = False):
-        joint_chain = [
+        active_joints = [
             "panda_joint1",
             "panda_joint2",
             "panda_joint3",
@@ -101,17 +108,17 @@ class Panda(Robot):
             "panda_joint5",
             "panda_joint6",
             "panda_joint7",
-            "panda_joint8",
-            "panda_hand_joint",
         ]
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
+        base_link = "panda_link0"
         end_effector_link_name = "panda_hand"
         ignored_collision_pairs = [("panda_hand", "panda_link7"), ("panda_rightfinger", "panda_leftfinger")]
         Robot.__init__(
             self,
             Panda.name,
             urdf_filepath,
-            joint_chain,
+            active_joints,
+            base_link,
             end_effector_link_name,
             ignored_collision_pairs,
             verbose=verbose,
@@ -123,7 +130,7 @@ class Iiwa7(Robot):
     formal_robot_name = "Kuka LBR IIWA7"
 
     def __init__(self, verbose: bool = False):
-        joint_chain = [
+        active_joints = [
             "iiwa_joint_1",
             "iiwa_joint_2",
             "iiwa_joint_3",
@@ -131,9 +138,9 @@ class Iiwa7(Robot):
             "iiwa_joint_5",
             "iiwa_joint_6",
             "iiwa_joint_7",
-            "iiwa_joint_ee",  # fixed
         ]
         urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
+        base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
 
         ignored_collision_pairs = []
@@ -141,15 +148,15 @@ class Iiwa7(Robot):
             self,
             Iiwa7.name,
             urdf_filepath,
-            joint_chain,
+            active_joints,
+            base_link,
             end_effector_link_name,
             ignored_collision_pairs,
             verbose=verbose,
         )
 
 
-# ALL_CLCS = [FetchArm]
-ALL_CLCS = [Panda, Fetch, Iiwa7]
+ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
 
 
 def get_all_robots() -> List[Robot]:
