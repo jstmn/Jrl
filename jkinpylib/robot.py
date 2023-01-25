@@ -10,6 +10,7 @@ from klampt.model import ik
 from klampt.math import so3
 from klampt import robotsim
 from klampt.model.collide import WorldCollider
+import tqdm
 
 from jkinpylib.conversions import (
     rpy_tuple_to_rotation_matrix,
@@ -199,12 +200,34 @@ class Robot:
             assert range_ > 0
             angs[:, i] *= range_
             angs[:, i] += lower
-        # for i in range(self.n_dofs):
-        #     range_ = self._actuated_joint_limits[i][1] - self._actuated_joint_limits[i][0]
-        #     assert range_ > 0
-        #     angs[:, i] *= range_
-        #     angs[:, i] += self._actuated_joint_limits[i][0]
         return angs
+
+    def sample_joint_angles_and_poses(
+        self, n: int, joint_limit_eps: float = 1e-6, only_non_self_colliding: bool = True, tqdm_enabled: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
+        samples = np.zeros((n, self.n_dofs))
+        poses = np.zeros((n, 7))
+        internal_batch_size = 5000
+        counter = 0
+
+        with tqdm.tqdm(total=n, disable=not tqdm_enabled) as pbar:
+            while True:
+                samples_i = self.sample_joint_angles(internal_batch_size, joint_limit_eps=joint_limit_eps)
+
+                for i in range(samples_i.shape[0]):
+                    sample = samples_i[i]
+                    if only_non_self_colliding and self.config_self_collides(sample):
+                        continue
+
+                    pose = self.forward_kinematics_klampt(sample[None, :])
+                    samples[counter] = sample
+                    poses[counter] = pose
+                    counter += 1
+                    pbar.update(1)
+
+                    if counter == n:
+                        return samples, poses
 
     def set_klampt_robot_config(self, x: np.ndarray):
         """Set the internal klampt robots config with the given joint angle vector"""
