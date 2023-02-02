@@ -1,17 +1,18 @@
 from typing import Tuple
 import unittest
 
+import torch
+import numpy as np
+
 from jkinpylib import config
 from jkinpylib.robots import get_all_robots
 from jkinpylib.robot import Robot, forward_kinematics_kinpy
 from jkinpylib.conversions import geodesic_distance_between_quaternions
-
-import torch
-import numpy as np
+from jkinpylib.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 torch.manual_seed(0)
 
-DEVICE = config.device
+DEVICE = config.DEVICE
 
 
 def decimal_range(start, stop, inc):
@@ -28,8 +29,6 @@ def get_gt_samples_and_endpoints(robot_name: str) -> Tuple[np.ndarray, np.ndarra
     )
 
 
-MAX_ALLOWABLE_L2_ERR = 5e-4
-MAX_ALLOWABLE_ANG_ERR = 0.0008726646  # .05 degrees
 ROBOTS = get_all_robots()
 
 
@@ -37,23 +36,6 @@ class TestForwardKinematics(unittest.TestCase):
     # ==================================================================================================================
     # Helper functions
     #
-
-    def assert_endpose_position_almost_equal(
-        self, endpoints1: np.array, endpoints2: np.array, source_1: str = "", source_2: str = ""
-    ):
-        """Check that the position of each pose is nearly the same"""
-        l2_errors = np.linalg.norm(endpoints1[:, 0:3] - endpoints2[:, 0:3], axis=1)
-        for i in range(l2_errors.shape[0]):
-            self.assertLess(l2_errors[i], MAX_ALLOWABLE_L2_ERR, msg=f"FK between '{source_1}', '{source_2}' not equal")
-
-    def assert_endpose_rotation_almost_equal(self, endpoints1: np.array, endpoints2: np.array, threshold=None):
-        """Check that the rotation of each pose is nearly the same"""
-        if threshold is None:
-            threshold = MAX_ALLOWABLE_ANG_ERR
-        rotational_errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
-        for i in range(rotational_errors.shape[0]):
-            self.assertLess(rotational_errors[i], threshold)
-
     def get_fk_poses(self, robot: Robot, samples: np.array) -> Tuple[np.array, np.array, Tuple[np.array, np.array]]:
         """Return fk solutions calculated by kinpy, klampt, and batch_fk"""
         kinpy_fk = forward_kinematics_kinpy(robot, samples)
@@ -116,7 +98,7 @@ class TestForwardKinematics(unittest.TestCase):
             klampt_fk = robot.forward_kinematics_klampt(samples)
             # First - sanity check kinpy and klampt
             np.testing.assert_allclose(kinpy_fk[:, 0:3], klampt_fk[:, 0:3], atol=1e-4)
-            self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
+            assert_pose_rotations_almost_equal(kinpy_fk, klampt_fk)
 
             # Second - check batch_fk
             batch_fk = (
@@ -128,7 +110,7 @@ class TestForwardKinematics(unittest.TestCase):
             )
             self.assertEqual(batch_fk.shape, (25, 7))
             np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk[:, 0:3], atol=1e-4)
-            self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
+            assert_pose_rotations_almost_equal(kinpy_fk, batch_fk)
 
     def test_fk_matches_saved_data(self):
         """
@@ -139,23 +121,21 @@ class TestForwardKinematics(unittest.TestCase):
             kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
 
             if robot._batch_fk_enabled:
-                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk_t")
-                self.assert_endpose_position_almost_equal(
-                    batch_fk, endpoints_expected, "batch_fk", "endpoints_expected"
-                )
-                self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
-                self.assert_endpose_rotation_almost_equal(batch_fk, endpoints_expected)
+                assert_pose_positions_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk_t")
+                assert_pose_positions_almost_equal(batch_fk, endpoints_expected, "batch_fk", "endpoints_expected")
+                assert_pose_rotations_almost_equal(kinpy_fk, batch_fk)
+                assert_pose_rotations_almost_equal(batch_fk, endpoints_expected)
 
             # fks batch eachother
-            self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
-            self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
+            assert_pose_positions_almost_equal(kinpy_fk, klampt_fk)
+            assert_pose_rotations_almost_equal(kinpy_fk, klampt_fk)
 
             # fks match saved
-            self.assert_endpose_position_almost_equal(kinpy_fk, endpoints_expected)
-            self.assert_endpose_position_almost_equal(klampt_fk, endpoints_expected)
+            assert_pose_positions_almost_equal(kinpy_fk, endpoints_expected)
+            assert_pose_positions_almost_equal(klampt_fk, endpoints_expected)
 
-            self.assert_endpose_rotation_almost_equal(kinpy_fk, endpoints_expected)
-            self.assert_endpose_rotation_almost_equal(klampt_fk, endpoints_expected)
+            assert_pose_rotations_almost_equal(kinpy_fk, endpoints_expected)
+            assert_pose_rotations_almost_equal(klampt_fk, endpoints_expected)
 
     def test_fk_functions_equal(self):
         """
@@ -165,12 +145,12 @@ class TestForwardKinematics(unittest.TestCase):
         for robot in ROBOTS:
             samples = robot.sample_joint_angles(n_samples)
             kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
-            self.assert_endpose_position_almost_equal(kinpy_fk, klampt_fk)
-            self.assert_endpose_rotation_almost_equal(kinpy_fk, klampt_fk)
+            assert_pose_positions_almost_equal(kinpy_fk, klampt_fk)
+            assert_pose_rotations_almost_equal(kinpy_fk, klampt_fk)
 
             if robot._batch_fk_enabled:
-                self.assert_endpose_position_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk")
-                self.assert_endpose_rotation_almost_equal(kinpy_fk, batch_fk)
+                assert_pose_positions_almost_equal(kinpy_fk, batch_fk, "kinpy_fk", "batch_fk")
+                assert_pose_rotations_almost_equal(kinpy_fk, batch_fk)
 
     def test_each_dimension_actuated(self):
         """

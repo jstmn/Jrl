@@ -36,14 +36,16 @@ class RobotTest(unittest.TestCase):
             # plt.title(f"Joint {i} value distribution")
             # plt.hist(angles)
             # plt.show()
-            self.assertAlmostEqual(range_, range_gt, delta=0.125)
+            self.assertAlmostEqual(
+                range_, range_gt, delta=0.125, msg=f"Joint {i} range doesn't match expected ({range_} vs {range_gt}"
+            )
             self.assertAlmostEqual(std, std_expected, delta=0.15)
 
     def test_sample_joint_angles(self):
         """_summary_"""
         for robot in ROBOTS:
-            joint_angles = robot.sample_joint_angles(500)
-            self.assertEqual(joint_angles.shape, (500, robot.n_dofs))
+            joint_angles = robot.sample_joint_angles(1000)
+            self.assertEqual(joint_angles.shape, (1000, robot.n_dofs))
             # Check joint angles are within joint limits
             self._assert_joint_angles_within_limits(joint_angles, robot)
             self._assert_joint_angles_uniform(joint_angles, robot)
@@ -51,9 +53,9 @@ class RobotTest(unittest.TestCase):
     def test_sample_joint_angles_and_poses(self):
         """_summary_"""
         for robot in ROBOTS:
-            joint_angles, poses = robot.sample_joint_angles_and_poses(500, tqdm_enabled=False)
-            self.assertEqual(joint_angles.shape, (500, robot.n_dofs))
-            self.assertEqual(poses.shape, (500, 7))
+            joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=False)
+            self.assertEqual(joint_angles.shape, (1000, robot.n_dofs))
+            self.assertEqual(poses.shape, (1000, 7))
 
             # Check joint angles are within joint limits and uniform
             self._assert_joint_angles_within_limits(joint_angles, robot)

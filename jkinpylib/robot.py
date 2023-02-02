@@ -23,7 +23,7 @@ from jkinpylib.conversions import (
     DEFAULT_TORCH_DTYPE,
     PT_NP_TYPE,
 )
-from jkinpylib import config
+from jkinpylib.config import DEVICE
 from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
 
 
@@ -104,7 +104,7 @@ class Robot:
         self._fixed_rotations_cuda = {}
         self._fixed_rotations_cpu = {}
         self.forward_kinematics_batch(
-            torch.tensor(self.sample_joint_angles(500), device=config.device, dtype=DEFAULT_TORCH_DTYPE)
+            torch.tensor(self.sample_joint_angles(500), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
         )
 
         # Initialize klampt
@@ -249,6 +249,21 @@ class Robot:
             x[:, i] = clamp_fn(x[:, i], l, u)
         return x
 
+    def joint_angles_all_in_joint_limits(self, x: PT_NP_TYPE) -> bool:
+        """Return whether all joint angles are within joint limits
+
+        Args:
+            x (PT_NP_TYPE): [batch x ndofs] tensor of joint angles
+        """
+        assert isinstance(x, (np.ndarray, torch.Tensor))
+        assert x.shape[1] == self.n_dofs
+        for i, (lower, upper) in enumerate(self.actuated_joints_limits):
+            if x[:, i].min() < lower:
+                return False
+            if x[:, i].max() > upper:
+                return False
+        return True
+
     def config_self_collides(self, x: PT_NP_TYPE, debug_mode: bool = False) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
 
@@ -284,6 +299,7 @@ class Robot:
             for joint in self._joint_chain:
                 if joint.name == joint_name:
                     return joint.child
+            raise ValueError(f"Could not find joint child of joint '{joint_name}'")
 
         return [get_child_name_from_joint_name(joint_name) for joint_name in self.actuated_joint_names]
 
@@ -402,11 +418,22 @@ class Robot:
     # ---                                             Forward Kinematics                                             ---
     # ---                                                                                                            ---
 
-    def forward_kinematics(self, x: Union[np.array, torch.Tensor], solver="klampt") -> np.array:
+    def forward_kinematics(self, x: PT_NP_TYPE, solver="klampt") -> PT_NP_TYPE:
+        """Interface for running forward kinematics.
+
+        Args:
+            x (PT_NP_TYPE): joint angles
+            solver (str, optional): Solver to use. Options are "klampt" and "batchfk". The solver must be 'batchfk' if x
+                                        is a torch.Tensor. Defaults to "klampt".
+        """
+
+        if isinstance(x, torch.Tensor):
+            assert solver == "batchfk", "Only batchfk is supported for torch tensors"
+
         if solver == "klampt":
             return self.forward_kinematics_klampt(x)
         if solver == "batchfk":
-            return self.forward_kinematics_batch(x)
+            return self.forward_kinematics_batch(x, return_quaternion=True, return_runtime=False)
         raise ValueError(f"Solver '{solver}' not recognized")
 
     def forward_kinematics_klampt(self, x: np.array) -> np.array:
@@ -465,8 +492,8 @@ class Robot:
         ):
             for joint in self._joint_chain:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send to the
-                # gpu
+                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
+                # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
                 T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
@@ -622,7 +649,9 @@ class Robot:
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
-        return xs_updated, time() - t0
+        xs_updated = self.clamp_to_joint_limits(xs_updated)
+
+        return xs_updated
 
     # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
@@ -631,7 +660,6 @@ class Robot:
         xs_current: torch.Tensor,
         alpha: float = 0.25,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
-        return_runtime: bool = True,
     ) -> Tuple[torch.Tensor, float]:
         """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
 
@@ -694,9 +722,7 @@ class Robot:
 
         assert torch.isnan(xs_updated).sum() == 0, "xs_updated contains NaNs"
         assert xs_current.device == xs_updated.device
-
-        if return_runtime:
-            return xs_updated, time() - t0
+        xs_updated = self.clamp_to_joint_limits(xs_updated)
         return xs_updated
 
     def inverse_kinematics_klampt(

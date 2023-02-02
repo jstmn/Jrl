@@ -1,22 +1,16 @@
-from typing import Tuple
 import unittest
+
+import numpy as np
 
 from jkinpylib.robot import Robot
 from jkinpylib.robots import get_all_robots, Panda
-from jkinpylib.conversions import geodesic_distance_between_quaternions
 from jkinpylib.utils import set_seed
-
-import torch
-import numpy as np
+from jkinpylib.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 # Set seed to ensure reproducibility
 set_seed()
 
 np.set_printoptions(edgeitems=30, linewidth=100000)
-
-
-MAX_ALLOWABLE_L2_ERR = 2.5e-4
-MAX_ALLOWABLE_ANG_ERR = 0.01  # degrees
 
 
 class TestInverseKinematics(unittest.TestCase):
@@ -25,25 +19,7 @@ class TestInverseKinematics(unittest.TestCase):
         self.robots = get_all_robots()
         self.panda = Panda()
 
-    # Helper functions
-    def assert_pose_position_almost_equal(
-        self, endpoints1: np.array, endpoints2: np.array, max_allowable_l2_err=MAX_ALLOWABLE_L2_ERR
-    ):
-        """Check that the position of each pose is nearly the same"""
-        l2_errors = np.linalg.norm(endpoints1[:, 0:3] - endpoints2[:, 0:3], axis=1)
-        self.assertLess(np.max(l2_errors), max_allowable_l2_err)
-        for i in range(l2_errors.shape[0]):
-            self.assertLess(l2_errors[i], max_allowable_l2_err)
-
-    def assert_pose_rotation_almost_equal(
-        self, endpoints1: np.array, endpoints2: np.array, max_allowable_rotational_err=MAX_ALLOWABLE_ANG_ERR
-    ):
-        """Check that the rotation of each pose is nearly the same"""
-        rotational_errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
-        for i in range(rotational_errors.shape[0]):
-            self.assertLess(rotational_errors[i], max_allowable_rotational_err)
-
-    def solution_valid(self, robot: Robot, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
+    def assert_solution_is_valid(self, robot: Robot, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
         if solution is None:
             print(" -> Solution is None, failing")
             return False, -1
@@ -56,8 +32,8 @@ class TestInverseKinematics(unittest.TestCase):
             print(" -> Error to large, failing")
             return False, l2_err
         pose_gt = pose_gt.reshape(1, 7)
-        self.assert_pose_position_almost_equal(pose_gt, poses_ik, max_allowable_l2_err=1.5 * positional_tol)
-        self.assert_pose_rotation_almost_equal(pose_gt, poses_ik)
+        assert_pose_positions_almost_equal(pose_gt, poses_ik, threshold=1.5 * positional_tol)
+        assert_pose_rotations_almost_equal(pose_gt, poses_ik)
         return True, l2_err
 
     # --- Tests
@@ -74,9 +50,9 @@ class TestInverseKinematics(unittest.TestCase):
         l2_err = np.linalg.norm(pose[0:3] - solution_pose[0, 0:3])
         self.assertLess(l2_err, 2 * positional_tol)
 
-    def test_ik_with_seed(self):
+    def test_inverse_kinematics_klampt_with_seed(self):
         """
-        Test that fk(ik(fk(sample))) = fk(sample) using a seed in ik(...)
+        Test that fk(inverse_kinematics_klampt(fk(sample))) = fk(sample) using a seed in inverse_kinematics_klampt(...)
 
         This test is to ensure that the seed is working properly. Example code to print print out the realized end pose
         error of the perturbed joint angles:
@@ -96,7 +72,7 @@ class TestInverseKinematics(unittest.TestCase):
             n_successes_kl = 0
             samples = robot.sample_joint_angles(n)
             poses_gt = robot.forward_kinematics_klampt(samples)
-            samples_noisy = samples + np.random.normal(0, 0.1, samples.shape)
+            samples_noisy = robot.clamp_to_joint_limits(samples + np.random.normal(0, 0.1, samples.shape))
 
             for i, (sample_noisy, pose_gt) in enumerate(zip(samples_noisy, poses_gt)):
                 solution_klampt = robot.inverse_kinematics_klampt(
@@ -106,7 +82,7 @@ class TestInverseKinematics(unittest.TestCase):
                     n_tries=n_tries,
                     verbosity=verbosity,
                 )
-                klampt_valid, l2_err = self.solution_valid(robot, solution_klampt, pose_gt, positional_tol)
+                klampt_valid, l2_err = self.assert_solution_is_valid(robot, solution_klampt, pose_gt, positional_tol)
 
                 if not klampt_valid:
                     print(
@@ -121,8 +97,8 @@ class TestInverseKinematics(unittest.TestCase):
 
         print(f"Success rate, klampt (local seed): {round(100*(n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
 
-    def test_ik_with_random_seed(self):
-        """Test that fk(ik(fk(sample))) = fk(sample) with a random a seed used by klampt"""
+    def test_inverse_kinematics_klampt_with_random_seed(self):
+        """Test that fk(inverse_kinematics_klampt(fk(sample))) = fk(sample) with a random a seed used by klampt"""
         print("\n\n----------------------------------------\n----------------------------------------")
         print("> Test klampt IK - with random seed\n")
         n = 25
@@ -141,7 +117,7 @@ class TestInverseKinematics(unittest.TestCase):
                 solution_klampt = robot.inverse_kinematics_klampt(
                     pose_gt, seed=None, positional_tolerance=positional_tol, n_tries=n_tries, verbosity=verbosity
                 )
-                klampt_valid, l2_err = self.solution_valid(robot, solution_klampt, pose_gt, positional_tol)
+                klampt_valid, l2_err = self.assert_solution_is_valid(robot, solution_klampt, pose_gt, positional_tol)
                 if not klampt_valid:
                     print(f"Klampt failed ({i}/{n}). pose:", pose_gt, f"l2_err: {l2_err} (max is {positional_tol})")
                 else:

@@ -158,19 +158,19 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                             # Per (http://library.isr.ist.utl.pt/docs/roswiki/urdf(2f)XML(2f)Joint.html):
                             #       "rpy (optional: defaults 'to zero vector 'if not specified)"
                             origin_rpy = [0, 0, 0]
-                        except ValueError:
+                        except ValueError as exc:
                             raise ValueError(
                                 f"Error: _len3_tuple_from_str() returned ValueError for joint '{child.get('name')}'."
                                 f" 'rpy': {subelem.attrib['rpy']}"
-                            )
+                            ) from exc
 
                         try:
                             origin_xyz = _len3_tuple_from_str(subelem.attrib["xyz"])
-                        except RuntimeError:
+                        except RuntimeError as exc:
                             raise ValueError(
                                 f"Error: joint <joint name='{child.get('name')}'> has no xyz attribute, or it's"
                                 " illformed"
-                            )
+                            ) from exc
                     elif subelem.tag == "axis":
                         axis_xyz = _len3_tuple_from_str(subelem.attrib["xyz"])
                     elif subelem.tag == "parent":
@@ -269,7 +269,7 @@ def joint_path_from_link_path(link_path: List[Link], all_joints: List[Joint]) ->
         joint_found = False
         for joint in all_joints:
             if link_path[i].name == joint.parent and link_path[i + 1].name == joint.child:
-                assert joint_found == False, "Found multiple joints between two links"
+                assert joint_found is False, "Found multiple joints between two links"
                 joint_found = True
                 path.append(joint)
 

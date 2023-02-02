@@ -13,8 +13,7 @@ import torch
 import numpy as np
 import roma.mappings
 
-from jkinpylib.config import DEFAULT_TORCH_DTYPE
-from jkinpylib import config
+from jkinpylib.config import DEFAULT_TORCH_DTYPE, DEVICE
 
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
 
@@ -56,8 +55,7 @@ def normalize_vector(v: torch.Tensor, return_mag: bool = False):
     v = v / v_mag
     if return_mag:
         return v, v_mag[:, 0]
-    else:
-        return v
+    return v
 
 
 # ======================================================================================================================
@@ -77,7 +75,7 @@ def rotation_matrix_to_quaternion(m: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     is_np = False
     if isinstance(m, np.ndarray):
-        m = torch.tensor(m, dtype=DEFAULT_TORCH_DTYPE, device=config.device)
+        m = torch.tensor(m, dtype=DEFAULT_TORCH_DTYPE, device=DEVICE)
         is_np = True
 
     quat = roma.mappings.rotmat_to_unitquat(m)

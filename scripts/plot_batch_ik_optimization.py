@@ -69,7 +69,7 @@ if __name__ == "__main__":
         print("current poses:\n", current_poses)
 
         # pytorch
-        x_updated, _ = robot.inverse_kinematics_single_step_batch_pt(
+        x_updated = robot.inverse_kinematics_single_step_batch_pt(
             torch.tensor(target_poses, device=device, dtype=torch.float32),
             torch.tensor(x_current, device=device, dtype=torch.float32),
             alpha,
