@@ -25,7 +25,7 @@ assert len(urdf_files) > 0, "No URDF files found"
 
 setup(
     name="jkinpylib",
-    version="0.0.4",
+    version="0.0.5",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
