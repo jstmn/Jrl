@@ -32,7 +32,7 @@ for file in urdf_files:
 
 setup(
     name="jkinpylib",
-    version="0.0.5",
+    version="0.0.7",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
@@ -43,7 +43,9 @@ setup(
     long_description=open("README.md").read(),
     install_requires=["klampt", "numpy", "torch", "kinpy", "more_itertools", "roma", "tqdm"],
     extras_require={"dev": ["black", "pylint", "PyQt5"]},
-    include_package_data=True,
     packages=["jkinpylib"],
     package_data={"jkinpylib": urdf_files},
+    # setup.py dist does ommites non-py files when this command is included. See
+    # https://stackoverflow.com/a/33167220/5191069. (... Wat?! ...)
+    # include_package_data=True,
 )
