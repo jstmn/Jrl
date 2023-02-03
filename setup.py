@@ -32,7 +32,7 @@ for file in urdf_files:
 
 setup(
     name="jkinpylib",
-    version="0.0.7",
+    version="0.0.8",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
