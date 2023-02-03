@@ -1,5 +1,6 @@
 __pycache__/
 venv/
+venvTemp/
 jkinpylib.egg-info
 dist/
 build/

@@ -4,7 +4,6 @@ from time import time
 from more_itertools import locate
 import torch
 import numpy as np
-import kinpy as kp
 from klampt import IKSolver, WorldModel
 from klampt.model import ik
 from klampt.math import so3
@@ -818,6 +817,8 @@ def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:
     Returns the pose of the end effector for each joint parameter setting in x
     """
     _assert_is_joint_angle_matrix(x, robot.n_dofs)
+
+    import kinpy as kp
 
     with open(robot.urdf_filepath) as f:
         kinpy_fk_chain = kp.build_chain_from_urdf(f.read().encode("utf-8"))

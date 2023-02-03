@@ -41,8 +41,8 @@ setup(
     description="Jeremy's Kinematics Python Library",
     py_modules=[],
     long_description=open("README.md").read(),
-    install_requires=["klampt", "numpy", "torch", "kinpy", "more_itertools", "roma", "tqdm"],
-    extras_require={"dev": ["black", "pylint", "PyQt5"]},
+    install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"],
+    extras_require={"dev": ["black", "pylint", "PyQt5", "kinpy"]},
     packages=["jkinpylib"],
     package_data={"jkinpylib": urdf_files},
     # setup.py dist does ommites non-py files when this command is included. See
