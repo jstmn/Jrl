@@ -18,10 +18,17 @@ def package_files(directory: str, ignore_ext: list = []) -> list:
 
 
 urdf_files = package_files("jkinpylib/urdfs/")
+for file in urdf_files:
+    assert os.path.isfile(file), f"Error: parsed filepath '{file}' does not exist"
+
 urdf_files = [
-    fname.strip("jkinpylib/") for fname in urdf_files
+    fname.replace("jkinpylib/", "") for fname in urdf_files
 ]  # filenames are relative to the root directory, but we want them relative to the root/jkinpylib directory
 assert len(urdf_files) > 0, "No URDF files found"
+
+for file in urdf_files:
+    reconstructed = "jkinpylib/" + file
+    assert os.path.isfile(reconstructed), f"Error: reconstructed filepath '{reconstructed}' does not exist"
 
 setup(
     name="jkinpylib",
