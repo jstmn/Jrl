@@ -15,8 +15,9 @@ src/iiwa_stack/iiwa_description/urdf/iiwa7.urdf.xacro | -->
 '<material name="Grey"><color rgba="0.4 0.4 0.4 1.0"/></material>'. Did the same for 'Orange', 'Red'
 as well
 4. Jan 16 2022: Removed all 'transmission' tags
-4. Jan 16 2022: Removed all 'gazebo' tags
-4. Jan 16 2022: Removed all 'material' tags that are within 'collision' tags
+5. Jan 16 2022: Removed all 'gazebo' tags
+6. Jan 16 2022: Removed all 'material' tags that are within 'collision' tags
+7. Feb 2 2023: Changed 'meshes/' to 'urdfs/iiwa7/meshes/'
 
  -->
 <robot name="iiwa7">
@@ -44,7 +45,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/visual/link_0.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_0.stl" />
       </geometry>
       <material name="Grey">
         <color rgba="0.4 0.4 0.4 1.0" />
@@ -53,7 +54,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/collision/link_0.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_0.stl" />
       </geometry>
     </collision>
     <!-- Commented out Jan 16, 2022 when file was initially checked in -->
@@ -84,7 +85,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0.0075" />
       <geometry>
-        <mesh filename="meshes/visual/link_1.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_1.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -93,7 +94,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0.0075" />
       <geometry>
-        <mesh filename="meshes/collision/link_1.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_1.stl" />
       </geometry>
     </collision>
   </link>
@@ -116,7 +117,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/visual/link_2.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_2.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -125,7 +126,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/collision/link_2.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_2.stl" />
       </geometry>
     </collision>
   </link>
@@ -148,7 +149,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 -0.026" />
       <geometry>
-        <mesh filename="meshes/visual/link_3.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_3.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -157,7 +158,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 -0.026" />
       <geometry>
-        <mesh filename="meshes/collision/link_3.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_3.stl" />
       </geometry>
     </collision>
   </link>
@@ -180,7 +181,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/visual/link_4.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_4.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -189,7 +190,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/collision/link_4.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_4.stl" />
       </geometry>
     </collision>
   </link>
@@ -212,7 +213,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 -0.026" />
       <geometry>
-        <mesh filename="meshes/visual/link_5.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_5.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -221,7 +222,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 -0.026" />
       <geometry>
-        <mesh filename="meshes/collision/link_5.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_5.stl" />
       </geometry>
     </collision>
   </link>
@@ -244,7 +245,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/visual/link_6.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_6.stl" />
       </geometry>
       <material name="Orange">
         <color rgba="1.0 0.4235294117647059 0.0392156862745098 1.0" />
@@ -253,7 +254,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0" />
       <geometry>
-        <mesh filename="meshes/collision/link_6.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_6.stl" />
       </geometry>
     </collision>
   </link>
@@ -276,7 +277,7 @@ as well
     <visual>
       <origin rpy="0 0 0" xyz="0 0 -0.0005" />
       <geometry>
-        <mesh filename="meshes/visual/link_7.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/visual/link_7.stl" />
       </geometry>
       <material name="Grey">
         <color rgba="0.4 0.4 0.4 1.0" />
@@ -285,7 +286,7 @@ as well
     <collision>
       <origin rpy="0 0 0" xyz="0 0 -0.0005" />
       <geometry>
-        <mesh filename="meshes/collision/link_7.stl" />
+        <mesh filename="urdfs/iiwa7/meshes/collision/link_7.stl" />
       </geometry>
     </collision>
   </link>

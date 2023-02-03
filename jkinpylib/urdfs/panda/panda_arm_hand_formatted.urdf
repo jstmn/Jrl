@@ -9,11 +9,13 @@
 2. Dec 16 2022: Replaced '<origin rpy="0 0 0" xyz="0 -0.1 0"/>' with 
                   '<origin rpy="0 0 0" xyz="0 0 0.333"/>'. The xyz value was wrong for 
                   panda_hand.urdf in the robosuite package. See https://github.com/ARISE-Initiative/robosuite/issues/371 
+3. Feb 2 2022: Added 'urdfs/panda/' to all mesh filenames
+
 -->
 
 
 <robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  
+
   <link name="panda_link0">
     <inertial>
       <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>
@@ -22,12 +24,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link0.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link0.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link0.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link0.stl"/>
       </geometry>
     </collision>
   </link>
@@ -40,12 +42,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link1.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link1.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link1.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link1.stl"/>
       </geometry>
     </collision>
   </link>
@@ -67,12 +69,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link2.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link2.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link2.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link2.stl"/>
       </geometry>
     </collision>
   </link>
@@ -92,12 +94,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link3.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link3.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link3.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link3.stl"/>
       </geometry>
     </collision>
   </link>
@@ -117,12 +119,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link4.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link4.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link4.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link4.stl"/>
       </geometry>
     </collision>
   </link>
@@ -142,12 +144,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link5.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link5.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link5.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link5.stl"/>
       </geometry>
     </collision>
   </link>
@@ -167,12 +169,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link6.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link6.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link6.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link6.stl"/>
       </geometry>
     </collision>
   </link>
@@ -192,12 +194,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/link7.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/link7.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/link7.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/link7.stl"/>
       </geometry>
     </collision>
   </link>
@@ -235,12 +237,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/hand.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/hand.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/hand.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/hand.stl"/>
       </geometry>
     </collision>
   </link>
@@ -252,12 +254,12 @@
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="meshes/visual/finger.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/finger.dae"/>
       </geometry>
     </visual>
     <collision>
       <geometry>
-        <mesh filename="meshes/collision/finger.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/finger.stl"/>
       </geometry>
     </collision>
   </link>
@@ -270,13 +272,13 @@
     <visual>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/visual/finger.dae"/>
+        <mesh filename="urdfs/panda/meshes/visual/finger.dae"/>
       </geometry>
     </visual>
     <collision>
       <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="meshes/collision/finger.stl"/>
+        <mesh filename="urdfs/panda/meshes/collision/finger.stl"/>
       </geometry>
     </collision>
   </link>
@@ -296,4 +298,3 @@
     <mimic joint="panda_finger_joint1"/>
   </joint>
 </robot>
-

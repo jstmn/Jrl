@@ -1,9 +1,12 @@
+import os
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 import xml.etree.ElementTree as ET
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ElementTree
 
 import numpy as np
+
+from jkinpylib.utils import get_filepath
 
 # See http://wiki.ros.org/urdf/XML/joint
 # All types: 'revolute', 'continuous', 'prismatic', 'fixed', 'floating', 'planar'
@@ -204,6 +207,25 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                 joints[joint_name] = joint
 
     return joints, links
+
+
+def get_urdf_filepath_w_filenames_updated(original_filepath: str) -> str:
+    """Save a copy of the urdf filepath, but with the mesh filepaths updated to absolute paths."""
+    _, filename = os.path.split(original_filepath)
+    filename = filename.replace(".urdf", "_link_filepaths_absolute.urdf")
+    output_filepath = os.path.join("/tmp/", filename)
+
+    with open(original_filepath, "r") as urdf_file:
+        root = ET.fromstring(urdf_file.read())
+        for mesh_element in root.iter("mesh"):
+            if "filename" in mesh_element.attrib:
+                mesh_element.attrib["filename"] = get_filepath(mesh_element.attrib["filename"])
+
+    with open(output_filepath, "wb") as f:
+        tree = ElementTree(root)
+        tree.write(f)
+
+    return output_filepath
 
 
 class DFSSearcher:

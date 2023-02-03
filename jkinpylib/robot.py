@@ -24,7 +24,7 @@ from jkinpylib.conversions import (
     PT_NP_TYPE,
 )
 from jkinpylib.config import DEVICE
-from jkinpylib.urdf_utils import get_joint_chain, UNHANDLED_JOINT_TYPES
+from jkinpylib.urdf_utils import get_joint_chain, get_urdf_filepath_w_filenames_updated, UNHANDLED_JOINT_TYPES
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -110,7 +110,14 @@ class Robot:
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
         self._klampt_world_model = WorldModel()
-        self._klampt_world_model.loadRobot(self._urdf_filepath)  # TODO: supress output of loadRobot call
+
+        # TODO: Consider finding a better way to fix the mesh filepath issue. This feels pretty hacky. But hey, it works
+        # <insert-shrug-emoji>
+        urdf_filepath_updated = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
+        self._klampt_world_model.loadRobot(urdf_filepath_updated)  # TODO: supress output of loadRobot call
+        assert (
+            self._klampt_world_model.numRobots()
+        ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
         self._klampt_robot: robotsim.RobotModel = self._klampt_world_model.robot(0)
         ignored_collision_pairs_formatted = [
             (self._klampt_robot.link(link1_name), self._klampt_robot.link(link2_name))
