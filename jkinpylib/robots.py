@@ -66,13 +66,13 @@ class FetchArm(Robot):
     def __init__(self, verbose: bool = False):
         # Sum joint range: 33.6218 rads
         active_joints = [
-            "shoulder_pan_joint",
-            "shoulder_lift_joint",
-            "upperarm_roll_joint",  # continuous
-            "elbow_flex_joint",
-            "forearm_roll_joint",  # continuous
-            "wrist_flex_joint",
-            "wrist_roll_joint",  # continous
+            "shoulder_pan_joint",  # (-1.6056, 1.6056)
+            "shoulder_lift_joint",  # (-1.221,  1.518)
+            "upperarm_roll_joint",  # (-3.1415, 3.1415) continuous
+            "elbow_flex_joint",  # (-2.251,  2.251)
+            "forearm_roll_joint",  # (-3.1415, 3.1415) continuous
+            "wrist_flex_joint",  # (-2.16,   2.16)
+            "wrist_roll_joint",  # (-3.1415, 3.1415) continous
         ]
         base_link = "base_link"
         end_effector_link_name = "gripper_link"
@@ -101,13 +101,13 @@ class Panda(Robot):
 
     def __init__(self, verbose: bool = False):
         active_joints = [
-            "panda_joint1",
-            "panda_joint2",
-            "panda_joint3",
-            "panda_joint4",
-            "panda_joint5",
-            "panda_joint6",
-            "panda_joint7",
+            "panda_joint1",  # (-2.8973, 2.8973)
+            "panda_joint2",  # (-1.7628, 1.7628)
+            "panda_joint3",  # (-2.8973, 2.8973)
+            "panda_joint4",  # (-3.0718, -0.0698)
+            "panda_joint5",  # (-2.8973, 2.8973)
+            "panda_joint6",  # (-0.0175, 3.7525)
+            "panda_joint7",  # (-2.8973, 2.8973)
         ]
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
         base_link = "panda_link0"

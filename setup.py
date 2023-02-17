@@ -42,7 +42,16 @@ setup(
     py_modules=[],
     long_description=open("README.md").read(),
     install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"],
-    extras_require={"dev": ["black", "pylint", "PyQt5", "kinpy"]},
+    extras_require={
+        "dev": [
+            "black==22.12.0",
+            "pylint==2.15.9",
+            "PyQt5==5.15.7",
+            "kinpy==0.2.0",
+            "pandas==1.5.3",
+            "matplotlib==3.6.2",
+        ]
+    },
     packages=["jkinpylib"],
     package_data={"jkinpylib": urdf_files},
     # setup.py dist does ommites non-py files when this command is included. See

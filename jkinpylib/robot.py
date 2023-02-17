@@ -103,8 +103,11 @@ class Robot:
         self._fixed_rotations_cuda = {}
         self._fixed_rotations_cpu = {}
         self.forward_kinematics_batch(
-            torch.tensor(self.sample_joint_angles(500), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
+            torch.tensor(self.sample_joint_angles(1050), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
         )
+        # self.forward_kinematics_batch(
+        #     torch.tensor(self.sample_joint_angles(1000), device="cpu", dtype=DEFAULT_TORCH_DTYPE), out_device="cpu"
+        # )
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
@@ -460,7 +463,7 @@ class Robot:
     # TODO: Do FK starting at 'base_link' instead of the first joint.
     def forward_kinematics_batch(
         self,
-        x: torch.tensor,
+        x: torch.Tensor,
         out_device: Optional[str] = None,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_quaternion: bool = True,
@@ -487,26 +490,33 @@ class Robot:
         time0 = time()
         batch_size = x.shape[0]
         _assert_is_joint_angle_matrix(x, self.n_dofs)
-        # assert str(x.device) == str(device), f"Expected joint angles to be on device '{device}' but got '{x.device}'"
         if out_device is None:
             out_device = x.device
 
+        # TODO: Need to decide on an API for this function. Does this always save a new T to _fixed_rotations_cuda? If
+        # so cuda will always need to be available
         # Update _fixed_rotations_cuda if this is a larger batch then we've seen before
         if (
             self._joint_chain[0].name not in self._fixed_rotations_cuda
             or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
+            or self._fixed_rotations_cpu[self._joint_chain[0].name].shape[0] < batch_size
         ):
             for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
+                T = torch.diag_embed(torch.ones(batch_size, 4, device="cuda:0", dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to("cuda:0")
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]
                 self._fixed_rotations_cuda[joint.name] = T
                 self._fixed_rotations_cpu[joint.name] = T.to("cpu")
+                assert "cuda" in str(self._fixed_rotations_cuda[joint.name].device), (
+                    f"self._fixed_rotations_cuda[{joint.name}].device != cuda"
+                    f" (equals: '{self._fixed_rotations_cuda[joint.name].device}')"
+                )
+                assert "cpu" in str(self._fixed_rotations_cpu[joint.name].device)
 
         # Rotation from body/base link to joint along the joint chain
         base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
