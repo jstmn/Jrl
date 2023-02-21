@@ -5,6 +5,7 @@ from typing import Callable
 import numpy as np
 import torch
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from jkinpylib.utils import to_torch
 from jkinpylib.robots import Panda
@@ -38,7 +39,7 @@ if __name__ == "__main__":
 
     method_names = ["batch_fk - cpu", "batch_fk - cuda", "klampt"]
 
-    for batch_size in [1, 10, 100, 1000, 10000, 100000]:
+    for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000, 10000]:
         print(f"Batch size: {batch_size}")
 
         x = robot.sample_joint_angles(batch_size)
@@ -58,3 +59,19 @@ if __name__ == "__main__":
     df = df.sort_values(by=["method", "number of solutions"])
 
     print(df)
+
+    # Plot
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    for method_name in method_names:
+        df_method = df[df["method"] == method_name]
+        n_solutions = df_method["number of solutions"]
+        total_runtime = 1000 * df_method["total runtime (s)"]
+        std = 1000 * df_method["runtime std"]
+        ax.plot(n_solutions, total_runtime, label=method_name)
+        ax.fill_between(n_solutions, total_runtime - std, total_runtime + std, alpha=0.1)
+
+    ax.set_xlabel("Number of solutions")
+    ax.set_ylabel("Total runtime (ms)")
+    ax.legend()
+    fig.savefig("scripts/batch_fk_runtime.pdf", bbox_inches="tight")
+    plt.show()
