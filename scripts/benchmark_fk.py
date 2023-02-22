@@ -16,7 +16,7 @@ def fn_mean_std(fn: Callable, k: int):
     for _ in range(k):
         t0 = time()
         fn()
-        runtimes.append(time() - t0)
+        runtimes.append(1000 * (time() - t0))
     return np.mean(runtimes), np.std(runtimes)
 
 
@@ -32,14 +32,14 @@ if __name__ == "__main__":
     assert torch.cuda.is_available()
 
     robot = Panda()
-    k = 3
+    k = 5
     df = pd.DataFrame(
-        columns=["method", "number of solutions", "total runtime (s)", "runtime std", "runtime per solution (ms)"]
+        columns=["method", "number of solutions", "total runtime (ms)", "runtime std", "runtime per solution (ms)"]
     )
 
     method_names = ["batch_fk - cpu", "batch_fk - cuda", "klampt"]
 
-    for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000, 10000]:
+    for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000]:
         print(f"Batch size: {batch_size}")
 
         x = robot.sample_joint_angles(batch_size)
@@ -52,8 +52,8 @@ if __name__ == "__main__":
             lambda: robot.forward_kinematics_klampt(x),
         ]
         for lambda_, method_name in zip(lambdas, method_names):
-            mean_runtime, std_runtime = fn_mean_std(lambda_, k)
-            new_row = [method_name, batch_size, mean_runtime, std_runtime, 1000 * (mean_runtime / batch_size)]
+            mean_runtime_ms, std_runtime = fn_mean_std(lambda_, k)
+            new_row = [method_name, batch_size, mean_runtime_ms, std_runtime, mean_runtime_ms / batch_size]
             df.loc[len(df)] = new_row
 
     df = df.sort_values(by=["method", "number of solutions"])
@@ -61,14 +61,14 @@ if __name__ == "__main__":
     print(df)
 
     # Plot
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     for method_name in method_names:
         df_method = df[df["method"] == method_name]
         n_solutions = df_method["number of solutions"]
-        total_runtime = 1000 * df_method["total runtime (s)"]
-        std = 1000 * df_method["runtime std"]
-        ax.plot(n_solutions, total_runtime, label=method_name)
-        ax.fill_between(n_solutions, total_runtime - std, total_runtime + std, alpha=0.1)
+        total_runtime_ms = df_method["total runtime (ms)"]
+        std = df_method["runtime std"]
+        ax.plot(n_solutions, total_runtime_ms, label=method_name)
+        ax.fill_between(n_solutions, total_runtime_ms - std, total_runtime_ms + std, alpha=0.2)
 
     ax.set_xlabel("Number of solutions")
     ax.set_ylabel("Total runtime (ms)")
