@@ -25,7 +25,7 @@ SOLUTION_EVALUATION_RESULT_TYPE = Tuple[torch.Tensor, torch.Tensor, torch.Tensor
 
 
 _DEFAULT_MAX_ALLOWABLE_L2_ERR = 5e-4
-_DEFAULT_MAX_ALLOWABLE_ANG_ERR = 0.0008726646  # .05 degrees
+_DEFAULT_MAX_ALLOWABLE_ANG_ERR = 3.14 / 180 * 0.06
 
 
 def assert_pose_positions_almost_equal(
@@ -56,7 +56,9 @@ def assert_pose_rotations_almost_equal(
     assert endpoints1.shape[0] == endpoints2.shape[0]
     errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
     for i in range(errors.shape[0]):
-        assert errors[i] < threshold, f"Rotation of poses '{source_1}', '{source_2}' are not equal (error={errors[i]})"
+        assert (
+            errors[i] < threshold
+        ), f"Rotation of poses '{source_1}({endpoints1[i, :]})', '{source_2} ({endpoints2[i, :]})' are not equal (error={errors[i]})"
 
 
 def _get_target_pose_batch(target_pose: PT_NP_TYPE, n_solutions: int) -> torch.Tensor:

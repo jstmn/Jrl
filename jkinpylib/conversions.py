@@ -216,7 +216,6 @@ def quaternion_conjugate(qs: PT_NP_TYPE) -> PT_NP_TYPE:
     return q_conj
 
 
-# TODO(@dmillard): Fix this implementation or remove and use quaternion_conjugate(). See test_quaternion_conjugate()
 @enforce_pt_np_input
 def quatconj(q: PT_NP_TYPE) -> PT_NP_TYPE:
     """
@@ -225,12 +224,12 @@ def quatconj(q: PT_NP_TYPE) -> PT_NP_TYPE:
     Author: dmillard
     """
     if isinstance(q, torch.Tensor):
-        stacker = torch.hstack
+        stacker = torch.vstack
     if isinstance(q, np.ndarray):
-        stacker = np.hstack
+        stacker = np.vstack
 
     w, x, y, z = tuple(q[:, i] for i in range(4))
-    return stacker((w, -x, -y, -z)).reshape(q.shape)
+    return stacker((w, -x, -y, -z)).T
 
 
 @enforce_pt_np_input
@@ -292,7 +291,6 @@ def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
     return q
 
 
-# TODO(@dmillard): Fix this implementation or remove and use quaternion_product(). See test_quaternion_product()
 @enforce_pt_np_input
 def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
@@ -301,9 +299,9 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     assert q1.shape[1] == 4
     assert q1.shape == q2.shape
     if isinstance(q1, torch.Tensor) and isinstance(q2, torch.Tensor):
-        stacker = torch.hstack
+        stacker = torch.vstack
     if isinstance(q1, np.ndarray) and isinstance(q2, np.ndarray):
-        stacker = np.hstack
+        stacker = np.vstack
 
     w1, x1, y1, z1 = tuple(q1[:, i] for i in range(4))
     w2, x2, y2, z2 = tuple(q2[:, i] for i in range(4))
@@ -315,14 +313,14 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
             w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
             w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
         )
-    ).reshape(q1.shape)
+    ).T
 
 
 # TODO: Benchmark speed when running this with numpy. Does it matter if its slow?
 
 
 @enforce_pt_np_input
-def geodesic_distance_between_quaternions_DMILLARD_TODO(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
@@ -331,8 +329,9 @@ def geodesic_distance_between_quaternions_DMILLARD_TODO(q1: PT_NP_TYPE, q2: PT_N
     assert q1.shape == q2.shape
 
     if isinstance(q1, np.ndarray):
-        # TODO(@dmillard): np.tensordot is returning the wrong size matrix.
-        distance = 2 * np.arccos(np.tensordot(q1, q2, axes=([1], [1])))
+        dot = np.clip(np.sum(q1 * q2, axis=1), -1, 1)
+        distance = 2 * np.arccos(dot)
+        distance = np.abs(np.remainder(distance + np.pi, 2 * np.pi) - np.pi)
         assert distance.size == q1.shape[0], (
             f"Error, {distance.size} distance values calculated (np)- should be {q1.shape[0]} (distance.shape ="
             f" {distance.shape})"
@@ -340,9 +339,9 @@ def geodesic_distance_between_quaternions_DMILLARD_TODO(q1: PT_NP_TYPE, q2: PT_N
         return distance
 
     if isinstance(q1, torch.Tensor):
-        # TODO(@dmillard): torch.tensordot is returning the wrong size matrix when number of rows in q1/2 is greater
-        # than 1
-        distance = 2 * torch.acos(torch.tensordot(q1, q2, dims=([1], [1])))
+        dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
+        distance = 2 * torch.acos(dot)
+        distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
         assert distance.numel() == q1.shape[0], (
             f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="
             f" {distance.shape})"
@@ -351,7 +350,7 @@ def geodesic_distance_between_quaternions_DMILLARD_TODO(q1: PT_NP_TYPE, q2: PT_N
 
 
 @enforce_pt_np_input
-def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def geodesic_distance_between_quaternions_old(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
