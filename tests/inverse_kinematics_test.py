@@ -34,7 +34,7 @@ class TestInverseKinematics(unittest.TestCase):
             return False, l2_err
         pose_gt = pose_gt.reshape(1, 7)
         assert_pose_positions_almost_equal(pose_gt, poses_ik, threshold=1.5 * positional_tol)
-        assert_pose_rotations_almost_equal(pose_gt, poses_ik)
+        assert_pose_rotations_almost_equal(pose_gt, poses_ik, threshold=0.0025)
         return True, l2_err
 
     # --- Tests

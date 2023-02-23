@@ -322,7 +322,7 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
 
 
 @enforce_pt_np_input
-def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def geodesic_distance_between_quaternions_DMILLARD_TODO(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
@@ -340,7 +340,7 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
         return distance
 
     if isinstance(q1, torch.Tensor):
-        # TODO(@dmillard): torch.tensordot is returning the wrong size matrix when number of rows in q1/2 is greater 
+        # TODO(@dmillard): torch.tensordot is returning the wrong size matrix when number of rows in q1/2 is greater
         # than 1
         distance = 2 * torch.acos(torch.tensordot(q1, q2, dims=([1], [1])))
         assert distance.numel() == q1.shape[0], (
@@ -351,7 +351,7 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
 
 
 @enforce_pt_np_input
-def geodesic_distance_between_quaternions_old(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
