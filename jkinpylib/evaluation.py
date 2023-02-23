@@ -51,6 +51,9 @@ def assert_pose_rotations_almost_equal(
     threshold: float = _DEFAULT_MAX_ALLOWABLE_ANG_ERR,
 ):
     """Check that the rotation of each pose is nearly the same"""
+    assert endpoints1.shape[1] == 7
+    assert endpoints2.shape[1] == 7
+    assert endpoints1.shape[0] == endpoints2.shape[0]
     errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
     for i in range(errors.shape[0]):
         assert errors[i] < threshold, f"Rotation of poses '{source_1}', '{source_2}' are not equal (error={errors[i]})"

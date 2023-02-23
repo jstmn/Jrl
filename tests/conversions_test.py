@@ -10,6 +10,9 @@ from jkinpylib.conversions import (
     quaternion_conjugate,
     quaternion_norm,
     geodesic_distance_between_quaternions,
+    quatconj,
+    quaternion_product,
+    quatmul,
 )
 from jkinpylib.utils import set_seed
 
@@ -21,23 +24,52 @@ np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True, precision=12)
 
 
 class TestSolutionRerfinement(unittest.TestCase):
-    def test_geodesic_distance_test(self):
-        """Test geodesic_distance_between_quaternions"""
+    def test_geodesic_distance_between_quaternions_pt(self):
+        """Test geodesic_distance_between_quaternions with torch tensor inputs"""
         q1_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
         # Rotation about +x axis by .25 radians
         q2_pt = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
-        distance_expected = 0.25
         distance_returned = geodesic_distance_between_quaternions(q1_pt, q2_pt)[0].item()
-        self.assertAlmostEqual(distance_expected, distance_returned, places=6)
+        self.assertAlmostEqual(0.25, distance_returned, places=6)
 
         # Test 2
         q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
         q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
         distance_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0].item()
-        distance_expected = 3.1415927
         # TODO: AssertionError: 3.1415927 != 3.1411044597625732 within 7 places (0.00048824023742666256 difference). It
         # seems like rotation matrices created by quaternions have lower precision
-        self.assertAlmostEqual(distance_expected, distance_returned, places=3)
+        self.assertAlmostEqual(3.1415927, distance_returned, places=3)
+
+        # Test 3
+        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q_current_pt = torch.tensor(
+            [[0.0, 0.92387953, 0.38268343, 0.0], [0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32
+        )
+        distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
+        self.assertAlmostEqual(3.1415927, distances_returned[0].item(), places=3)
+        self.assertAlmostEqual(0.25, distances_returned[1].item(), places=6)
+
+    def test_geodesic_distance_between_quaternions_np(self):
+        """Test geodesic_distance_between_quaternions with numpy inputs"""
+        q1_pt = np.array([[1.0, 0.0, 0.0, 0.0]])
+        # Rotation about +x axis by .25 radians
+        q2_pt = np.array([[0.9921977, 0.1246747, 0, 0]])
+        distance_expected = 0.25
+        distance_returned = float(geodesic_distance_between_quaternions(q1_pt, q2_pt)[0])
+        self.assertAlmostEqual(distance_expected, distance_returned, places=5)
+
+        # Test 2
+        q_target_pt = np.array([[1.0, 0.0, 0.0, 0.0]])
+        q_current_pt = np.array([[0.0, 0.92387953, 0.38268343, 0.0]])
+        distance_returned = float(geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0])
+        distance_expected = 3.1415927
+        self.assertAlmostEqual(distance_expected, distance_returned, places=5)
+
+        # Test 3:
+        q_target_pt = np.array([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
+        q_current_pt = np.array([[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]])
+        distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
+        print("distances_returned:", distances_returned.shape)
 
     def test_quaternion_to_rotation_matrix(self):
         """Test quaternion_to_rotation_matrix()"""
@@ -127,7 +159,7 @@ class TestSolutionRerfinement(unittest.TestCase):
         with self.assertRaises(AssertionError):
             quaternion_inverse(quats_pt, quats_np)
 
-    def test_geodesic_distance(self):
+    def test_geodesic_distance_between_rotation_matrices(self):
         """Test geodesic_distance_between_rotation_matrices()"""
         q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], requires_grad=True, device="cpu")
         q2 = torch.tensor(
@@ -138,7 +170,6 @@ class TestSolutionRerfinement(unittest.TestCase):
 
         # Test #1: Returns 0 for closeby quaternions
         distance = geodesic_distance_between_rotation_matrices(m1, m2)
-
         self.assertAlmostEqual(distance[0].item(), 0.0, delta=5e-4)
 
         # Test #2: Passes a gradient when for closeby quaternions
@@ -147,13 +178,20 @@ class TestSolutionRerfinement(unittest.TestCase):
         self.assertFalse(torch.isnan(q1.grad).any())
         self.assertFalse(torch.isnan(q2.grad).any())
 
-    def test_quaternion_conjugate_batch_np(self):
+    def test_quaternion_conjugate(self):
         # w, x, y, z
         q0 = np.array([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068]])  # 90 deg rotation about +z
         q0_conjugate_expected = np.array([[1, 0, 0, 0], [0.7071068, 0, 0, -0.7071068]])  # 90 deg rotation about +z
-        q0_conjugate_returned = quaternion_conjugate(q0)
-        self.assertEqual(q0_conjugate_returned.shape, (2, 4))
-        np.testing.assert_almost_equal(q0_conjugate_returned, q0_conjugate_expected)
+
+        # Test 1: quaternion_conjugate() is correct
+        q0_conjugate_returned_1 = quaternion_conjugate(q0)
+        self.assertEqual(q0_conjugate_returned_1.shape, (2, 4))
+        np.testing.assert_almost_equal(q0_conjugate_returned_1, q0_conjugate_expected)
+
+        # Test 2:  quatconj() is correct
+        q0_conjugate_returned_2 = quatconj(q0)
+        self.assertEqual(q0_conjugate_returned_2.shape, (2, 4))
+        np.testing.assert_almost_equal(q0_conjugate_returned_2, q0_conjugate_expected)
 
     def test_quaternion_norm(self):
         # w, x, y, z
@@ -163,8 +201,9 @@ class TestSolutionRerfinement(unittest.TestCase):
         self.assertEqual(norms_returned.shape, (3,))
         np.testing.assert_almost_equal(norms_returned, norms_expected)
 
-    def test_quaternion_multiply_np(self):
-        q_1s = np.array(
+    def test_quaternion_product(self):
+        """Test that quaternion_product() and quatmul() are correct"""
+        q1 = np.array(
             [
                 [1, 0, 0, 0],
                 [1, 0, 0, 0],
@@ -173,7 +212,7 @@ class TestSolutionRerfinement(unittest.TestCase):
             ]
         )
 
-        q_2s = np.array(
+        q2 = np.array(
             [
                 [1, 0, 0, 0],
                 [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
@@ -191,6 +230,13 @@ class TestSolutionRerfinement(unittest.TestCase):
                 [-0.5, 0.5, -0.5, 0.5],
             ]
         )
+
+        product_returned_1 = quaternion_product(q1, q2)
+        np.testing.assert_allclose(product_expected, product_returned_1)
+
+        product_returned_2 = quatmul(q1, q2)
+        np.testing.assert_allclose(product_expected, product_returned_2)
+        print(f"test_quaternion_product() passed")
 
 
 if __name__ == "__main__":
