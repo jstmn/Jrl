@@ -72,6 +72,9 @@ class TestForwardKinematics(unittest.TestCase):
         """Test that forward_kinematics_batch is differenetiable"""
 
         for robot in ROBOTS:
+            if not robot._batch_fk_enabled:
+                continue
+
             samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
             out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
 
@@ -82,6 +85,9 @@ class TestForwardKinematics(unittest.TestCase):
         """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
         matrices"""
         for robot in ROBOTS:
+            if not robot._batch_fk_enabled:
+                continue
+
             # Check 1: Return is correct for homogeneous transformation format
             samples = robot.sample_joint_angles(25)
             kinpy_fk = forward_kinematics_kinpy(robot, samples)

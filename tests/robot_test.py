@@ -52,8 +52,10 @@ class RobotTest(unittest.TestCase):
 
     def test_sample_joint_angles_and_poses(self):
         """_summary_"""
+        print("test_sample_joint_angles_and_poses()")
         for robot in ROBOTS:
-            joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=False)
+            print(robot)
+            joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=True)
             self.assertEqual(joint_angles.shape, (1000, robot.n_dofs))
             self.assertEqual(poses.shape, (1000, 7))
 
@@ -217,6 +219,7 @@ class RobotTest(unittest.TestCase):
                 self.assertAlmostEqual(gt_limit[1], parsed_limit[1])
 
     def test_actuated_joint_names(self):
+        print("test_actuated_joint_names()")
         ground_truth_actuated_joints = {
             "panda": [
                 "panda_joint1",
@@ -270,7 +273,9 @@ class RobotTest(unittest.TestCase):
             self.assertListEqual(robot.actuated_joint_names, ground_truth_actuated_joints[robot.name])
 
     def test_q_x_conversion(self):
+        print("test_q_x_conversion()")
         for robot in ROBOTS:
+            print(robot)
             ndofs = robot.n_dofs
             x_original = np.array(
                 [
@@ -279,10 +284,13 @@ class RobotTest(unittest.TestCase):
                 ]
             )
             q = robot._x_to_qs(x_original)
+            print("q:", q)
             x_returned = robot._qs_to_x(q)
+            print("x_returned:", x_returned)
             np.testing.assert_allclose(x_original, x_returned)
 
     def test_x_driver_vec_conversion_panda(self):
+        print("test_x_driver_vec_conversion_panda()")
         gt_klampt_vector_dimensionality = {
             "fetch": 14,  # 24 total joints, 10 of them are fixed
             "fetch_arm": 14,  # 24 total joints, 10 of them are fixed

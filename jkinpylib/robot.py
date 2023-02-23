@@ -102,9 +102,10 @@ class Robot:
         # Create and fill cache of fixed rotations between links.
         self._fixed_rotations_cuda = {}
         self._fixed_rotations_cpu = {}
-        self.forward_kinematics_batch(
-            torch.tensor(self.sample_joint_angles(1050), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
-        )
+        if self._batch_fk_enabled:
+            self.forward_kinematics_batch(
+                torch.tensor(self.sample_joint_angles(1050), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
+            )
         # self.forward_kinematics_batch(
         #     torch.tensor(self.sample_joint_angles(1000), device="cpu", dtype=DEFAULT_TORCH_DTYPE), out_device="cpu"
         # )
@@ -223,6 +224,7 @@ class Robot:
         with tqdm.tqdm(total=n, disable=not tqdm_enabled) as pbar:
             while True:
                 samples_i = self.sample_joint_angles(internal_batch_size, joint_limit_eps=joint_limit_eps)
+                counter0_i = counter
 
                 for i in range(samples_i.shape[0]):
                     sample = samples_i[i]
@@ -237,6 +239,13 @@ class Robot:
 
                     if counter == n:
                         return samples, poses
+
+                if counter0_i == counter:
+                    raise RuntimeError(
+                        f"Unable to find non self-colliding configs for {self} ({0} /"
+                        f" {internal_batch_size} non-self-colliding configs found) - is 'ignored_collision_pairs' set"
+                        " correctly for this robot?"
+                    )
 
     def set_klampt_robot_config(self, x: np.ndarray):
         """Set the internal klampt robots config with the given joint angle vector"""
@@ -691,7 +700,7 @@ class Robot:
         Returns:
             Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function.
         """
-        t0 = time()
+        assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
         assert xs_current.shape[0] == target_poses.shape[0]

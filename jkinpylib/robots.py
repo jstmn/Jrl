@@ -10,12 +10,14 @@ class Baxter(Robot):
     formal_robot_name = "Baxter"
 
     def __init__(self):
-        active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2", "left_hand"]
+        active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]
 
         base_link = "base"
         end_effector_link_name = "left_hand"
 
         urdf_filepath = get_filepath("urdfs/baxter/baxter.urdf")
+
+        # TODO: set 'ignored_collision_pairs'
         ignored_collision_pairs = []
         Robot.__init__(
             self,

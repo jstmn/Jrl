@@ -157,6 +157,10 @@ class TestSolutionRerfinement(unittest.TestCase):
             print()
             print(robot)
 
+            if not robot._batch_fk_enabled:
+                print("ignoring robot - batch_fk is disabled")
+                continue
+
             # Check progress is made when joints are near their lower and upper limits + when near the center
             for center in ("lower", "middle", "upper", "lower_out_of_bounds", "upper_out_of_bounds"):
                 print(f"  center = '{center}' -> \t", end="")
