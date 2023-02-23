@@ -8,14 +8,13 @@ A couple notes:
         tensors
 """
 
-from typing import Union, Tuple, Callable
+from typing import Tuple, Callable
 import torch
 import numpy as np
 import roma.mappings
 
 from jkinpylib.config import DEFAULT_TORCH_DTYPE, DEVICE
-
-PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
+from jkinpylib.utils import PT_NP_TYPE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
 _TORCH_EPS_CUDA = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cuda")
@@ -284,19 +283,9 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
     assert len(q1.shape) == 2
-    assert len(q2.shape) == 2
-    assert q1.shape[0] == q2.shape[0]
-    assert q1.shape[1] == q2.shape[1]
+    assert q1.shape == q2.shape
 
-    if isinstance(q1, np.ndarray):
-        q1_R9 = quaternion_to_rotation_matrix(torch.tensor(q1, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
-        q2_R9 = quaternion_to_rotation_matrix(torch.tensor(q2, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
-
-    if isinstance(q1, torch.Tensor):
-        q1_R9 = quaternion_to_rotation_matrix(q1)
-        q2_R9 = quaternion_to_rotation_matrix(q2)
-
-    distance = geodesic_distance_between_rotation_matrices(q1_R9, q2_R9)
+    distance = 2 * torch.acos(torch.tensordot(q1, q2, dims=([1], [1])))
     if isinstance(q1, np.ndarray):
         distance = distance.numpy()
     return distance
@@ -305,7 +294,6 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
 # ======================================================================================================================
 # angle-axis conversions
 #
-
 
 # TODO: Consider reimplmenting
 
