@@ -26,23 +26,27 @@ torch.set_printoptions(linewidth=5000, precision=8, sci_mode=False)
 
 
 class TestSolutionRerfinement(unittest.TestCase):
-
     def test_geodesic_distance_between_quaternions_grad(self):
-        """ Check whether backprop through forward_kinematics_batch() and geodesic_distance_between_quaternions() will 
+        """Check whether backprop through forward_kinematics_batch() and geodesic_distance_between_quaternions() will
         returns as nan for similar rotations
         """
         robot = FetchArm()
+
         def get_distance(device):
-            theta_vec = torch.tensor([[-0.12069701,  0.49622306, -1.47009099, -1.01792753,  2.53177810, -0.92676085, -1.35084212]],
+            theta_vec = torch.tensor(
+                [[-0.12069701, 0.49622306, -1.47009099, -1.01792753, 2.53177810, -0.92676085, -1.35084212]],
                 device=device,
                 dtype=torch.float32,
-                requires_grad=True
+                requires_grad=True,
             )
             pose_fk = robot.forward_kinematics_batch(theta_vec, out_device=device)
             target_pose = torch.tensor(
-                [[0.95416701, 0.20000000, 0.56277800, 1.00000000, 0.00000000, 0.00000000, 0.00000000]], device=device, dtype=torch.float32
+                [[0.95416701, 0.20000000, 0.56277800, 1.00000000, 0.00000000, 0.00000000, 0.00000000]],
+                device=device,
+                dtype=torch.float32,
             )
             return theta_vec, pose_fk, geodesic_distance_between_quaternions(pose_fk[:, 3:], target_pose[:, 3:])[0]
+
         theta_cpu, _, dist_cpu = get_distance("cpu")
         theta_cuda, _, dist_cuda = get_distance("cuda")
         dist_cpu.backward()
@@ -50,7 +54,7 @@ class TestSolutionRerfinement(unittest.TestCase):
         self.assertFalse(torch.isnan(theta_cpu.grad).any())
         self.assertFalse(torch.isnan(theta_cuda.grad).any())
 
-        # Test 2: Increase a joint angle away from a fixed one 
+        # Test 2: Increase a joint angle away from a fixed one
         device = "cuda"
         joint_angle, target_pose = robot.sample_joint_angles_and_poses(1)
         joint_angle = to_torch(joint_angle, device=device)
