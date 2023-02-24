@@ -101,6 +101,7 @@ def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tens
     m = torch.bmm(m1, m2.transpose(1, 2))  # batch*3*3
     cos = (m[:, 0, 0] + m[:, 1, 1] + m[:, 2, 2] - 1) / 2
     # See https://github.com/pytorch/pytorch/issues/8069#issuecomment-700397641
+    # Note: Decreasing this value below 1e-7 greates NaN gradients for nearby quaternions.
     epsilon = 1e-7
     theta = torch.acos(torch.clamp(cos, -1 + epsilon, 1 - epsilon))
     return theta
@@ -296,7 +297,7 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the Hamilton product q1 * q2
     """
-    assert q1.shape[1] == 4
+    assert q1.shape[1] == 4, f"q1.shape[1] is {q1.shape[1]}, should be 4"
     assert q1.shape == q2.shape
     if isinstance(q1, torch.Tensor) and isinstance(q2, torch.Tensor):
         stacker = torch.vstack
@@ -324,13 +325,17 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
-    assert q1.shape[1] == 4
+    assert q1.shape[1] == 4, f"q1.shape[1] is {q1.shape[1]}, should be 4"
     assert len(q1.shape) == 2
     assert q1.shape == q2.shape
+    # Note: Decreasing this value to 1e-8 greates NaN gradients for nearby quaternions.
+    acos_clamp_epsilon = 1e-7
 
     if isinstance(q1, np.ndarray):
         dot = np.clip(np.sum(q1 * q2, axis=1), -1, 1)
-        distance = 2 * np.arccos(dot)
+        # Note: Updated by @jstmn on Feb24 2023
+        distance = 2 * np.arccos(np.clip(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
+        # distance = 2 * np.arccos(dot)
         distance = np.abs(np.remainder(distance + np.pi, 2 * np.pi) - np.pi)
         assert distance.size == q1.shape[0], (
             f"Error, {distance.size} distance values calculated (np)- should be {q1.shape[0]} (distance.shape ="
@@ -340,7 +345,9 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
 
     if isinstance(q1, torch.Tensor):
         dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
-        distance = 2 * torch.acos(dot)
+        # Note: Updated by @jstmn on Feb24 2023
+        distance = 2 * torch.acos(torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
+        # distance = 2 * torch.acos(dot)
         distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
         assert distance.numel() == q1.shape[0], (
             f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="

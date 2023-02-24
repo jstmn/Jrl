@@ -8,3 +8,6 @@ notes_to_self
 notes
 napkin.py
 scripts/*.pdf
+*.ipynb_checkpoints
+*.gv
+*.svg

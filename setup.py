@@ -42,7 +42,7 @@ setup(
     py_modules=[],
     long_description=open("README.md").read(),
     install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"],
-    extras_require={
+    extras_require={ # pip install -e ".[dev]"
         "dev": [
             "black==22.12.0",
             "pylint==2.15.9",
@@ -51,6 +51,8 @@ setup(
             "pandas==1.5.3",
             "matplotlib==3.6.2",
             "tabulate==0.9.0",
+            "jupyter==1.0.0",
+            "torchviz==0.0.2"
         ]
     },
     packages=["jkinpylib"],
