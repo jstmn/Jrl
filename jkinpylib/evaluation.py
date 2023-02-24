@@ -56,9 +56,10 @@ def assert_pose_rotations_almost_equal(
     assert endpoints1.shape[0] == endpoints2.shape[0]
     errors = geodesic_distance_between_quaternions(endpoints1[:, 3 : 3 + 4], endpoints2[:, 3 : 3 + 4])
     for i in range(errors.shape[0]):
-        assert (
-            errors[i] < threshold
-        ), f"Rotation of poses '{source_1}({endpoints1[i, :]})', '{source_2} ({endpoints2[i, :]})' are not equal (error={errors[i]})"
+        assert errors[i] < threshold, (
+            f"Rotation of poses '{source_1}({endpoints1[i, :]})', '{source_2} ({endpoints2[i, :]})' are not equal"
+            f" (error={errors[i]})"
+        )
 
 
 def _get_target_pose_batch(target_pose: PT_NP_TYPE, n_solutions: int) -> torch.Tensor:

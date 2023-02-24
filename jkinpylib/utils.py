@@ -36,3 +36,42 @@ def to_numpy(x: PT_NP_TYPE) -> np.ndarray:
     if isinstance(x, torch.Tensor):
         return x.detach().cpu().numpy()
     return x
+
+
+# Borrowed from https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/transforms/rotation_conversions.html#random_quaternions
+def random_quaternions(n: int, device: DEVICE) -> torch.Tensor:
+    """
+    Generate random quaternions representing rotations,
+    i.e. versors with nonnegative real part.
+
+    Args:
+        n: Number of quaternions in a batch to return.
+        dtype: Type to return.
+        device: Desired device of returned tensor. Default:
+            uses the current device for the default tensor type.
+
+    Returns:
+        Quaternions as tensor of shape (N, 4).
+    """
+
+    def _copysign(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        """
+        Return a tensor where each element has the absolute value taken from the,
+        corresponding element of a, with sign taken from the corresponding
+        element of b. This is like the standard copysign floating-point operation,
+        but is not careful about negative 0 and NaN.
+
+        Args:
+            a: source tensor.
+            b: tensor whose signs will be used, of the same shape as a.
+
+        Returns:
+            Tensor of the same shape as a with the signs of b.
+        """
+        signs_differ = (a < 0) != (b < 0)
+        return torch.where(signs_differ, -a, a)
+
+    o = torch.randn((n, 4), dtype=DEFAULT_TORCH_DTYPE, device=device)
+    s = (o * o).sum(1)
+    o = o / _copysign(torch.sqrt(s), o[:, 0])[:, None]
+    return o

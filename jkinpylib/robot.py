@@ -647,7 +647,6 @@ class Robot:
         Returns:
             Tuple[np.ndarray, float]: _description_
         """
-        t0 = time()
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
         assert xs_current.shape[0] == target_poses.shape[0]
