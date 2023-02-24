@@ -123,7 +123,9 @@ class TestSolutionRerfinement(unittest.TestCase):
         x_current_pt = torch.tensor(x_current.copy(), device=DEVICE)
         x_updated_np = robot.inverse_kinematics_single_step_batch_np(poses_target, x_current, alpha)
         x_updated_pt = robot.inverse_kinematics_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
+        x_updated_ad_pt = robot.inverse_kinematics_autodiff_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
         x_updated_pt = x_updated_pt.cpu().numpy()
+        x_updated_ad_pt = x_updated_ad_pt.cpu().numpy()
 
         # Check that the updated joint angles are within joint limits
         self.assertTrue(
@@ -134,13 +136,19 @@ class TestSolutionRerfinement(unittest.TestCase):
             robot.joint_angles_all_in_joint_limits(x_updated_pt),
             f"joint angles out of limits\nx_updated_pt={x_updated_pt}\nrobot={robot}",
         )
+        self.assertTrue(
+            robot.joint_angles_all_in_joint_limits(x_updated_ad_pt),
+            f"joint angles out of limits\nx_updated_pt={x_updated_ad_pt}\nrobot={robot}",
+        )
 
         # Get updated pose error
         poses_updated_np = robot.forward_kinematics(x_updated_np)
         poses_updated_pt = robot.forward_kinematics(x_updated_pt)
+        poses_updated_ad_pt = robot.forward_kinematics(x_updated_ad_pt)
 
         self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_np, "numpy")
         self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_pt, "pytorch")
+        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, "pytorch")
 
     # ==================================================================================================================
     #  -- Tests
@@ -151,7 +159,7 @@ class TestSolutionRerfinement(unittest.TestCase):
         inverse_kinematics_single_step_batch_np() make progress
         """
 
-        alpha = 0.2
+        alpha = 0.1
 
         for robot in self.robots:
             print()
