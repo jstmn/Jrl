@@ -50,6 +50,7 @@ setup(
             "kinpy==0.2.0",
             "pandas==1.5.3",
             "matplotlib==3.6.2",
+            "tabulate==0.9.0",
         ]
     },
     packages=["jkinpylib"],
