@@ -685,7 +685,7 @@ class Robot:
         xs_current: torch.Tensor,
         alpha: float = 0.25,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
-    ) -> Tuple[torch.Tensor, float]:
+    ) -> torch.Tensor:
         """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
 
         Notes:
@@ -698,7 +698,7 @@ class Robot:
             alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
 
         Returns:
-            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function.
+            torch.Tensor: Updated joint angles
         """
         assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
         _assert_is_pose_matrix(target_poses)
@@ -756,7 +756,7 @@ class Robot:
         xs_current: torch.Tensor,
         alpha: float = 0.10,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
-    ) -> Tuple[torch.Tensor, float]:
+    ) -> torch.Tensor:
         """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
 
         Notes:
@@ -769,7 +769,7 @@ class Robot:
             alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
 
         Returns:
-            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function.
+            torch.Tensor: Updated joint angles
         """
         assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
         _assert_is_pose_matrix(target_poses)
