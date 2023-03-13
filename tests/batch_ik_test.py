@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from jkinpylib.robot import Robot
-from jkinpylib.robots import get_all_robots
+from jkinpylib.robots import get_all_robots, FetchArm
 from jkinpylib.evaluation import pose_errors
 from jkinpylib.utils import set_seed
 from jkinpylib.config import DEVICE
@@ -108,30 +108,45 @@ class TestSolutionRerfinement(unittest.TestCase):
         l2_errs_differences = l2_errs_final - l2_errs_original
         angular_errs_differences = angular_errs_final - angular_errs_original
         for i, (l2_err_diff_i, angular_errs_diff_i) in enumerate(zip(l2_errs_differences, angular_errs_differences)):
-            self.assertLess(l2_err_diff_i, 0.0, msg=f"({_method_name}) l2_err_diff = {l2_err_diff_i} should be < 0")
+            self.assertLess(
+                l2_err_diff_i,
+                0.0,
+                msg=(
+                    f"({_method_name}) l2_err_diff = {l2_err_diff_i} should be < 0. This means the positional error"
+                    " increased"
+                ),
+            )
             self.assertLess(
                 angular_errs_diff_i,
                 0.0,
-                msg=f"({_method_name}) angular_errs_diff_i = {angular_errs_diff_i} should be < 0",
+                msg=(
+                    f"({_method_name}) angular_errs_diff_i = {angular_errs_diff_i} should be < 0. This means the"
+                    " angular error increased"
+                ),
             )
 
     def assert_batch_ik_step_makes_progress(
         self, robot: Robot, alpha: float, x_current: np.ndarray, poses_current: np.ndarray, poses_target: np.ndarray
     ):
+        # Numpy testing - deprecated
+        # Get updated pose error
+        # x_updated_np = robot.inverse_kinematics_single_step_batch_np(poses_target, x_current, alpha)
+        # Check that the updated joint angles are within joint limits
+        # self.assertTrue(
+        #     robot.joint_angles_all_in_joint_limits(x_updated_np),
+        #     f"joint angles out of limits\nx_updated_np={x_updated_np}\nrobot={robot}",
+        # )
+        # poses_updated_np = robot.forward_kinematics(x_updated_np)
+        # self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_np, "numpy")
+
         # Run ik
         poses_target_pt = torch.tensor(poses_target, device=DEVICE)
         x_current_pt = torch.tensor(x_current.copy(), device=DEVICE)
-        x_updated_np = robot.inverse_kinematics_single_step_batch_np(poses_target, x_current, alpha)
         x_updated_pt = robot.inverse_kinematics_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
         x_updated_ad_pt = robot.inverse_kinematics_autodiff_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
         x_updated_pt = x_updated_pt.cpu().numpy()
         x_updated_ad_pt = x_updated_ad_pt.cpu().numpy()
 
-        # Check that the updated joint angles are within joint limits
-        self.assertTrue(
-            robot.joint_angles_all_in_joint_limits(x_updated_np),
-            f"joint angles out of limits\nx_updated_np={x_updated_np}\nrobot={robot}",
-        )
         self.assertTrue(
             robot.joint_angles_all_in_joint_limits(x_updated_pt),
             f"joint angles out of limits\nx_updated_pt={x_updated_pt}\nrobot={robot}",
@@ -141,14 +156,11 @@ class TestSolutionRerfinement(unittest.TestCase):
             f"joint angles out of limits\nx_updated_pt={x_updated_ad_pt}\nrobot={robot}",
         )
 
-        # Get updated pose error
-        poses_updated_np = robot.forward_kinematics(x_updated_np)
         poses_updated_pt = robot.forward_kinematics(x_updated_pt)
         poses_updated_ad_pt = robot.forward_kinematics(x_updated_ad_pt)
 
-        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_np, "numpy")
-        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_pt, "pytorch")
-        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, "pytorch")
+        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_pt, "jac-pinv")
+        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, "AD")
 
     # ==================================================================================================================
     #  -- Tests
@@ -177,6 +189,18 @@ class TestSolutionRerfinement(unittest.TestCase):
                 )
                 self.assert_batch_ik_step_makes_progress(robot, alpha, x_current, poses_current, poses_target)
                 print("passed")
+
+    # TODO(@jstmn, @dmillard): Get this test to pass by fixing inverse_kinematics_single_step_batch_pt()
+    def test_convergence(self):
+        """Test that pose error decreases at specific joint configurations. Examples found from
+        qpath_optimization_scratchpad.ipynb.
+        """
+        robot = FetchArm()
+        x = np.array([[0.41118, 0.44512, 3.08182, 0.01159, 0.61975, 0.55832, 2.32142]])
+        current_pose = robot.forward_kinematics_klampt(x)
+        target_pose = np.array([[1.00000, 0.30000, 0.47500, 1.00000, 0.00000, 0.00000, 0.00000]])
+        alpha = 0.1
+        self.assert_batch_ik_step_makes_progress(robot, alpha, x, current_pose, target_pose)
 
 
 if __name__ == "__main__":
