@@ -180,4 +180,4 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    r = Panda(verbose=True)
+    robots = get_all_robots()
