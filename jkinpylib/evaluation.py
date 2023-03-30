@@ -91,6 +91,17 @@ def pose_errors(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, P
     return l2_errors, angular_errors
 
 
+@enforce_pt_np_input
+def pose_errors_cm_deg(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+    """Return the positional and rotational angular error between two batch of poses in cm and degrees"""
+    assert poses_1.shape == poses_2.shape
+    l2_errors, angular_errors = pose_errors(poses_1, poses_2)
+
+    if isinstance(poses_1, torch.Tensor):
+        return 100 * l2_errors, torch.rad2deg(angular_errors)
+    return 100 * l2_errors, np.rad2deg(angular_errors)
+
+
 def solution_pose_errors(
     robot: Robot, solutions: torch.Tensor, target_poses: PT_NP_TYPE
 ) -> Tuple[np.ndarray, np.ndarray]:
