@@ -6,7 +6,8 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import numpy as np
 
-from jkinpylib.utils import get_filepath
+from jkinpylib.config import URDF_DOWNLOAD_DIR
+from jkinpylib.utils import get_filepath, safe_mkdir
 
 # See http://wiki.ros.org/urdf/XML/joint
 # All types: 'revolute', 'continuous', 'prismatic', 'fixed', 'floating', 'planar'
@@ -209,11 +210,12 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
     return joints, links
 
 
-def get_urdf_filepath_w_filenames_updated(original_filepath: str) -> str:
+def get_urdf_filepath_w_filenames_updated(original_filepath: str, download_dir: str = URDF_DOWNLOAD_DIR) -> str:
     """Save a copy of the urdf filepath, but with the mesh filepaths updated to absolute paths."""
     _, filename = os.path.split(original_filepath)
     filename = filename.replace(".urdf", "_link_filepaths_absolute.urdf")
-    output_filepath = os.path.join("/tmp/", filename)
+    safe_mkdir(download_dir)
+    output_filepath = os.path.join(download_dir, filename)
 
     with open(original_filepath, "r") as urdf_file:
         root = ET.fromstring(urdf_file.read())

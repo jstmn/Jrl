@@ -1,5 +1,6 @@
 import os
 import random
+import pathlib
 
 import pkg_resources
 import torch
@@ -7,6 +8,11 @@ import numpy as np
 
 from jkinpylib.config import DEVICE, DEFAULT_TORCH_DTYPE
 from jkinpylib.config import PT_NP_TYPE
+
+
+def safe_mkdir(dir_name: str):
+    """Create a directory `dir_name`. May include multiple levels of new directories"""
+    pathlib.Path(dir_name).mkdir(exist_ok=True, parents=True)
 
 
 def get_filepath(local_filepath: str):
