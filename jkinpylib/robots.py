@@ -180,4 +180,10 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    r = Panda(verbose=True)
+    import numpy as np
+
+    np.set_printoptions(suppress=True)
+    fa = FetchArm()
+    ff = FetchArm()
+    print(fa.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))
+    print(ff.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))

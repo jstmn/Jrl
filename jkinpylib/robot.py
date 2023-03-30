@@ -455,17 +455,22 @@ class Robot:
             return self.forward_kinematics_batch(x, return_quaternion=True, return_runtime=False)
         raise ValueError(f"Solver '{solver}' not recognized")
 
-    def forward_kinematics_klampt(self, x: np.array) -> np.array:
+    def forward_kinematics_klampt(self, x: np.array, link_name: Optional[str] = None) -> np.array:
         """Forward kinematics using the klampt library"""
         robot_configs = self._x_to_qs(x)
         dim_y = 7
         n = len(robot_configs)
         y = np.zeros((n, dim_y))
 
+        if link_name is None:
+            link = self._klampt_ee_link
+        else:
+            link = self._klampt_robot.link(link_name)
+
         for i in range(n):
             q = robot_configs[i]
             self._klampt_robot.setConfig(q)
-            R, t = self._klampt_ee_link.getTransform()
+            R, t = link.getTransform()
             y[i, 0:3] = np.array(t)
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
