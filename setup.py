@@ -32,7 +32,7 @@ for file in urdf_files:
 
 setup(
     name="jkinpylib",
-    version="0.0.8",
+    version="0.0.9",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
@@ -41,7 +41,8 @@ setup(
     description="Jeremy's Kinematics Python Library",
     py_modules=[],
     long_description=open("README.md").read(),
-    install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"],
+    # TODO: Specify version numbers. also move to pyproject.toml
+    install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"], 
     extras_require={  # pip install -e ".[dev]"
         "dev": [
             "black==22.12.0",

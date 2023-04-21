@@ -2,14 +2,150 @@ import unittest
 
 import torch
 import numpy as np
+from typing import List
 
+from jkinpylib.config import DEVICE
 from jkinpylib.robots import Panda
-from jkinpylib.evaluation import solution_pose_errors, calculate_joint_limits_exceeded
+from jkinpylib.evaluation import (
+    solution_pose_errors,
+    calculate_joint_limits_exceeded,
+    angular_changes,
+    angular_changes_old,
+)
 from jkinpylib.utils import set_seed
 
 set_seed()
 np.set_printoptions(suppress=True, precision=8)
 torch.set_default_dtype(torch.float32)
+
+_2PI = 2 * np.pi
+
+
+def _array_to_pt(arr: List) -> torch.Tensor:
+    return torch.tensor(arr, dtype=torch.float32, device=DEVICE)
+
+
+class AngularChangesTest(unittest.TestCase):
+    def assert_angular_changes_correct(self, qpath, expected_diff):
+        returned_1 = angular_changes(qpath)
+        torch.testing.assert_close(expected_diff, returned_1)
+        returned_2 = angular_changes_old(qpath)
+        torch.testing.assert_close(expected_diff, returned_2)
+
+    def test_angular_changes_1_vs_2(self):
+        qpath = 10 * torch.randn((300, 8))
+        from time import time
+
+        t0 = time()
+        returned_1 = angular_changes(qpath)
+        print(1000 * (time() - t0))
+        t0 = time()
+        returned_2 = angular_changes_old(qpath)
+        print(1000 * (time() - t0))
+        torch.testing.assert_close(returned_1, returned_2)
+
+    def test_angular_changes_pt(self):
+        """Test that the angular_changes() function returns the correct values."""
+        qpath = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 1")
+
+        #
+        qpath = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0.1],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, 0.1],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 2")
+
+        #
+        qpath = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, 0.1],
+                [0, 0, -0.1],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0, 0.1],
+                [0, 0, -0.2],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 3")
+
+        #
+        qpath = _array_to_pt(
+            [
+                [0, -0.05, 0],
+                [0, 0, 0.1],
+                [0, 0, -0.1],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0.05, 0.1],
+                [0, 0, -0.2],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 4")
+
+        #
+        qpath = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, _2PI - 0.1],
+                [0, 0, 0],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0, -0.1],
+                [0, 0, 0.1],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 5")
+
+        #
+        qpath = _array_to_pt(
+            [
+                [0, 0, 0],
+                [0, 0, _2PI - 0.1],
+                [-0.5, 0, 0.2],
+            ]
+        )
+        qpath_diff_expected = _array_to_pt(
+            [
+                [0, 0, -0.1],
+                [-0.5, 0, 0.3],
+            ]
+        )
+        self.assert_angular_changes_correct(qpath, qpath_diff_expected)
+        print("Passed test 6")
 
 
 class EvaluationUtilsTest(unittest.TestCase):
