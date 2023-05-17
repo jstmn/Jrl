@@ -1,127 +1,86 @@
+from math import floor
 from jkinpylib.evaluation import pose_errors_cm_deg
-from jkinpylib.robots import Panda, Fetch, FetchArm
+from jkinpylib.robots import get_all_robots
 from jkinpylib.utils import set_seed
 import numpy as np
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import ConvexHull, Delaunay
-
-# from matplotlib.patches import Rectangle
-# from matplotlib.path import Path
+from tqdm import tqdm
 
 np.set_printoptions(suppress=True, linewidth=120)
-
 set_seed()
 
 
-def sample_from_convex_hull(points: np.ndarray, n: int, ndof: int) -> np.ndarray:
-    samples = []
-    hull = ConvexHull(points)
-    # hull_path = Path( hull.points[hull.vertices])
-    print("hull.min_bound:", hull.min_bound)
-    print("hull.max_bound:", hull.max_bound)
-    # print(hull_path)
-
-    # Define the bounding box of the convex hull
-    min_coords = np.min(hull.points, axis=0)
-    max_coords = np.max(hull.points, axis=0)
-
-    tri = Delaunay(hull.points[hull.vertices])
-
-    # Generate random points within the bounding box
-    random_points = np.random.uniform(low=min_coords, high=max_coords, size=(15, hull.ndim))
-
-    # Check if the random points are inside the convex hull
-    inside_hull = tri.find_simplex(random_points) >= 0
-
-    print(inside_hull)
-    exit()
-
-    while True:
-        rand_points = np.zeros((n, ndof))
-        for i in range(ndof):
-            rand_points[:, i] = np.random.uniform(hull.min_bound[i], hull.max_bound[i], n)
-
-        rand_points[i] = np.array(
-            [np.random.uniform(bbox[0][0], bbox[1][0]), np.random.uniform(bbox[0][1], bbox[1][1])]
-        )
-        # We check if the random point is inside the convex hull, otherwise we draw it again
-        while hull_path.contains_point(rand_points[i]) == False:
-            rand_points[i] = np.array(
-                [np.random.uniform(bbox[0][0], bbox[1][0]), np.random.uniform(bbox[0][1], bbox[1][1])]
-            )
-
-    # rand_points = np.empty((n, 2))
-    # for i in range(n):
-    #     #Draw a random point in the bounding box of the convex hull
-    #     rand_points[i] = np.array([np.random.uniform(bbox[0][0], bbox[1][0]), np.random.uniform(bbox[0][1], bbox[1][1])])
-    #     #We check if the random point is inside the convex hull, otherwise we draw it again
-    #     while hull_path.contains_point(rand_points[i]) == False:
-    #         rand_points[i] = np.array([np.random.uniform(bbox[0][0], bbox[1][0]), np.random.uniform(bbox[0][1], bbox[1][1])])
-
-
 """ python scripts/calculate_rotational_repeatability.py
+
+This script estimates the rotational repeatability of all robots in the repository. Hardware specifications for robots 
+always comes with a _positional_ repeatability value (typically 0.1mm), however the rotational repeatibility is 
+typically ommited. This script estimates the rotational repeatibility as a function of the positional repeatibility. The
+idea is to find configurations that have positional pose error just within the positional repeatibility of the robot by 
+randomly perturbing a configuration. Aggregate statistics of the rotational error of these configs are then calculated 
+and reported.
 """
 
 if __name__ == "__main__":
-    robot = Panda()
-    print(robot.positional_repeatability_mm)
+    n_poses = 5000
+    n_perturbs = 250
+    show_plot = False
 
-    n_poses = 5
-    n_perturbs = 500
-    joint_angles, poses = robot.sample_joint_angles_and_poses(n_poses)
+    robots = get_all_robots()
+    for robot in robots:
+        joint_angles, poses = robot.sample_joint_angles_and_poses(n_poses, tqdm_enabled=False)
+        max_angular_errors_deg = []
 
-    for q, pose in zip(joint_angles, poses):
-        print("\nNew pose")
+        for q, pose in tqdm(zip(joint_angles, poses), total=n_poses):
+            q_last_inbound = []
+            for _ in range(n_perturbs):
+                pertubation = np.random.random(robot.n_dofs) - 0.5
+                pertubation = 0.00001 * pertubation / np.linalg.norm(pertubation)
+                q_perturbed = q.copy()
+                while True:
+                    q_perturbed_inbound = q_perturbed.copy()
+                    q_perturbed += pertubation
+                    pos_error_cm, rot_error_deg = pose_errors_cm_deg(
+                        robot.forward_kinematics_klampt(q_perturbed[None, :]), pose[None, :], acos_epsilon=1e-30
+                    )
+                    pos_error_mm = pos_error_cm[0] * 10
+                    if pos_error_mm > robot.positional_repeatability_mm:
+                        break
 
-        q_deltas = []
+                q_last_inbound.append(q_perturbed_inbound)
 
-        for _ in range(n_perturbs):
-            pertubation = np.random.random(robot.n_dofs) - 0.5
-            pertubation = 0.00001 * pertubation / np.linalg.norm(pertubation)
-            q_perturbed = q.copy()
-            while True:
-                q_perturbed_last = q_perturbed
-                q_perturbed += pertubation
-                pos_error_cm, rot_error_deg = pose_errors_cm_deg(
-                    robot.forward_kinematics_klampt(q_perturbed[None, :]), pose[None, :], acos_epsilon=1e-30
-                )
-                pos_error_mm = pos_error_cm[0] * 10
+            q_last_inbound = np.array(q_last_inbound)
+            norms = np.linalg.norm(q_last_inbound, axis=1)
+            pos_error_cm, rot_error_deg = pose_errors_cm_deg(
+                robot.forward_kinematics_klampt(q_last_inbound),
+                pose[None, :].repeat(n_perturbs, axis=0),
+                acos_epsilon=1e-30,
+            )
+            pos_error_mm = pos_error_cm * 10
 
-                if pos_error_mm > robot.positional_repeatability_mm:
-                    q_perturbed = q_perturbed_last
-                    break
+            max_angular_errors_deg.append(np.max(rot_error_deg))
 
-            joint_angle_diff = q_perturbed - q
-            q_deltas.append(joint_angle_diff)
+            if show_plot:
+                fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(13, 7))
+                ax: plt.Axes = axs[0]
+                ax.scatter(norms, pos_error_mm, label="positional error (cm)")
+                ax.set_xlabel("q_perturbed norm")
+                ax.set_ylabel("positional error (mm)")
+                ax.legend()
 
-        # TODO: Create a convex hull and sample from it. https://stackoverflow.com/a/67178146/5191069
-        q_deltas = np.array(q_deltas)
+                #
+                ax: plt.Axes = axs[1]
+                ax.scatter(norms, rot_error_deg, label="rotational error (rad)")
+                ax.set_xlabel("q_perturbed norm")
+                ax.set_ylabel("rotational error (deg)")
+                ax.legend()
+                plt.show()
+                plt.close()
 
-        n = 10
-        sample_from_convex_hull(q_deltas, n, robot.n_dofs)
-
-        # Draw n random points inside the convex hull
-
-        # q_deltas = np.array(q_deltas)
-        # pos = q_deltas[:, 0:2]
-        # hull = ConvexHull( pos )
-        # #Bounding box
-        # bbox = [hull.min_bound, hull.max_bound]
-        # hull_path = Path( hull.points[hull.vertices])
-        # #Draw n random points inside the convex hull
-        # n = 1000
-
-        # Plot
-        # plt.figure(figsize=(10, 10))
-        # plt.scatter(pos[:, 0], pos[:, 1], marker='o',  c='blue', alpha = 1, label ='Initial points')
-        # for simplex in hull.simplices:
-        #         plt.plot(hull.points[simplex, 0], hull.points[simplex, 1], '-k')
-        # plt.gca().add_patch(Rectangle((bbox[0][0], bbox[0][1]), bbox[1][0] - bbox[0][0], bbox[1][1] - bbox[0][1],facecolor = 'None', edgecolor = 'cyan'))
-        # plt.scatter(rand_points[:, 0], rand_points[:, 1], marker='o',  c='red', alpha = 0.31, label ='Random points inside hull')
-        # plt.legend()
-        # plt.title("Convex hull of joint angle pertubations that nearly surpass the robot's \n positional mechanical repeatability, as well as points sample from inside the hull")
-        # plt.xlabel(r"\theta_1")
-        # plt.ylabel(r"\theta_2")
-        # plt.show()
-        # plt.close()
+        np.save(
+            f"max_angular_errors_deg__{robot.name}__n_poses={n_poses}__n_perturbs={n_perturbs}", max_angular_errors_deg
+        )
+        print(f"max_angular_errors_deg - {robot.name}:")
+        print(" ", np.mean(max_angular_errors_deg))
+        print(" ", np.median(max_angular_errors_deg))
+        print(" ", np.min(max_angular_errors_deg))
+        print(" ", np.max(max_angular_errors_deg))

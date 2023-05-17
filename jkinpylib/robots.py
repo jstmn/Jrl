@@ -12,7 +12,7 @@ class Baxter(Robot):
     # See
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
-    ROTATIONAL_REPEATABILITY_DEG = -1
+    ROTATIONAL_REPEATABILITY_DEG = -1  # TODO
 
     def __init__(self):
         active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]
@@ -42,10 +42,9 @@ class Fetch(Robot):
     name = "fetch"
     formal_robot_name = "Fetch"
 
-    # See
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
-    ROTATIONAL_REPEATABILITY_DEG = -1
+    ROTATIONAL_REPEATABILITY_DEG = 0.08296040224661197
 
     def __init__(self):
         # Sum joint range: 34.0079 rads
@@ -88,7 +87,7 @@ class FetchArm(Robot):
     # See
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
-    ROTATIONAL_REPEATABILITY_DEG = -1
+    ROTATIONAL_REPEATABILITY_DEG = 0.10705219156268285
 
     def __init__(self, verbose: bool = False):
         # Sum joint range: 33.6218 rads
@@ -131,7 +130,7 @@ class Panda(Robot):
     # See 'Pose repeatability' in https://pkj-robotics.dk/wp-content/uploads/2020/09/Franka-Emika_Brochure_EN_April20_PKJ.pdf.
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
-    ROTATIONAL_REPEATABILITY_DEG = -1
+    ROTATIONAL_REPEATABILITY_DEG = 0.14076593566091963
 
     def __init__(self, verbose: bool = False):
         active_joints = [
@@ -168,7 +167,7 @@ class Iiwa7(Robot):
     # See
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
-    ROTATIONAL_REPEATABILITY_DEG = -1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
 
     def __init__(self, verbose: bool = False):
         active_joints = [
