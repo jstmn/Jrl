@@ -48,6 +48,11 @@ class Joint:
     joint_type: str
     limits: Tuple[float, float]
 
+    # From http://wiki.ros.org/urdf/XML/joint:
+    #   "An attribute for enforcing the maximum joint velocity (in radians per second [rad/s] for revolute joints, in
+    #    metres per second [m/s] for prismatic joints)"
+    velocity_limit: float
+
     @property
     def is_actuated(self) -> bool:
         return self.joint_type != "fixed"
@@ -70,6 +75,7 @@ class Joint:
             assert (
                 self.limits[0] <= self.limits[1]
             ), f"lower limit should be less or equal than upper limit, currently {self.limits[0]} <= {self.limits[1]}"
+            assert self.velocity_limit > 0
 
         # If joint_type is 'fixed' we can ignore `axis_xyz`
         if self.joint_type != "fixed":
@@ -149,6 +155,7 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                 joint_type = child.attrib["type"]
                 joint_name = child.attrib["name"]
                 limits = [0, 0]
+                velocity_limit = -1
 
                 origin_rpy, origin_xyz, axis_xyz = None, None, None
                 parent, joint_child = None, None
@@ -182,15 +189,14 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                     elif subelem.tag == "child":
                         joint_child = subelem.attrib["link"]
                     elif subelem.tag == "limit":
+                        velocity_limit = float(subelem.attrib["velocity"])
                         if child.tag == "joint" and child.attrib["type"] == "continuous":
                             limits[0] = -np.pi
                             limits[1] = np.pi
-
                             print(
                                 "Heads up: Setting joint limits to [-pi, pi] for continuous joint"
                                 f" '{child.attrib['name']}'"
                             )
-
                         else:
                             limits[0] = float(subelem.attrib["lower"])
                             limits[1] = float(subelem.attrib["upper"])
@@ -204,6 +210,7 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                     axis_xyz=axis_xyz,
                     joint_type=joint_type,
                     limits=tuple(limits),
+                    velocity_limit=velocity_limit,
                 )
                 joints[joint_name] = joint
 

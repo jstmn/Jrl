@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from time import time
 
 import numpy as np
@@ -78,25 +78,30 @@ def _get_target_pose_batch(target_pose: PT_NP_TYPE, n_solutions: int) -> torch.T
 
 
 @enforce_pt_np_input
-def pose_errors(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+def pose_errors(
+    poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
+) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
     """Return the positional and rotational angular error between two batch of poses."""
-    assert poses_1.shape == poses_2.shape
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
 
     if isinstance(poses_1, torch.Tensor):
         l2_errors = torch.norm(poses_1[:, 0:3] - poses_2[:, 0:3], dim=1)
     else:
         l2_errors = np.linalg.norm(poses_1[:, 0:3] - poses_2[:, 0:3], axis=1)
-    angular_errors = geodesic_distance_between_quaternions(poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4])
+    angular_errors = geodesic_distance_between_quaternions(
+        poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4], acos_epsilon=acos_epsilon
+    )
     assert l2_errors.shape == angular_errors.shape
     return l2_errors, angular_errors
 
 
 @enforce_pt_np_input
-def pose_errors_cm_deg(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+def pose_errors_cm_deg(
+    poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
+) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
     """Return the positional and rotational angular error between two batch of poses in cm and degrees"""
-    assert poses_1.shape == poses_2.shape
-    l2_errors, angular_errors = pose_errors(poses_1, poses_2)
-
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
+    l2_errors, angular_errors = pose_errors(poses_1, poses_2, acos_epsilon=acos_epsilon)
     if isinstance(poses_1, torch.Tensor):
         return 100 * l2_errors, torch.rad2deg(angular_errors)
     return 100 * l2_errors, np.rad2deg(angular_errors)
