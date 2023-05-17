@@ -47,6 +47,11 @@
       <geometry>
         <mesh filename="urdfs/panda/meshes/visual/link1.dae"/>
       </geometry>
+
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+
     </visual>
     <collision>
       <geometry>
@@ -74,6 +79,11 @@
       <geometry>
         <mesh filename="urdfs/panda/meshes/visual/link2.dae"/>
       </geometry>
+      
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+
     </visual>
     <collision>
       <geometry>
