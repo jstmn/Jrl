@@ -63,6 +63,8 @@ class Robot:
         base_link: str,
         end_effector_link_name: str,
         ignored_collision_pairs: List[Tuple[str, str]],
+        positional_repeatability_mm: float,
+        rotational_repeatability_deg: float,
         batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
@@ -92,6 +94,8 @@ class Robot:
         self._base_link = base_link
         self._end_effector_link_name = end_effector_link_name
         self._batch_fk_enabled = batch_fk_enabled
+        self._positional_repeatability_mm = positional_repeatability_mm
+        self._rotational_repeatability_deg = rotational_repeatability_deg
 
         # Note: `_joint_chain`, `_actuated_joint_limits`, `_actuated_joint_names` only includes the joints that were
         # specified by the subclass. It does not include all actuated joints in the urdf
@@ -100,6 +104,9 @@ class Robot:
         )
         self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
         self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
+        self._actuated_joint_velocity_limits = [
+            joint.velocity_limit for joint in self._joint_chain if joint.is_actuated
+        ]
         assert len(active_joints) == self.n_dofs, (
             f"Error - the number of active joints ({len(active_joints)}) does not match the degrees of freedom"
             f" ({self.n_dofs})."
@@ -193,8 +200,34 @@ class Robot:
         return self._actuated_joint_limits
 
     @property
+    def actuated_joints_velocity_limits(self) -> List[float]:
+        """Measured in rad/s for revolute joints, m/s for prismatic joints"""
+        return self._actuated_joint_velocity_limits
+
+    @property
+    def actuated_joints_velocity_limits_deg(self) -> List[float]:
+        """Measured in deg/s for revolute joints, m/s for prismatic joints"""
+        vals = []
+        for joint in self._joint_chain:
+            if joint.is_actuated and (joint.joint_type == "revolute" or joint.joint_type == "continuous"):
+                vals.append(joint.velocity_limit * 180 / np.pi)
+            elif joint.is_actuated and (joint.joint_type == "prismatic"):
+                vals.append(joint.velocity_limit)
+
+        assert len(vals) == self.n_dofs, f"Error, only {len(vals)} in vals, but {self.n_dofs} degrees of freedom"
+        return vals
+
+    @property
     def klampt_world_model(self) -> WorldModel:
         return self._klampt_world_model
+
+    @property
+    def positional_repeatability_mm(self) -> float:
+        return self._positional_repeatability_mm
+
+    @property
+    def rotational_repeatability_deg(self) -> float:
+        return self._rotational_repeatability_deg
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -461,17 +494,22 @@ class Robot:
             return self.forward_kinematics_batch(x, return_quaternion=True, return_runtime=False)
         raise ValueError(f"Solver '{solver}' not recognized")
 
-    def forward_kinematics_klampt(self, x: np.array) -> np.array:
+    def forward_kinematics_klampt(self, x: np.array, link_name: Optional[str] = None) -> np.array:
         """Forward kinematics using the klampt library"""
         robot_configs = self._x_to_qs(x)
         dim_y = 7
         n = len(robot_configs)
         y = np.zeros((n, dim_y))
 
+        if link_name is None:
+            link = self._klampt_ee_link
+        else:
+            link = self._klampt_robot.link(link_name)
+
         for i in range(n):
             q = robot_configs[i]
             self._klampt_robot.setConfig(q)
-            R, t = self._klampt_ee_link.getTransform()
+            R, t = link.getTransform()
             y[i, 0:3] = np.array(t)
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
@@ -516,13 +554,14 @@ class Robot:
             self._joint_chain[0].name not in self._fixed_rotations_cuda
             or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
             or self._fixed_rotations_cpu[self._joint_chain[0].name].shape[0] < batch_size
+            or self._fixed_rotations_cuda[self._joint_chain[0].name].device != out_device
         ):
             for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device="cuda:0", dtype=dtype))
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to("cuda:0")
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]

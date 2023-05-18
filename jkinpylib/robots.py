@@ -9,6 +9,11 @@ class Baxter(Robot):
     name = "baxter"
     formal_robot_name = "Baxter"
 
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = -1  # TODO
+
     def __init__(self):
         active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]
 
@@ -27,6 +32,8 @@ class Baxter(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
+            Baxter.POSITIONAL_REPEATABILITY_MM,
+            Baxter.ROTATIONAL_REPEATABILITY_DEG,
             batch_fk_enabled=False,
         )
 
@@ -34,6 +41,10 @@ class Baxter(Robot):
 class Fetch(Robot):
     name = "fetch"
     formal_robot_name = "Fetch"
+
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.08296040224661197
 
     def __init__(self):
         # Sum joint range: 34.0079 rads
@@ -57,13 +68,26 @@ class Fetch(Robot):
             ("bellows_link2", "torso_fixed_link"),
         ]
         Robot.__init__(
-            self, Fetch.name, urdf_filepath, active_joints, base_link, end_effector_link_name, ignored_collision_pairs
+            self,
+            Fetch.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            Fetch.POSITIONAL_REPEATABILITY_MM,
+            Fetch.ROTATIONAL_REPEATABILITY_DEG,
         )
 
 
 class FetchArm(Robot):
     name = "fetch_arm"
     formal_robot_name = "Fetch - Arm (no lift joint)"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.10705219156268285
 
     def __init__(self, verbose: bool = False):
         # Sum joint range: 33.6218 rads
@@ -93,6 +117,8 @@ class FetchArm(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
+            FetchArm.POSITIONAL_REPEATABILITY_MM,
+            FetchArm.ROTATIONAL_REPEATABILITY_DEG,
             verbose=verbose,
         )
 
@@ -100,6 +126,11 @@ class FetchArm(Robot):
 class Panda(Robot):
     name = "panda"
     formal_robot_name = "Panda"
+
+    # See 'Pose repeatability' in https://pkj-robotics.dk/wp-content/uploads/2020/09/Franka-Emika_Brochure_EN_April20_PKJ.pdf.
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.14076593566091963
 
     def __init__(self, verbose: bool = False):
         active_joints = [
@@ -123,6 +154,8 @@ class Panda(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
+            Panda.POSITIONAL_REPEATABILITY_MM,
+            Panda.ROTATIONAL_REPEATABILITY_DEG,
             verbose=verbose,
         )
 
@@ -130,6 +163,11 @@ class Panda(Robot):
 class Iiwa7(Robot):
     name = "iiwa7"
     formal_robot_name = "Kuka LBR IIWA7"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
 
     def __init__(self, verbose: bool = False):
         active_joints = [
@@ -154,11 +192,14 @@ class Iiwa7(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
+            Iiwa7.POSITIONAL_REPEATABILITY_MM,
+            Iiwa7.ROTATIONAL_REPEATABILITY_DEG,
             verbose=verbose,
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
+# ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
+ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
 
 
 def get_all_robots() -> List[Robot]:
@@ -180,4 +221,10 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
 
 
 if __name__ == "__main__":
-    r = Panda(verbose=True)
+    import numpy as np
+
+    np.set_printoptions(suppress=True)
+    fa = FetchArm()
+    ff = FetchArm()
+    print(fa.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))
+    print(ff.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))

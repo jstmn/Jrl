@@ -8,7 +8,7 @@ A couple notes:
         tensors
 """
 
-from typing import Tuple, Callable, Union
+from typing import Tuple, Callable, Optional, Union
 import warnings
 
 import torch
@@ -28,7 +28,7 @@ def enforce_pt_np_input(func: Callable):
     3. If there are two arguments, both must be of the same type
     """
 
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         are_2_args = len(args) == 2
         assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
         for arg in args:
@@ -37,7 +37,7 @@ def enforce_pt_np_input(func: Callable):
             assert type(args[0]) is type(
                 args[1]
             ), f"Expected both arguments to be of the same type, got {type(args[0])} and {type(args[1])}"
-        return func(*args)
+        return func(*args, **kwargs)
 
     return wrapper
 
@@ -340,7 +340,9 @@ def axisangle_to_quat(axis: PT_NP_TYPE, angle: PT_NP_TYPE) -> PT_NP_TYPE:
 
 
 @enforce_pt_np_input
-def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def geodesic_distance_between_quaternions(
+    q1: PT_NP_TYPE, q2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
+) -> PT_NP_TYPE:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
@@ -349,6 +351,8 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
     assert q1.shape == q2.shape
     # Note: Decreasing this value to 1e-8 greates NaN gradients for nearby quaternions.
     acos_clamp_epsilon = 1e-7
+    if acos_epsilon is not None:
+        acos_clamp_epsilon = acos_epsilon
 
     if isinstance(q1, np.ndarray):
         dot = np.clip(np.sum(q1 * q2, axis=1), -1, 1)
@@ -373,30 +377,6 @@ def geodesic_distance_between_quaternions(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_
             f" {distance.shape})"
         )
         return distance
-
-
-@enforce_pt_np_input
-def geodesic_distance_between_quaternions_old(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
-    """
-    Given rows of quaternions q1 and q2, compute the geodesic distance between each
-    """
-    warnings.warn("geodesic_distance_between_quaternions_old() is deprecated")
-    assert len(q1.shape) == 2
-    assert len(q2.shape) == 2
-    assert q1.shape[0] == q2.shape[0]
-    assert q1.shape[1] == q2.shape[1]
-    if isinstance(q1, np.ndarray):
-        q1_R9 = quaternion_to_rotation_matrix(torch.tensor(q1, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
-        q2_R9 = quaternion_to_rotation_matrix(torch.tensor(q2, device="cpu", dtype=DEFAULT_TORCH_DTYPE))
-
-    if isinstance(q1, torch.Tensor):
-        q1_R9 = quaternion_to_rotation_matrix(q1)
-        q2_R9 = quaternion_to_rotation_matrix(q2)
-
-    distance = geodesic_distance_between_rotation_matrices(q1_R9, q2_R9)
-    if isinstance(q1, np.ndarray):
-        distance = distance.numpy()
-    return distance
 
 
 # ======================================================================================================================

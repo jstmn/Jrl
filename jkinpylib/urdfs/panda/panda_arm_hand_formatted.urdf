@@ -17,8 +17,7 @@
 <robot name="panda" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <!-- TODO: add klampt tag, will need to fix the visualization issue as well -->
-  <!-- <klampt use_vis_geom="1" flip_yz="0">
-  </klampt> -->
+  <klampt use_vis_geom="1" flip_yz="1" />
 
   <link name="panda_link0">
     <inertial>
@@ -48,6 +47,11 @@
       <geometry>
         <mesh filename="urdfs/panda/meshes/visual/link1.dae"/>
       </geometry>
+
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+
     </visual>
     <collision>
       <geometry>
@@ -75,6 +79,11 @@
       <geometry>
         <mesh filename="urdfs/panda/meshes/visual/link2.dae"/>
       </geometry>
+      
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+
     </visual>
     <collision>
       <geometry>

@@ -103,6 +103,7 @@ def transition_between(robot: Robot, configs: List[List[float]]):
 python scripts/visualize_robot.py --robot_name=panda
 python scripts/visualize_robot.py --robot_name=baxter
 python scripts/visualize_robot.py --robot_name=iiwa7
+python scripts/visualize_robot.py --robot_name=fetch
 
 # Move between configs
 python scripts/visualize_robot.py \

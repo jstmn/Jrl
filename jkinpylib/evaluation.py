@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 from time import time
 
 import numpy as np
@@ -78,17 +78,33 @@ def _get_target_pose_batch(target_pose: PT_NP_TYPE, n_solutions: int) -> torch.T
 
 
 @enforce_pt_np_input
-def pose_errors(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+def pose_errors(
+    poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
+) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
     """Return the positional and rotational angular error between two batch of poses."""
-    assert poses_1.shape == poses_2.shape
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
 
     if isinstance(poses_1, torch.Tensor):
         l2_errors = torch.norm(poses_1[:, 0:3] - poses_2[:, 0:3], dim=1)
     else:
         l2_errors = np.linalg.norm(poses_1[:, 0:3] - poses_2[:, 0:3], axis=1)
-    angular_errors = geodesic_distance_between_quaternions(poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4])
+    angular_errors = geodesic_distance_between_quaternions(
+        poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4], acos_epsilon=acos_epsilon
+    )
     assert l2_errors.shape == angular_errors.shape
     return l2_errors, angular_errors
+
+
+@enforce_pt_np_input
+def pose_errors_cm_deg(
+    poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
+) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+    """Return the positional and rotational angular error between two batch of poses in cm and degrees"""
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
+    l2_errors, angular_errors = pose_errors(poses_1, poses_2, acos_epsilon=acos_epsilon)
+    if isinstance(poses_1, torch.Tensor):
+        return 100 * l2_errors, torch.rad2deg(angular_errors)
+    return 100 * l2_errors, np.rad2deg(angular_errors)
 
 
 def solution_pose_errors(
@@ -183,6 +199,57 @@ def evaluate_solutions(
     joint_limits_exceeded = calculate_joint_limits_exceeded(solutions, robot.actuated_joints_limits)
     self_collisions_respected = calculate_self_collisions(robot, solutions)
     return l2_errors, angular_errors, joint_limits_exceeded, self_collisions_respected
+
+
+@enforce_pt_np_input
+def angular_changes_old(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
+    """Computes the change in the configuration space path. Respects jumps from 0 <-> 2pi
+
+    WARNING: Results may be negative. Be sure to call .abs() if calculating mjac
+
+    Returns: a [n x ndofs] array of the change in each joint angle over the n timesteps.
+    """
+    angle_vector_1 = qpath[0:-1]
+    angle_vector_2 = qpath[1:]
+    if isinstance(qpath, np.ndarray):
+        return np.arctan2(np.sin(angle_vector_2 - angle_vector_1), np.cos(angle_vector_2 - angle_vector_1))
+    if isinstance(qpath, torch.Tensor):
+        return torch.arctan2(torch.sin(angle_vector_2 - angle_vector_1), torch.cos(angle_vector_2 - angle_vector_1))
+
+
+@enforce_pt_np_input
+def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
+    """Same as angular_changes but ~2x faster to run"""
+    dqs = qpath[1:] - qpath[0:-1]
+    if isinstance(qpath, torch.Tensor):
+        return torch.remainder(dqs + torch.pi, 2 * torch.pi) - torch.pi
+    return np.remainder(dqs + np.pi, 2 * np.pi) - np.pi
+
+
+@enforce_pt_np_input
+def calculate_mean_cspace_diff_deg(x: PT_NP_TYPE):
+    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi."""
+    if isinstance(x, np.ndarray):
+        return float(np.absolute(np.rad2deg(angular_changes(x))).mean())
+    return float(torch.abs(torch.rad2deg(angular_changes(x))).mean())
+
+
+@enforce_pt_np_input
+def calculate_max_cspace_diff_deg(x: PT_NP_TYPE) -> float:
+    """Calculate the maximum change in configuration space over a path in configuration space."""
+    if isinstance(x, np.ndarray):
+        return float(np.absolute(np.rad2deg(angular_changes(x))).max())
+    return float(torch.abs(torch.rad2deg(angular_changes(x))).max())
+
+
+@enforce_pt_np_input
+def calculate_max_cspace_diff_per_timestep_deg(x: PT_NP_TYPE) -> PT_NP_TYPE:
+    """Calculate the maximum change in configuration space over a path in configuration space."""
+    if isinstance(x, np.ndarray):
+        return np.rad2deg(np.max(np.absolute(angular_changes(x)), axis=1))
+    raise NotImplementedError()
+    # TODO: Unit test
+    return torch.mean(torch.abs(torch.rad2deg(angular_changes(x))), dim=1)
 
 
 """ Benchmarking solution_pose_errors():
