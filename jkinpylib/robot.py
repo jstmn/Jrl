@@ -541,11 +541,6 @@ class Robot:
         if out_device is None:
             out_device = x.device
 
-        print()
-        print("out_device:", out_device)
-        print("x.device:", x.device)
-
-
         # TODO: Need to decide on an API for this function. Does this always save a new T to _fixed_rotations_cuda? If
         # so cuda will always need to be available
         # Update _fixed_rotations_cuda if this is a larger batch then we've seen before
@@ -583,7 +578,6 @@ class Robot:
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
             fixed_rotation_dict = self._fixed_rotations_cpu if out_device == "cpu" else self._fixed_rotations_cuda
             parent_T_child_fixed = fixed_rotation_dict[joint.name][0:batch_size]
-            print("parent_T_child_fixed: ", parent_T_child_fixed.device)
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
 
             if joint.joint_type in {"revolute", "continuous"}:
@@ -591,7 +585,6 @@ class Robot:
                 rotation_amt = x[:, x_i]
                 rotation_axis = joint.axis_xyz
 
-                print("rotation_amt:", rotation_amt.device)
                 # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
                 # or quaternions?
                 joint_rotation = single_axis_angle_to_rotation_matrix(
