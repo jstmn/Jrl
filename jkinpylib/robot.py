@@ -3,6 +3,7 @@ from time import time
 
 from more_itertools import locate
 import torch
+import functorch
 import numpy as np
 from klampt import IKSolver, WorldModel
 from klampt.model import ik
@@ -12,14 +13,18 @@ from klampt.model.collide import WorldCollider
 import tqdm
 
 from jkinpylib.conversions import (
-    rpy_tuple_to_rotation_matrix,
-    single_axis_angle_to_rotation_matrix,
+    axisangle_to_quat,
+    geodesic_distance_between_quaternions,
+    poseposemul,
     quaternion_inverse,
+    quaternion_norm,
     quaternion_product,
+    quaternion_to_rotation_matrix,
     quaternion_to_rpy,
     rotation_matrix_to_quaternion,
-    quaternion_norm,
-    geodesic_distance_between_quaternions,
+    rpy_to_quat,
+    rpy_tuple_to_rotation_matrix,
+    single_axis_angle_to_rotation_matrix,
     DEFAULT_TORCH_DTYPE,
     PT_NP_TYPE,
 )
@@ -103,6 +108,7 @@ class Robot:
         # Create and fill cache of fixed rotations between links.
         self._fixed_rotations_cuda = {}
         self._fixed_rotations_cpu = {}
+        self._fixed_transforms = {}
         if self._batch_fk_enabled:
             self.forward_kinematics_batch(
                 torch.tensor(self.sample_joint_angles(1050), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
@@ -471,7 +477,7 @@ class Robot:
         return y
 
     # TODO: Do FK starting at 'base_link' instead of the first joint.
-    def forward_kinematics_batch(
+    def forward_kinematics_batch_old(
         self,
         x: torch.Tensor,
         out_device: Optional[str] = None,
@@ -591,6 +597,93 @@ class Robot:
         if return_runtime:
             return base_T_joint, time() - time0
         return base_T_joint
+
+    # TODO: Do FK starting at 'base_link' instead of the first joint.
+    def forward_kinematics_batch(
+        self,
+        q: torch.Tensor,
+        out_device: Optional[str] = None,
+        dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
+        return_quaternion: bool = True,
+        return_runtime: bool = False,
+    ) -> Tuple[torch.Tensor, float]:
+        """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
+        revolute then apply rotation x[i] and increment i
+
+        Args:
+            x (torch.tensor): [N x n_dofs] tensor, representing the joint angle values to calculate the robots FK with
+            out_device (str): The device to save tensors to.
+            return_quaternion (bool): Return format is [N x 7] where [:, 0:3] are xyz, and [:, 3:7] are quaternions.
+                                        Otherwise return [N x 4 x 4] homogenious transformation matrices
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, float]:
+                2. [N x 4 x 4] torch tensor of the transform between the parent link of the first joint and the end
+                                effector of the robot
+                3. The total runtime of the function. For convenience
+        """
+        if not self._batch_fk_enabled:
+            raise NotImplementedError(f"BatchFK is not enabled for the {self.name} robot.")
+
+        time0 = time()
+        _assert_is_joint_angle_matrix(q, self.n_dofs)
+        if out_device is None:
+            out_device = q.device
+
+        if self._joint_chain[0].name not in self._fixed_transforms:
+            for joint in self._joint_chain:
+                R = rpy_to_quat(joint.origin_rpy, device=out_device)[None, :]
+                t = torch.tensor(joint.origin_xyz, device=out_device, dtype=dtype)[None, :]
+                self._fixed_transforms[joint.name] = torch.hstack((t, R))
+
+        # Rotation from body/base link to joint along the joint chain
+        base_T_parent = torch.tensor(((0, 0, 0, 1, 0, 0, 0),), device=out_device, dtype=dtype)
+
+        # Iterate through each joint in the joint chain
+        qi = 0
+        for joint in self._joint_chain:
+            assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+
+            parent_T_joint = self._fixed_transforms[joint.name]
+            base_T_joint = poseposemul(base_T_parent, parent_T_joint)
+            if joint.joint_type in {"revolute", "continuous"}:
+                joint_T_child = torch.stack(
+                    (
+                        torch.zeros(3, device=out_device, dtype=dtype),
+                        axisangle_to_quat(torch.tensor((joint.axis_xyz,), device=out_device, dtype=dtype), q[:, qi]),
+                    ),
+                    dim=1,
+                )
+                base_T_child = poseposemul(base_T_joint, joint_T_child)
+                qi += 1
+
+            elif joint.joint_type == "prismatic":
+                joint_T_child = torch.stack(
+                    (
+                        joint.axis_xyz * q[:, qi, None],
+                        torch.tensor((1, 0, 0, 0), device=out_device, dtype=dtype),
+                    ),
+                    dim=1,
+                )
+                base_T_child = poseposemul(base_T_joint, joint_T_child)
+                qi += 1
+
+            elif joint.joint_type == "fixed":
+                base_T_child = base_T_joint
+            else:
+                raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
+
+            base_T_parent = base_T_child
+
+        if not return_quaternion:
+            R = quaternion_to_rotation_matrix(base_T_parent[:, 3:])
+            t = base_T_parent[:, :3]
+            base_T_parent = torch.stack((R, t), dim=1)
+            base_T_parent = torch.stack((T, torch.tensor((0, 0, 0, 1), device=out_device, dtype=dtype)), dim=1)
+
+        if return_runtime:
+            return base_T_parent, time() - time0
+        return base_T_parent
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -796,6 +889,62 @@ class Robot:
         loss.backward()
 
         xs_updated = xs_current - alpha * xs_current.grad
+
+        assert torch.isnan(xs_updated).sum() == 0, "xs_updated contains NaNs"
+        assert xs_current.device == xs_updated.device
+        xs_updated = self.clamp_to_joint_limits(xs_updated)
+        return xs_updated.detach()
+
+    def inverse_kinematics_autodiff_pinv_single_step_batch_pt(
+        self,
+        target_poses: torch.Tensor,
+        xs_current: torch.Tensor,
+        alpha: float = 0.10,
+        dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
+    ) -> Tuple[torch.Tensor, float]:
+        """Perform a single inverse kinematics step on a batch of joint angle vectors using pytorch.
+
+        Notes:
+            1. `target_poses` and `xs_current` need to be on the same device.
+            2. the returned tensor will be on the same device as `target_poses` and `xs_current`
+
+        Args:
+            target_poses (torch.Tensor): [batch x 7] poses to optimize the joint angles towards.
+            xs_current (torch.Tensor): [batch x ndofs] joint angles to start the optimization from.
+            alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
+
+        Returns:
+            Tuple[torch.Tensor, float]: Updated joint angles, and the runtime of the function.
+        """
+        assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
+        _assert_is_pose_matrix(target_poses)
+        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
+        assert xs_current.shape[0] == target_poses.shape[0]
+        assert (
+            xs_current.device == target_poses.device
+        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        n = target_poses.shape[0]
+
+        # New graph
+
+        def compute_single_pose_error(qs):
+            # Run the xs_current through FK to get their realized poses
+            qs = torch.unsqueeze(qs, 0)
+            assert qs.shape == (1, 7)
+            current_poses = self.forward_kinematics_batch(qs, out_device=qs.device, dtype=dtype)
+            assert (
+                current_poses.shape == target_poses.shape
+            ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+
+            t_err = target_poses[:, 0:3] - current_poses[:, 0:3]
+            R_err = geodesic_distance_between_quaternions(target_poses[:, 3:7], current_poses[:, 3:7])
+            err = torch.hstack((t_err, R_err.reshape((-1, 1))))
+            return err, err
+
+        J, err = functorch.vmap(functorch.jacrev(compute_single_pose_error, has_aux=True))(xs_current)
+        print(J.shape, err.shape)
+
+        xs_updated = xs_current - alpha * torch.linalg.lstsq(J, err).solution
 
         assert torch.isnan(xs_updated).sum() == 0, "xs_updated contains NaNs"
         assert xs_current.device == xs_updated.device

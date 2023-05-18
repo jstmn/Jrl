@@ -13,6 +13,10 @@ from jkinpylib.conversions import (
     quatconj,
     quaternion_product,
     quatmul,
+    quatvecrot,
+    poseposemul,
+    rpy_to_quat,
+    rpy_tuple_to_rotation_matrix,
 )
 from jkinpylib.utils import set_seed, to_torch
 from jkinpylib.robots import FetchArm
@@ -122,7 +126,7 @@ class TestSolutionRerfinement(unittest.TestCase):
         """Test quaternion_to_rotation_matrix()"""
 
         # Test 1: Identity quaternion
-        q = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
         R_expected = torch.tensor(
             [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], device="cpu", dtype=torch.float32
         )
@@ -134,6 +138,20 @@ class TestSolutionRerfinement(unittest.TestCase):
         # R_expected saved from this site: https://www.andre-gaschler.com/rotationconverter/
         R_expected = torch.tensor(
             [[0.7071068, 0.7071068, 0.0000000], [0.7071068, -0.7071068, 0.0000000], [0.0000000, 0.0000000, -1.0000000]],
+            device="cpu",
+            dtype=torch.float32,
+        )
+        R_returned = quaternion_to_rotation_matrix(q)[0]
+        torch.testing.assert_close(R_returned, R_expected)
+
+        # Test 3
+        q = torch.tensor([[0.0789811, 0.1579622, 0.2369433, 0.9553365]], device="cpu", dtype=torch.float32)
+        R_expected = torch.tensor(
+            [
+                [-0.93762, -0.0760509, 0.339242],
+                [0.225763, -0.87524, 0.427769],
+                [0.264386, 0.477673, 0.837812],
+            ],
             device="cpu",
             dtype=torch.float32,
         )
@@ -284,6 +302,68 @@ class TestSolutionRerfinement(unittest.TestCase):
         product_returned_2 = quatmul(q1, q2)
         np.testing.assert_allclose(product_expected, product_returned_2)
         print(f"test_quaternion_product() passed")
+
+    def test_rpy_to_quat(self):
+        set_seed(5)
+        rpys = [(0.1, 0, 0), (0, 0.1, 0), (0, 0, 0.1), (0.1, 0.1, 0.1)]
+        for _ in range(20):
+            rpys.append(tuple(np.random.randn(3)))
+
+        for rpy in rpys:
+            quat = rpy_to_quat(rpy, torch.device("cpu"))
+            self.assertAlmostEqual(np.linalg.norm(quat), 1, places=5)
+
+            R = quaternion_to_rotation_matrix(torch.unsqueeze(quat, dim=0))
+            R = torch.squeeze(R)
+            Rother = rpy_tuple_to_rotation_matrix(rpy)
+            np.testing.assert_allclose(np.array(R), np.array(Rother), rtol=1e-5)
+
+    def test_quatvecrot(self):
+        set_seed(5)
+        rpys = [(0.1, 0, 0), (0, 0.1, 0), (0, 0, 0.1), (0.1, 0.1, 0.1)]
+        for _ in range(20):
+            rpys.append(tuple(np.random.randn(3)))
+
+        for rpy in rpys:
+            quat = rpy_to_quat(rpy, torch.device("cpu"))
+            quat = torch.unsqueeze(quat, dim=0)
+            R = quaternion_to_rotation_matrix(quat)
+
+            vec = torch.randn(1, 3)
+            rvec1 = quatvecrot(quat, vec)
+            rvec2 = (R @ vec.T).reshape(-1, 3)
+
+            np.testing.assert_allclose(np.array(rvec1), np.array(rvec2), atol=1e-6)
+
+    def test_poseposemul(self):
+        set_seed(5)
+        n = 20
+
+        def generate_poses(n):
+            R = torch.randn(n, 4)
+            R /= torch.norm(R, dim=1, keepdim=True)
+            t = torch.randn(n, 3)
+            return torch.hstack((t, R))
+
+        def pose_to_matrix(poses):
+            t = poses[:, :3]
+            R = quaternion_to_rotation_matrix(poses[:, 3:])
+            posemat = torch.zeros(n, 4, 4)
+            posemat[:, :3, :3] = R
+            posemat[:, :3, 3] = t
+            posemat[:, 3, 3] = 1
+
+            return posemat
+
+        poses1 = generate_poses(n)
+        poses2 = generate_poses(n)
+        poses3 = poseposemul(poses1, poses2)
+
+        posemat1 = pose_to_matrix(poses1)
+        posemat2 = pose_to_matrix(poses2)
+        posemat3 = torch.bmm(posemat1, posemat2)
+
+        np.testing.assert_allclose(np.array(pose_to_matrix(poses3)), np.array(posemat3), atol=1e-6)
 
 
 if __name__ == "__main__":

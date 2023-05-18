@@ -42,7 +42,7 @@ if __name__ == "__main__":
         columns=["method", "number of solutions", "total runtime (ms)", "runtime std", "runtime per solution (ms)"]
     )
 
-    for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000]:
+    for batch_size in [5, 5, 10, 50, 100, 500, 1000, 5000]:
         print(f"Batch size: {batch_size}")
 
         goalangles, goalposes = robot.sample_joint_angles_and_poses(batch_size)
@@ -56,8 +56,11 @@ if __name__ == "__main__":
 
         methods = {
             # "Klampt invJac cpu": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cpu, x_pt_cpu),
-            "Klampt invJac cuda": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
+            "Klampt pinvJac cuda": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
             "AutoDiff cuda": lambda: robot.inverse_kinematics_autodiff_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
+            "AutoDiff pinvJac cuda": lambda: robot.inverse_kinematics_autodiff_pinv_single_step_batch_pt(
+                goalposes_cuda, x_pt_cuda
+            ),
         }
         for name, method in methods.items():
             mean_runtime_ms, std_runtime = fn_mean_std(method, k)
