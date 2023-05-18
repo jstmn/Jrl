@@ -541,6 +541,11 @@ class Robot:
         if out_device is None:
             out_device = x.device
 
+        print()
+        print("out_device:", out_device)
+        print("x.device:", x.device)
+
+
         # TODO: Need to decide on an API for this function. Does this always save a new T to _fixed_rotations_cuda? If
         # so cuda will always need to be available
         # Update _fixed_rotations_cuda if this is a larger batch then we've seen before
@@ -548,13 +553,14 @@ class Robot:
             self._joint_chain[0].name not in self._fixed_rotations_cuda
             or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
             or self._fixed_rotations_cpu[self._joint_chain[0].name].shape[0] < batch_size
+            or self._fixed_rotations_cuda[self._joint_chain[0].name].device != out_device
         ):
             for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device="cuda:0", dtype=dtype))
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to("cuda:0")
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]
@@ -577,6 +583,7 @@ class Robot:
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
             fixed_rotation_dict = self._fixed_rotations_cpu if out_device == "cpu" else self._fixed_rotations_cuda
             parent_T_child_fixed = fixed_rotation_dict[joint.name][0:batch_size]
+            print("parent_T_child_fixed: ", parent_T_child_fixed.device)
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
 
             if joint.joint_type in {"revolute", "continuous"}:
@@ -584,6 +591,7 @@ class Robot:
                 rotation_amt = x[:, x_i]
                 rotation_axis = joint.axis_xyz
 
+                print("rotation_amt:", rotation_amt.device)
                 # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
                 # or quaternions?
                 joint_rotation = single_axis_angle_to_rotation_matrix(
