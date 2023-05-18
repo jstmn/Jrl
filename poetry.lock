@@ -241,23 +241,6 @@ unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["brotli (>=1.0.1)", "brotlicffi (>=0.8.0)", "zopfli (>=0.1.4)"]
 
 [[package]]
-name = "functorch"
-version = "1.13.1"
-description = "JAX-like composable function transforms for PyTorch"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "functorch-1.13.1-py2.py3-none-any.whl", hash = "sha256:a131ad83c514ad71efa1b18beeb88fd379d1c61078b2a1e29723bb85aa793d35"},
-]
-
-[package.dependencies]
-torch = ">=1.13.1,<1.13.2"
-
-[package.extras]
-aot = ["networkx"]
-
-[[package]]
 name = "importlib-resources"
 version = "5.12.0"
 description = "Read resources from Python packages"
@@ -1497,4 +1480,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "771266be6490c135d9faba6d054653ee5eab5d2598004e5abe7ad118a9de59af"
+content-hash = "1322a3d26cfaeb6258a36d2121c6b52ad133d1cae68b6dff7d71f22e363f4d66"

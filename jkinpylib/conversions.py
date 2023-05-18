@@ -8,8 +8,7 @@ A couple notes:
         tensors
 """
 
-from typing import Tuple, Callable, Optional, Union
-import warnings
+from typing import Tuple, Callable, Optional
 
 import torch
 import numpy as np
@@ -128,24 +127,24 @@ def quaternion_xyzw_to_wxyz(quaternion: PT_NP_TYPE) -> PT_NP_TYPE:
 
 
 @enforce_pt_np_input
-def quaternion_to_rotation_matrix(quat: torch.Tensor):
+def quaternion_to_rotation_matrix(quaternion: torch.Tensor):
     """_summary_
 
     Args:
-        quat (torch.Tensor): [batch x 4] tensor of quaternions
+        quaternion (torch.Tensor): [batch x 4] tensor of quaternions
 
     Returns:
         _type_: _description_
     """
-    batch, dim = quat.shape
-    assert dim == 4
-    absnorm = torch.abs(torch.linalg.norm(quat, dim=1))
-    assert torch.all(absnorm - 1 < 1e-5), f"Max deviation from unit quaternion: {torch.max(absnorm - 1)}"
+    batch = quaternion.shape[0]
 
-    qw = quat[:, 0]
-    qx = quat[:, 1]
-    qy = quat[:, 2]
-    qz = quat[:, 3]
+    # TODO: Should we normalize the quaternion here? Maybe just verify its almost normalized instead?
+    quat = normalize_vector(quaternion).contiguous()
+
+    qw = quat[..., 0].contiguous().view(batch, 1)
+    qx = quat[..., 1].contiguous().view(batch, 1)
+    qy = quat[..., 2].contiguous().view(batch, 1)
+    qz = quat[..., 3].contiguous().view(batch, 1)
 
     # Unit quaternion rotation matrices computatation
     xx = qx * qx
@@ -158,14 +157,11 @@ def quaternion_to_rotation_matrix(quat: torch.Tensor):
     yw = qy * qw
     zw = qz * qw
 
-    matrix = torch.stack(
-        (
-            torch.stack((1 - 2 * yy - 2 * zz, 2 * xy - 2 * zw, 2 * xz + 2 * yw), dim=1),
-            torch.stack((2 * xy + 2 * zw, 1 - 2 * xx - 2 * zz, 2 * yz - 2 * xw), dim=1),
-            torch.stack((2 * xz - 2 * yw, 2 * yz + 2 * xw, 1 - 2 * xx - 2 * yy), dim=1),
-        ),
-        dim=1,
-    )
+    row0 = torch.cat((1 - 2 * yy - 2 * zz, 2 * xy - 2 * zw, 2 * xz + 2 * yw), 1)  # batch*3
+    row1 = torch.cat((2 * xy + 2 * zw, 1 - 2 * xx - 2 * zz, 2 * yz - 2 * xw), 1)  # batch*3
+    row2 = torch.cat((2 * xz - 2 * yw, 2 * yz + 2 * xw, 1 - 2 * xx - 2 * yy), 1)  # batch*3
+
+    matrix = torch.cat((row0.view(batch, 1, 3), row1.view(batch, 1, 3), row2.view(batch, 1, 3)), 1)  # batch*3*3
 
     return matrix
 
@@ -320,22 +316,6 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
     ).T
 
 
-def axisangle_to_quat(axis: PT_NP_TYPE, angle: PT_NP_TYPE) -> PT_NP_TYPE:
-    """
-    Given rows of axis and angle, compute rows of quaternions.
-    """
-    assert axis.shape[1] == 3
-    assert angle.shape[1] == 1
-    assert axis.shape[0] == angle.shape[0]
-
-    if isinstance(axis, torch.Tensor) and isinstance(angle, torch.Tensor):
-        sin, cos, stacker = torch.sin, torch.cos, torch.hstack
-    if isinstance(axis, np.ndarray) and isinstance(angle, np.ndarray):
-        sin, cos, stacker = np.sin, np.cos, np.hstack
-
-    return stacker((cos(angle / 2), sin(angle / 2) * normalize_vector(axis)))
-
-
 # TODO: Benchmark speed when running this with numpy. Does it matter if its slow?
 
 
@@ -484,75 +464,35 @@ def rpy_tuple_to_rotation_matrix(
     Returns:
         torch.Tensor: [3 x 3] rotation matrix
     """
-    rpy = np.array(rpy)
-    sr, sp, sy = np.sin(rpy)
-    cr, cp, cy = np.cos(rpy)
+    r = rpy[0]
+    p = rpy[1]
+    y = rpy[2]
 
     Rx = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
-    Rx[1, 1] = cr  # TODO: wtf, why is this not using torch.cos?
-    Rx[1, 2] = -sr
-    Rx[2, 1] = sr
-    Rx[2, 2] = cr
+    Rx[1, 1] = np.cos(r)  # TODO: wtf, why is this not using torch.cos?
+    Rx[1, 2] = -np.sin(r)
+    Rx[2, 1] = np.sin(r)
+    Rx[2, 2] = np.cos(r)
 
     Ry = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
-    Ry[0, 0] = cp
-    Ry[0, 2] = sp
-    Ry[2, 0] = -sp
-    Ry[2, 2] = cp
+    Ry[0, 0] = np.cos(p)
+    Ry[0, 2] = np.sin(p)
+    Ry[2, 0] = -np.sin(p)
+    Ry[2, 2] = np.cos(p)
 
     Rz = torch.eye(3, dtype=DEFAULT_TORCH_DTYPE, device=device)
-    Rz[0, 0] = cy
-    Rz[0, 1] = -sy
-    Rz[1, 0] = sy
-    Rz[1, 1] = cy
+    Rz[0, 0] = np.cos(y)
+    Rz[0, 1] = -np.sin(y)
+    Rz[1, 0] = np.sin(y)
+    Rz[1, 1] = np.cos(y)
 
-    R = Rz @ Ry @ Rx
+    R = Rz.mm(Ry.mm(Rx))
     return R
-
-
-def rpy_to_quat(rpy: Union[Tuple[float, float, float], torch.Tensor, np.ndarray], device: torch.device) -> torch.Tensor:
-    """Convert RPY tuple (XYZ intrinsic) to a unit quaternion."""
-    rpy = np.array(rpy)
-    sr, sp, sy = np.sin(rpy / 2)
-    cr, cp, cy = np.cos(rpy / 2)
-    quat = torch.tensor(
-        (
-            +cr * cp * cy + sr * sp * sy,
-            -cr * sp * sy + sr * cp * cy,
-            +cr * sp * cy + sr * cp * sy,
-            +cr * cp * sy - sr * sp * cy,
-        ),
-        dtype=DEFAULT_TORCH_DTYPE,
-        device=device,
-    )
-    return quat / torch.linalg.norm(quat)
-
-
-def quatvecrot(quat: torch.Tensor, vec: torch.Tensor):
-    assert quat.shape[1] == 4
-    assert vec.shape[1] == 3
-    assert quat.shape[0] == vec.shape[0]
-    purevec = torch.hstack((torch.zeros((vec.shape[0], 1), dtype=vec.dtype, device=vec.device), vec))
-    return quatmul(quatmul(quat, purevec), quatconj(quat))[:, 1:]
 
 
 # ======================================================================================================================
 #  Axis angle conversions
 #
-
-
-def poseposemul(a_T_b: torch.Tensor, b_T_c: torch.Tensor):
-    # qw, qx, qy, qz, x, y, z
-    assert a_T_b.shape[1] == 7
-    assert b_T_c.shape[1] == 7
-    assert a_T_b.shape[0] == b_T_c.shape[0]
-    a_t_b, a_R_b = a_T_b[:, :3], a_T_b[:, 3:]
-    b_t_c, b_R_c = b_T_c[:, :3], b_T_c[:, 3:]
-
-    a_R_c = quatmul(a_R_b, b_R_c)
-    a_t_c = quatvecrot(a_R_b, b_t_c) + a_t_b
-
-    return torch.hstack((a_t_c, a_R_c))
 
 
 def single_axis_angle_to_rotation_matrix(
