@@ -548,13 +548,14 @@ class Robot:
             self._joint_chain[0].name not in self._fixed_rotations_cuda
             or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
             or self._fixed_rotations_cpu[self._joint_chain[0].name].shape[0] < batch_size
+            or self._fixed_rotations_cuda[self._joint_chain[0].name].device != out_device
         ):
             for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device="cuda:0", dtype=dtype))
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to("cuda:0")
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]

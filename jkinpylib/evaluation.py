@@ -82,7 +82,7 @@ def pose_errors(
     poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
 ) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
     """Return the positional and rotational angular error between two batch of poses."""
-    assert poses_1.shape == poses_2.shape
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
 
     if isinstance(poses_1, torch.Tensor):
         l2_errors = torch.norm(poses_1[:, 0:3] - poses_2[:, 0:3], dim=1)
@@ -100,7 +100,7 @@ def pose_errors_cm_deg(
     poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
 ) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
     """Return the positional and rotational angular error between two batch of poses in cm and degrees"""
-    assert poses_1.shape == poses_2.shape
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
     l2_errors, angular_errors = pose_errors(poses_1, poses_2, acos_epsilon=acos_epsilon)
     if isinstance(poses_1, torch.Tensor):
         return 100 * l2_errors, torch.rad2deg(angular_errors)
@@ -228,8 +228,7 @@ def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
 
 @enforce_pt_np_input
 def calculate_mean_cspace_diff_deg(x: PT_NP_TYPE):
-    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi.
-    """
+    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi."""
     if isinstance(x, np.ndarray):
         return float(np.absolute(np.rad2deg(angular_changes(x))).mean())
     return float(torch.abs(torch.rad2deg(angular_changes(x))).mean())
