@@ -228,7 +228,8 @@ def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
 
 @enforce_pt_np_input
 def calculate_mean_cspace_diff_deg(x: PT_NP_TYPE):
-    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi."""
+    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi.
+    """
     if isinstance(x, np.ndarray):
         return float(np.absolute(np.rad2deg(angular_changes(x))).mean())
     return float(torch.abs(torch.rad2deg(angular_changes(x))).mean())

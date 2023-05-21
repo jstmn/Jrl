@@ -7,6 +7,7 @@ import numpy as np
 
 # /
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+CUDA_AVAILABLE = torch.cuda.is_available()
 DEFAULT_TORCH_DTYPE = torch.float32
 
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]

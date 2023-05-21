@@ -23,7 +23,7 @@ from jkinpylib.conversions import (
     DEFAULT_TORCH_DTYPE,
     PT_NP_TYPE,
 )
-from jkinpylib.config import DEVICE
+from jkinpylib.config import DEVICE, CUDA_AVAILABLE
 from jkinpylib.urdf_utils import get_joint_chain, get_urdf_filepath_w_filenames_updated, UNHANDLED_JOINT_TYPES
 
 
@@ -247,7 +247,7 @@ class Robot:
         return angs
 
     def sample_joint_angles_and_poses(
-        self, n: int, joint_limit_eps: float = 1e-6, only_non_self_colliding: bool = True, tqdm_enabled: bool = True
+        self, n: int, joint_limit_eps: float = 1e-6, only_non_self_colliding: bool = True, tqdm_enabled: bool = False
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
         samples = np.zeros((n, self.n_dofs))
@@ -508,7 +508,8 @@ class Robot:
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
 
-    # TODO: Do FK starting at 'base_link' instead of the first joint.
+    # TODO: Do FK starting at specific joint (like 'base_link') instead of the first joint.
+    # TODO: Consider removing all cpu code from this function
     def forward_kinematics_batch(
         self,
         x: torch.Tensor,
@@ -532,14 +533,15 @@ class Robot:
                                 effector of the robot
                 3. The total runtime of the function. For convenience
         """
-        if not self._batch_fk_enabled:
-            raise NotImplementedError(f"BatchFK is not enabled for the {self.name} robot.")
+        assert self._batch_fk_enabled, f"BatchFK is disabled for '{self.name}'"
+        assert CUDA_AVAILABLE, f"forward_kinematics_batch() requires cuda"
 
         time0 = time()
         batch_size = x.shape[0]
         _assert_is_joint_angle_matrix(x, self.n_dofs)
         if out_device is None:
             out_device = x.device
+        out_device_is_cpu = "cpu" in str(out_device)
 
         # TODO: Need to decide on an API for this function. Does this always save a new T to _fixed_rotations_cuda? If
         # so cuda will always need to be available
@@ -555,15 +557,15 @@ class Robot:
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
                 R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1).to(out_device)
+                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1)
                 T[:, 0, 3] = joint.origin_xyz[0]
                 T[:, 1, 3] = joint.origin_xyz[1]
                 T[:, 2, 3] = joint.origin_xyz[2]
-                self._fixed_rotations_cuda[joint.name] = T
+                self._fixed_rotations_cuda[joint.name] = T.to(DEVICE)
                 self._fixed_rotations_cpu[joint.name] = T.to("cpu")
                 assert "cuda" in str(self._fixed_rotations_cuda[joint.name].device), (
-                    f"self._fixed_rotations_cuda[{joint.name}].device != cuda"
-                    f" (equals: '{self._fixed_rotations_cuda[joint.name].device}')"
+                    f"self._fixed_rotations_cuda[{joint.name}].device != cuda (equals:"
+                    f" '{self._fixed_rotations_cuda[joint.name].device}')"
                 )
                 assert "cpu" in str(self._fixed_rotations_cpu[joint.name].device)
 
@@ -576,7 +578,7 @@ class Robot:
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
 
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
-            fixed_rotation_dict = self._fixed_rotations_cpu if out_device == "cpu" else self._fixed_rotations_cuda
+            fixed_rotation_dict = self._fixed_rotations_cpu if out_device_is_cpu else self._fixed_rotations_cuda
             parent_T_child_fixed = fixed_rotation_dict[joint.name][0:batch_size]
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
 
@@ -716,6 +718,42 @@ class Robot:
         xs_updated = self.clamp_to_joint_limits(xs_updated)
 
         return xs_updated
+
+    def inverse_kinematics_single_step_levenburg_marquardt(
+        self, target_poses: torch.Tensor, xs_current: torch.Tensor, lambd: float = 0.0001
+    ) -> torch.Tensor:
+        """Perform a levenburg-marquardt optimization step."""
+        n = xs_current.shape[0]
+        eye = torch.eye(self.n_dofs, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
+
+        # Get current error
+        current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
+        # TODO: Use cat instead of creating a new tensor
+        pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=xs_current.dtype)  # [n 6 1]
+        for i in range(3):
+            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
+        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
+        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
+
+        J_batch = torch.tensor(
+            self.jacobian_batch_np(np.array(xs_current.detach().cpu())),
+            device=xs_current.device,
+            dtype=xs_current.dtype,
+        )  # [n 6 ndof]
+        assert J_batch.shape == (n, 6, self.n_dofs)
+        J_batch_T = torch.transpose(J_batch, 1, 2)  # [n ndof 6]
+        assert J_batch_T.shape == (
+            n,
+            self.n_dofs,
+            6,
+        ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.n_dofs, 6)}"
+
+        lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
+        delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
+        return xs_current + torch.squeeze(delta_x)
 
     # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
