@@ -41,6 +41,22 @@ def enforce_pt_np_input(func: Callable):
     return wrapper
 
 
+def enforce_pt_input(func: Callable):
+    """Performs the following checks:
+    1. The function recieves either 1 or 2 arguments
+    2. Each argument is a torch.Tensor
+    """
+
+    def wrapper(*args, **kwargs):
+        are_2_args = len(args) == 2
+        assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
+        for arg in args:
+            assert isinstance(arg, torch.Tensor), f"Expected a torch.Tensor, got {type(arg)}"
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 # batch*n
 def normalize_vector(v: torch.Tensor, return_mag: bool = False):
     batch = v.shape[0]
@@ -55,6 +71,61 @@ def normalize_vector(v: torch.Tensor, return_mag: bool = False):
     if return_mag:
         return v, v_mag[:, 0]
     return v
+
+
+# TODO: Remove asserts once this is working
+def calculate_points_in_world_frame_from_local_frame_batch(
+    world__T__local_frame: torch.Tensor, points_in_local_frame: torch.Tensor
+) -> torch.Tensor:
+    """Calculate the position of `points_in_local_frame` in world frame. The transform from 'world' frame to
+    'local_frame' is given by 'world__T__local_frame'
+
+    Args:
+        world__T__local_frame (torch.Tensor): [n x 7] a single pose describing the transform between 'world' frame and
+                                                'local_frame'
+        points_in_local_frame (torch.Tensor): [n x m x 3] tensor of positions represented in 'local_frame'. There may be
+                                                an arbitrary number of points (m) provided
+
+    Returns:
+        torch.Tensor: [n x m x 3] tensor of the positions represented in world frame
+    """
+    assert world__T__local_frame.shape[0] == points_in_local_frame.shape[0], (
+        f"world__T__local_frame.shape[0] should match points_in_local_frame.shape[0] ({world__T__local_frame.shape} !="
+        f" {points_in_local_frame.shape})"
+    )
+    n, m, _ = points_in_local_frame.shape
+
+    # rotate then translate
+    points_in_world_frame = []
+    for i in range(m):
+        points_quat = torch.cat(
+            [torch.zeros((n, 1), device=world__T__local_frame.device), points_in_local_frame[:, i]], dim=1
+        )
+        assert points_quat.shape == (n, 4)
+        pts_rotated = quatmul(
+            quatmul(world__T__local_frame[:, 3:7], points_quat), quatconj(world__T__local_frame[:, 3:7])
+        )[:, 1:]
+        pts = pts_rotated + world__T__local_frame[:, 0:3]
+        points_in_world_frame.append(pts[:, None, :])
+
+    return torch.cat(points_in_world_frame, dim=1)
+
+
+@enforce_pt_input
+def angular_subtraction(angles_1: torch.Tensor, angles_2: torch.Tensor) -> torch.Tensor:
+    """Subtraction of elements on a circle. Specifically, implementation of the subtraction operator for elements in the
+    '1-sphere' (see https://en.wikipedia.org/wiki/N-sphere).
+
+    Args:
+        angles_1 (torch.Tensor): [batch x d] tensor of angles
+        angles_2 (torch.Tensor): [batch x d] tensor of angles
+
+    Returns:
+        torch.Tensor: [batch x d] tensor of angles, calculated as angles_1 - angles_2
+    """
+    assert angles_1.shape == angles_2.shape
+    d_angles = angles_1 - angles_2
+    return torch.remainder(d_angles + torch.pi, 2 * torch.pi) - torch.pi
 
 
 # ======================================================================================================================
