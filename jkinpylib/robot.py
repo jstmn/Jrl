@@ -1,5 +1,6 @@
 from typing import List, Tuple, Optional, Union
 from time import time
+from functools import cached_property
 
 from more_itertools import locate
 import torch
@@ -177,7 +178,7 @@ class Robot:
         """Returns the name of the end effector link in the urdf"""
         return self._end_effector_link_name
 
-    @property
+    @cached_property
     def n_dofs(self) -> int:
         return sum([1 for joint in self._joint_chain if joint.is_actuated])
 
@@ -185,7 +186,7 @@ class Robot:
     def actuated_joint_names(self) -> List[str]:
         return self._actuated_joint_names
 
-    @property
+    @cached_property
     def actuated_joint_types(self) -> List[str]:
         return [joint.joint_type for joint in self._joint_chain if joint.is_actuated]
 
@@ -227,6 +228,24 @@ class Robot:
     # ---                                                                                                            ---
     # ---                                             External Functions                                             ---
     # ---                                                                                                            ---
+
+    def split_configs_to_revolute_and_prismatic(self, configs: torch.Tensor) -> Tuple[torch.Tensor]:
+        """Returns the values for the values from the revolute, and prismatic joints separately"""
+        assert configs.shape[1] == self.n_dofs
+        joint_types = self.actuated_joint_types
+        revolute_idxs = [i for i in range(self.n_dofs) if joint_types[i] in {"revolute", "continuous"}]
+        prismatic_idxs = [i for i in range(self.n_dofs) if joint_types[i] == "prismatic"]
+        assert len(revolute_idxs) + len(prismatic_idxs) == self.n_dofs
+        # if len(prismatic_idxs) == self.n_dofs:
+        #     return configs, None
+        # print("revolute_idxs:", revolute_idxs)
+        # print("prismatic_idxs:", prismatic_idxs)
+        # print("configs[:, [0]]:\n", configs[:, [0]])
+        # print("\nconfigs[:, [1, 2, 3, 4, 5, 6]]:\n", configs[:, [1, 2, 3, 4, 5, 6]])
+        # exit()
+        # print("configs[:, revolute_idxs]:", configs[:, revolute_idxs])
+        # print("configs[:, prismatic_idxs]:", configs[:, prismatic_idxs])
+        return configs[:, revolute_idxs], configs[:, prismatic_idxs]
 
     def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors. The joint angles are sampled from the
