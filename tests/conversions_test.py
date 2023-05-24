@@ -13,6 +13,7 @@ from jkinpylib.conversions import (
     quatconj,
     quaternion_product,
     quatmul,
+    angular_subtraction,
 )
 from jkinpylib.utils import set_seed, to_torch
 from jkinpylib.robots import FetchArm
@@ -22,10 +23,52 @@ set_seed()
 
 # suppress=True: print with decimal notation, not scientific
 np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True, precision=12)
-torch.set_printoptions(linewidth=5000, precision=8, sci_mode=False)
+torch.set_printoptions(linewidth=5000, sci_mode=False)
+
+PI = torch.pi
+_2PI = 2 * PI
 
 
-class TestSolutionRerfinement(unittest.TestCase):
+class TestConversions(unittest.TestCase):
+    def test_angular_subtraction(self):
+        """Test that angular_subtraction() works as expected"""
+        angles_1 = torch.tensor(
+            [
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [PI / 2, PI / 2],
+                [PI / 2, PI / 2],
+            ],
+            device="cpu",
+            dtype=torch.float32,
+        )
+        angles_2 = torch.tensor(
+            [
+                [0.1, -0.1],
+                [_2PI + 0.1, _2PI - 0.1],
+                [PI + 0.1, PI - 0.1],
+                [PI / 8, -PI / 8],
+                [PI / 8 + 6 * PI, -PI / 8 + 8 * PI],
+            ],
+            device=angles_1.device,
+            dtype=angles_1.dtype,
+        )
+
+        result = angular_subtraction(angles_1, angles_2)
+        expected = torch.tensor(
+            [
+                [-0.1, 0.1],
+                [-0.1, 0.1],
+                [PI - 0.1, -(PI - 0.1)],
+                [3 / 8 * PI, 5 / 8 * PI],
+                [3 / 8 * PI, 5 / 8 * PI],
+            ],
+            device=angles_1.device,
+            dtype=angles_1.dtype,
+        )
+        torch.testing.assert_close(result, expected)
+
     def test_geodesic_distance_between_quaternions_grad(self):
         """Check whether backprop through forward_kinematics_batch() and geodesic_distance_between_quaternions() will
         returns as nan for similar rotations
