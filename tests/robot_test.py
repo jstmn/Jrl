@@ -141,6 +141,23 @@ class RobotTest(unittest.TestCase):
             J = robot.jacobian_np(x)
             self.assertEqual(J.shape, (6, robot.n_dofs))
 
+    def test_jacobian_klampt_pt_match(self):
+        atol = 1e-5
+        for robot in ROBOTS:
+            for i in range(10):
+                batch_size = 1
+                x = robot.sample_joint_angles(batch_size)
+                Jklampt = robot.jacobian_batch_np(x)
+                Jpt = robot.jacobian_batch_pt(torch.tensor(x))
+                self.assertEqual(Jklampt.shape, (batch_size, 6, robot.n_dofs))
+                self.assertEqual(Jpt.shape, (batch_size, 6, robot.n_dofs))
+                if not np.allclose(Jklampt, Jpt, atol=atol):
+                    print("robot:", robot)
+                    print("Jklampt:\n", Jklampt)
+                    print("Jpt:\n", Jpt.numpy())
+                    print("difference:\n", Jklampt - Jpt.numpy())
+                np.testing.assert_allclose(Jklampt, Jpt, atol=atol)
+
     def test_list_from_str(self):
         inputs = ["0 0 0.333", "0 0 1.0", "0 0 1", "1.5707963267948966   0 3.141592653589793"]
         expected_outputs = [(0, 0, 0.333), (0, 0, 1.0), (0, 0, 1.0), (1.5707963267948966, 0, 3.141592653589793)]

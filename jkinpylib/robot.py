@@ -108,8 +108,7 @@ class Robot:
         )
 
         # Create and fill cache of fixed rotations between links.
-        self._fixed_rotations_cuda = {}
-        self._fixed_rotations_cpu = {}
+        self._parent_T_joint_cache = {}
         if self._batch_fk_enabled:
             self.forward_kinematics_batch(
                 torch.tensor(self.sample_joint_angles(1050), device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
@@ -508,6 +507,22 @@ class Robot:
             y[i, 3:] = np.array(so3.quaternion(R))
         return y
 
+    def _ensure_forward_kinematics_cache(self, device: torch.device, dtype: torch.dtype = DEFAULT_TORCH_DTYPE):
+        if device not in self._parent_T_joint_cache:
+            self._parent_T_joint_cache[device] = {}
+
+        if self._joint_chain[0].name not in self._parent_T_joint_cache[device]:
+            for joint in self._joint_chain:
+                T = torch.diag_embed(torch.ones(1, 4, device=device, dtype=dtype))
+                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
+                # to the gpu
+                R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device=device)
+                T[:, 0:3, 0:3] = R
+                T[:, 0, 3] = joint.origin_xyz[0]
+                T[:, 1, 3] = joint.origin_xyz[1]
+                T[:, 2, 3] = joint.origin_xyz[2]
+                self._parent_T_joint_cache[device][joint.name] = T.to(device)
+
     # TODO: Do FK starting at specific joint (like 'base_link') instead of the first joint.
     # TODO: Consider removing all cpu code from this function
     def forward_kinematics_batch(
@@ -543,31 +558,7 @@ class Robot:
             out_device = x.device
         out_device_is_cpu = "cpu" in str(out_device)
 
-        # TODO: Need to decide on an API for this function. Does this always save a new T to _fixed_rotations_cuda? If
-        # so cuda will always need to be available
-        # Update _fixed_rotations_cuda if this is a larger batch then we've seen before
-        if (
-            self._joint_chain[0].name not in self._fixed_rotations_cuda
-            or self._fixed_rotations_cuda[self._joint_chain[0].name].shape[0] < batch_size
-            or self._fixed_rotations_cpu[self._joint_chain[0].name].shape[0] < batch_size
-            or self._fixed_rotations_cuda[self._joint_chain[0].name].device != out_device
-        ):
-            for joint in self._joint_chain:
-                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
-                # to the gpu
-                R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
-                T[:, 0:3, 0:3] = R.unsqueeze(0).repeat(batch_size, 1, 1)
-                T[:, 0, 3] = joint.origin_xyz[0]
-                T[:, 1, 3] = joint.origin_xyz[1]
-                T[:, 2, 3] = joint.origin_xyz[2]
-                self._fixed_rotations_cuda[joint.name] = T.to(DEVICE)
-                self._fixed_rotations_cpu[joint.name] = T.to("cpu")
-                assert "cuda" in str(self._fixed_rotations_cuda[joint.name].device), (
-                    f"self._fixed_rotations_cuda[{joint.name}].device != cuda (equals:"
-                    f" '{self._fixed_rotations_cuda[joint.name].device}')"
-                )
-                assert "cpu" in str(self._fixed_rotations_cpu[joint.name].device)
+        self._ensure_forward_kinematics_cache(out_device, dtype=dtype)
 
         # Rotation from body/base link to joint along the joint chain
         base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
@@ -578,8 +569,8 @@ class Robot:
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
 
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
-            fixed_rotation_dict = self._fixed_rotations_cpu if out_device_is_cpu else self._fixed_rotations_cuda
-            parent_T_child_fixed = fixed_rotation_dict[joint.name][0:batch_size]
+            fixed_rotation_dict = self._parent_T_joint_cache[out_device]
+            parent_T_child_fixed = fixed_rotation_dict[joint.name].expand(batch_size, 4, 4)  # zero-copy expansion
             base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
 
             if joint.joint_type in {"revolute", "continuous"}:
@@ -672,6 +663,117 @@ class Robot:
         for i in range(n):
             Js[i] = self.jacobian_np(xs[i])
         return Js
+
+    def jacobian_batch_pt(
+        self,
+        x: torch.Tensor,
+        out_device: Optional[str] = None,
+        dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
+    ) -> torch.Tensor:
+        """Return a batch of jacobian matrices for the given joint angle
+        vectors. The rows are:
+
+        0: roll (rx)
+        1: pitch (ry)
+        2: yaw (rz)
+        3: x
+        4: y
+        5: z
+
+        Args:
+            x (np.ndarray): The joint angle to the jacobian with respect to
+
+        Returns:
+            np.ndarray: a [6 x ndof] matrix, where the top 3 rows are the orientation derivatives, and the bottom three
+                        rows are the positional derivatives.
+        """
+
+        batch_size = x.shape[0]
+        _assert_is_joint_angle_matrix(x, self.n_dofs)
+        if out_device is None:
+            out_device = x.device
+
+        self._ensure_forward_kinematics_cache(out_device, dtype=dtype)
+
+        # Rotation from body/base link to joint along the joint chain
+        base_T_joints = torch.diag_embed(torch.ones(batch_size, self.n_dofs, 4, device=out_device, dtype=dtype))
+
+        # Fill in FK for every joint in chain
+        x_i = 0
+        for joint in self._joint_chain:
+            assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+            # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
+            fixed_rotation_dict = self._parent_T_joint_cache[out_device]
+            parent_T_child_fixed = fixed_rotation_dict[joint.name].expand(batch_size, 4, 4)  # zero-copy expansion
+
+            if joint.joint_type == "fixed":
+                base_T_joints[:, x_i - 1, :] = base_T_joints[:, x_i - 1, :].bmm(parent_T_child_fixed)
+                continue
+
+            if x_i > 0:
+                base_T_joints[:, x_i, :] = base_T_joints[:, x_i - 1, :].bmm(parent_T_child_fixed)
+
+            # Compute next joint transform
+            if joint.joint_type in {"revolute", "continuous"}:
+                # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
+                rotation_amt = x[:, x_i]
+                rotation_axis = joint.axis_xyz
+
+                # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
+                # or quaternions?
+                joint_rotation = single_axis_angle_to_rotation_matrix(
+                    rotation_axis, rotation_amt, out_device=out_device
+                )
+                assert joint_rotation.shape == (batch_size, 3, 3)
+
+                # TODO(@jstmn): determine which of these two implementations if faster
+                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
+                T[:, 0:3, 0:3] = joint_rotation
+                base_T_joints[:, x_i, :] = base_T_joints[:, x_i, :].bmm(T)
+
+                # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
+                # as a reminder
+                # base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
+
+                x_i += 1
+
+            elif joint.joint_type == "prismatic":
+                # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
+                translations = (
+                    torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype) * x[:, x_i, None]
+                )  # [batch x 3]
+                assert translations.shape == (batch_size, 3)
+
+                # TODO(@jstmn): consider making this more space efficient. create once and override?
+                joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
+                joint_fixed_T_joint[:, 0:3, 3] = translations
+                base_T_joints[:, x_i, :] = base_T_joints[:, x_i, :].bmm(joint_fixed_T_joint)
+
+                x_i += 1
+
+        # Compute jacobian
+        J = torch.zeros((batch_size, 6, self.n_dofs), device=out_device, dtype=dtype)
+        x_i = 0
+        for joint in self._joint_chain:
+            assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+            if joint.joint_type in {"revolute", "continuous"}:
+                axis = (
+                    torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype).unsqueeze(1).expand(batch_size, 3, 1)
+                )
+                world_axes = base_T_joints[:, x_i, :3, :3].bmm(axis)
+                J[:, :3, x_i] = base_T_joints[:, x_i, :3, :3].bmm(axis).squeeze(2)
+                d = base_T_joints[:, -1, :3, 3] - base_T_joints[:, x_i, :3, 3]
+                world_axis = base_T_joints[:, x_i, :3, :3].bmm(axis).squeeze(2)
+                J[:, 3:6, x_i] = torch.cross(world_axis, d, dim=1)
+
+                x_i += 1
+
+            elif joint.joint_type == "prismatic":
+                J[:, 3, x_i], J[:, 4, x_i], J[:, 5, x_i] = joint.axis_xyz
+
+                x_i += 1
+
+        return J
 
     def inverse_kinematics_single_step_batch_np(
         self, target_poses: np.ndarray, xs_current: np.ndarray, alpha: float = 0.25

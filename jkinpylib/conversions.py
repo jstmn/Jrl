@@ -495,6 +495,26 @@ def rpy_tuple_to_rotation_matrix(
 #
 
 
+def skew_symmetric(v: torch.Tensor) -> torch.Tensor:
+    """Convert a vector to a skew symmetric matrix
+
+    Args:
+        v (torch.Tensor): [3] vector
+
+    Returns:
+        torch.Tensor: [3 x 3] skew symmetric matrix
+    """
+
+    skew = torch.zeros(3, 3, dtype=v.dtype, device=v.device)
+    skew[0, 1] = -v[2]
+    skew[0, 2] = v[1]
+    skew[1, 2] = -v[0]
+    skew[1, 0] = v[2]
+    skew[2, 0] = -v[1]
+    skew[2, 1] = v[0]
+    return skew
+
+
 def single_axis_angle_to_rotation_matrix(
     axis: Tuple[float, float, float], ang: torch.Tensor, out_device: str
 ) -> torch.Tensor:
@@ -510,8 +530,13 @@ def single_axis_angle_to_rotation_matrix(
     Returns:
         torch.Tensor: [ batch x 3 x 3 ] batch of rotation matrices
     """
-    angleaxis = torch.tensor(axis, device=out_device).unsqueeze(0).repeat(ang.shape[0], 1)
-    ang = ang.view(-1, 1)
-    angleaxis = angleaxis * ang
-    R = angle_axis_to_rotation_matrix(angleaxis)
-    return R
+
+    angleaxis = torch.tensor(axis, device=out_device)
+    angleaxis_skew = skew_symmetric(angleaxis)
+    angleaxis_skew_sq = angleaxis_skew.mm(angleaxis_skew)
+
+    return (
+        torch.eye(3, dtype=ang.dtype, device=ang.device).unsqueeze(0)
+        + torch.sin(ang).view(-1, 1, 1) * angleaxis_skew.unsqueeze(0)
+        + (1 - torch.cos(ang).unsqueeze(1)).view(-1, 1, 1) * angleaxis_skew_sq.unsqueeze(0)
+    )
