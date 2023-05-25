@@ -13,7 +13,7 @@ from jkinpylib.robots import get_robot
 _TERRAIN_FILEPATH = "scripts/visualization_resources/plane.off"
 
 
-def _init_vis(robot: Robot, window_title: str):
+def _init_vis(robot: Robot, window_title: str, show_collision_capsules: bool = True):
     vis.init()
     assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{_TERRAIN_FILEPATH}'"
     vis.add("world", robot.klampt_world_model)
@@ -21,17 +21,23 @@ def _init_vis(robot: Robot, window_title: str):
     vis.add("x_axis", trajectory.Trajectory([1, 0], [[1, 0, 0], [0, 0, 0]]))
     vis.add("y_axis", trajectory.Trajectory([1, 0], [[0, 1, 0], [0, 0, 0]]))
     vis.setWindowTitle(window_title)
+
+    from klampt.model.geometry import sphere
+
+    mysphere = sphere(radius=0.25)
+    vis.add("mysphere", mysphere, color=[0, 1, 0, 0.1])
+
     vis.show()
 
 
 # TODO: Make this less creepy
-def oscillate_joints(robot: Robot):
+def oscillate_joints(robot: Robot, show_collision_capsules: bool = True):
     """Move the robot around"""
 
     inc = 0.0025
     time_p_loop = 1 / 60  # 60Hz, in theory
 
-    _init_vis(robot, "oscillate joints")
+    _init_vis(robot, "oscillate joints", show_collision_capsules=show_collision_capsules)
 
     x = np.array([(u + l) / 2.0 for (l, u) in robot.actuated_joints_limits])
 
@@ -59,13 +65,13 @@ def oscillate_joints(robot: Robot):
     vis.kill()
 
 
-def transition_between(robot: Robot, configs: List[List[float]]):
+def transition_between(robot: Robot, configs: List[List[float]], show_collision_capsules: bool = True):
     """Move the robot around"""
     assert len(configs) >= 2
 
     time_p_loop = 0.005
     ratio_inc = 0.0025
-    _init_vis(robot, "transition between target configs")
+    _init_vis(robot, "transition between target configs", show_collision_capsules=show_collision_capsules)
 
     target_xs = [np.array(config) for config in configs]
     target_xs_poses = robot.forward_kinematics(np.array(target_xs))
@@ -125,7 +131,9 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument("--end_config", nargs="+", type=float, help="End config of the robot")
+    parser.add_argument("--show_collision_capsules", default="true", type=str)
     args = parser.parse_args()
+    args.show_collision_capsules = args.show_collision_capsules.upper() == "TRUE"
     assert (args.start_config is None and args.end_config is None) or (
         args.start_config is not None and args.end_config is not None
     ), "--start_config and --end_config must either have both provided, or neither be provided"
@@ -133,7 +141,9 @@ if __name__ == "__main__":
     robot = get_robot(args.robot_name)
 
     if args.start_config is None:
-        oscillate_joints(robot)
+        oscillate_joints(robot, show_collision_capsules=args.show_collision_capsules)
 
     if args.start_config is not None:
-        transition_between(robot, [args.start_config, args.end_config])
+        transition_between(
+            robot, [args.start_config, args.end_config], show_collision_capsules=args.show_collision_capsules
+        )

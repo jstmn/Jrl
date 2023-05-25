@@ -6,13 +6,10 @@ import numpy as np
 from jkinpylib.urdf_utils import _len3_tuple_from_str
 from jkinpylib.utils import set_seed
 from jkinpylib.robot import Robot
-from jkinpylib.robots import get_all_robots, Panda, Fetch, Iiwa7
+from jkinpylib.robots import get_all_robots, Panda, Fetch, Iiwa7, FetchArm
 from jkinpylib.conversions import PT_NP_TYPE
 
-
 set_seed(0)
-np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
-
 
 ROBOTS = get_all_robots()
 
@@ -40,6 +37,74 @@ class RobotTest(unittest.TestCase):
                 range_, range_gt, delta=0.125, msg=f"Joint {i} range doesn't match expected ({range_} vs {range_gt}"
             )
             self.assertAlmostEqual(std, std_expected, delta=0.15)
+
+    def test_split_configs_to_revolute_and_prismatic(self):
+        """Test that split_configs_to_revolute_and_prismatic() returns as expected"""
+        # Test 1: Fetch
+        fetch = Fetch()
+        qs = torch.tensor(
+            [
+                [0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9],
+                [1.1, 1.2, 1.3, 1.5, 1.6, 1.7, 1.8, 1.9],
+                [2.1, 2.2, 2.3, 2.5, 2.6, 2.7, 2.8, 2.9],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        expected_revolute = torch.tensor(
+            [
+                [0.2, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9],
+                [1.2, 1.3, 1.5, 1.6, 1.7, 1.8, 1.9],
+                [2.2, 2.3, 2.5, 2.6, 2.7, 2.8, 2.9],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        expected_prismatic = torch.tensor(
+            [
+                [0.1],
+                [1.1],
+                [2.1],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        revolute, prismatic = fetch.split_configs_to_revolute_and_prismatic(qs)
+        torch.testing.assert_close(expected_prismatic, prismatic)
+        torch.testing.assert_close(expected_revolute, revolute)
+
+        # Test 2: FetchArm
+        fetch = FetchArm()
+        qs = torch.tensor(
+            [
+                [0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8],
+                [1.1, 1.2, 1.3, 1.5, 1.6, 1.7, 1.8],
+                [2.1, 2.2, 2.3, 2.5, 2.6, 2.7, 2.8],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        expected_revolute = torch.tensor(
+            [
+                [0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8],
+                [1.1, 1.2, 1.3, 1.5, 1.6, 1.7, 1.8],
+                [2.1, 2.2, 2.3, 2.5, 2.6, 2.7, 2.8],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        expected_prismatic = torch.tensor(
+            [
+                [],
+                [],
+                [],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        revolute, prismatic = fetch.split_configs_to_revolute_and_prismatic(qs)
+        torch.testing.assert_close(expected_prismatic, prismatic)
+        torch.testing.assert_close(expected_revolute, revolute)
 
     def test_sample_joint_angles(self):
         """_summary_"""

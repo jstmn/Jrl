@@ -226,33 +226,6 @@ def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
     return np.remainder(dqs + np.pi, 2 * np.pi) - np.pi
 
 
-@enforce_pt_np_input
-def calculate_mean_cspace_diff_deg(x: PT_NP_TYPE):
-    """Calculate the mean change in the configuration space path per joint, per timestep. Respects jumps from 0 <-> 2pi.
-    """
-    if isinstance(x, np.ndarray):
-        return float(np.absolute(np.rad2deg(angular_changes(x))).mean())
-    return float(torch.abs(torch.rad2deg(angular_changes(x))).mean())
-
-
-@enforce_pt_np_input
-def calculate_max_cspace_diff_deg(x: PT_NP_TYPE) -> float:
-    """Calculate the maximum change in configuration space over a path in configuration space."""
-    if isinstance(x, np.ndarray):
-        return float(np.absolute(np.rad2deg(angular_changes(x))).max())
-    return float(torch.abs(torch.rad2deg(angular_changes(x))).max())
-
-
-@enforce_pt_np_input
-def calculate_max_cspace_diff_per_timestep_deg(x: PT_NP_TYPE) -> PT_NP_TYPE:
-    """Calculate the maximum change in configuration space over a path in configuration space."""
-    if isinstance(x, np.ndarray):
-        return np.rad2deg(np.max(np.absolute(angular_changes(x)), axis=1))
-    raise NotImplementedError()
-    # TODO: Unit test
-    return torch.mean(torch.abs(torch.rad2deg(angular_changes(x))), dim=1)
-
-
 """ Benchmarking solution_pose_errors():
 
 python jkinpylib/evaluation.py
