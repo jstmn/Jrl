@@ -236,15 +236,6 @@ class Robot:
         revolute_idxs = [i for i in range(self.n_dofs) if joint_types[i] in {"revolute", "continuous"}]
         prismatic_idxs = [i for i in range(self.n_dofs) if joint_types[i] == "prismatic"]
         assert len(revolute_idxs) + len(prismatic_idxs) == self.n_dofs
-        # if len(prismatic_idxs) == self.n_dofs:
-        #     return configs, None
-        # print("revolute_idxs:", revolute_idxs)
-        # print("prismatic_idxs:", prismatic_idxs)
-        # print("configs[:, [0]]:\n", configs[:, [0]])
-        # print("\nconfigs[:, [1, 2, 3, 4, 5, 6]]:\n", configs[:, [1, 2, 3, 4, 5, 6]])
-        # exit()
-        # print("configs[:, revolute_idxs]:", configs[:, revolute_idxs])
-        # print("configs[:, prismatic_idxs]:", configs[:, prismatic_idxs])
         return configs[:, revolute_idxs], configs[:, prismatic_idxs]
 
     def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:

@@ -3,39 +3,56 @@ import torch
 
 from jkinpylib.conversions import calculate_points_in_world_frame_from_local_frame_batch
 
+
 @dataclass
 class CapsuleGeometry:
 
-    """Representation of a capsule geometry. height doesn't include the rounded section of the capsule. This means the 
+    """Representation of a capsule geometry. height doesn't include the rounded section of the capsule. This means the
     total height is equal to `height + 2*radius`
     """
+
     radius: float
     height: float
 
 
+def capsule_capsule_distance_batch(
+    caps1: torch.Tensor, pose_c1: torch.Tensor, caps2: torch.Tensor, pose_c2: torch.Tensor
+) -> float:
+    """Returns the minimum distance between any two points on the given batch of capsules
 
-def capsule_capsule_distance(c1: CapsuleGeometry, pose_c1: torch.Tensor, c2: CapsuleGeometry, pose_c2: torch.Tensor) -> float:
-    """ Returns the minimum distance between any two points on the given capsules
+    This function implemants the capsule-capsule minimum distance equation from the paper "Efficient Calculation of
+    Minimum Distance Between Capsules and Its Use in Robotics" (https://hal.science/hal-02050431/document).
+
+    Args:
+        caps1 (torch.Tensor): [n x 2] tensor descibing a batch of capsules. Column 0 is radius, column 1 is height.
+        pose_c1 (torch.Tensor): [n x 7] tensor describing the psoe of the caps1 capsules
+        caps2 (torch.Tensor): [n x 2] tensor descibing a batch of capsules. Column 0 is radius, column 1 is height.
+        pose_c2 (torch.Tensor): [n x 7] tensor describing the psoe of the caps1 capsules
+
+    Returns:
+        float: [n x 1] tensor with the minimum distance between each n capsules
     """
-    assert pose_c1.shape == pose_c2.shape == (1, 7)
-    c1_local_points = torch.tensor(
-        [[
-        [0, 0, c1.height/2],
-        [0, 0, -c1.height/2]
-        ]], device="cpu")
-    c2_local_points = torch.tensor([
-        [[0, 0, c2.height/2],
-        [0, 0, -c2.height/2]]
-    ], device="cpu")
+    n = caps1.shape[0]
+    assert pose_c1.shape == pose_c2.shape == (n, 7)
+    assert caps1.shape == pose_c2.shape == (n, 7)
 
-    # local_points = 
-    TODO: either use calculate_points_in_world_frame_from_local_frame_batch and figure out a good way to batch 
-    c1/c2_local_points, or create calculate_points_in_world_frame_from_local_frame and call that twice. I think using 
-    the batch function is a better solution, that way you won't need to add more unit tests
+    caps1_radius = caps1[:, 0]
+    caps1_height = caps1[:, 1]
+    caps2_radius = caps2[:, 0]
+    caps2_height = caps2[:, 1]
 
-    segment_points = calculate_points_in_world_frame_from_local_frame_batch(torch.cat([pose_c1, pose_c2], dim=0), local_points)
+    # Local points are at the top and bottom of capsule along the +z axis. They end at the center of the sphere on each
+    # end
+    c1_local_points = torch.zeros((n, 2, 3))  # this probably isn't right
+    c1_local_points[:, 0, :] = caps1_height / 2
+    c1_local_points[:, 1, :] = -caps1_height / 2
 
-    print("c1_segment_points:", c1_segment_points)
-    print("c2_segment_points:\n", c2_segment_points)
+    c2_local_points = torch.zeros((n, 2, 3))
 
-    return 0.0
+    # TODO: Use calculate_points_in_world_frame_from_local_frame_batch and figure out a good way to batch
+    # caps1/c2_local_points. 'calculate_points_in_world_frame_from_local_frame_batch()' has unit tests already so should
+    # be assumed to be correct.
+    segment_points = calculate_points_in_world_frame_from_local_frame_batch(
+        torch.cat([pose_c1, pose_c2], dim=0), local_points
+    )
+    return torch.zeros((n, 1))
