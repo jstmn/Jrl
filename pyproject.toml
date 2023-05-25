@@ -13,6 +13,8 @@ torch = "^1.13.1"
 more-itertools = "^9.0.0"
 roma = "^1.3.1"
 tqdm = "^4.64.1"
+qpth = {git = "https://github.com/locuslab/qpth"}
+python-fcl = "^0.7.0.4"
 
 
 [tool.poetry.group.dev.dependencies]
