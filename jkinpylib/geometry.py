@@ -14,16 +14,14 @@ def capsule_capsule_distance_batch(
     Minimum Distance Between Capsules and Its Use in Robotics"
     (https://hal.science/hal-02050431/document).
 
-    Each capsule is defined by a radius and height.
-    The height does not include the rounded ends of the capsule.
-    The origin of the local frame is at the center of one sphere end of the
-        capsule, and the capsule extends up the +z axis in its local frame.
+    Each capsule is defined by two points in local frame, and a radius.
+    The memory layout is [nx7]: [x1, y1, z1, x2, y2, z2, r1].
 
     Args:
-        caps1 (torch.Tensor): [n x 2] tensor descibing a batch of capsules. Column 0 is radius, column 1 is height.
-        T1 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the psoe of the caps1 capsules
-        caps2 (torch.Tensor): [n x 2] tensor descibing a batch of capsules. Column 0 is radius, column 1 is height.
-        T2 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the psoe of the caps1 capsules
+        caps1 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
+        T1 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
+        caps2 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
+        T2 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
 
     Returns:
         float: [n x 1] tensor with the minimum distance between each n capsules
@@ -33,18 +31,15 @@ def capsule_capsule_distance_batch(
 
     n = caps1.shape[0]
     assert T1.shape == T2.shape == (n, 7)
-    assert caps1.shape == caps2.shape == (n, 2)
-
-    r1, h1 = caps1[:, 0], caps1[:, 1]
-    r2, h2 = caps2[:, 0], caps2[:, 1]
+    assert caps1.shape == caps2.shape == (n, 7)
 
     # Local points are at the origin and top of capsule along the +z axis.
-    c1_local_points = torch.zeros((n, 2, 3))
-    c1_local_points[:, 1, 2] = h1
+    r1 = caps1[:, 6]
+    c1_local_points = caps1[:, :6].reshape(n, 2, 3)
     c1_world = calculate_points_in_world_frame_from_local_frame_batch(T1, c1_local_points)
 
-    c2_local_points = torch.zeros((n, 2, 3))
-    c2_local_points[:, 1, 2] = h2
+    r2 = caps2[:, 6]
+    c2_local_points = caps2[:, :6].reshape(n, 2, 3)
     c2_world = calculate_points_in_world_frame_from_local_frame_batch(T2, c2_local_points)
 
     p1 = c1_world[:, 0, :]

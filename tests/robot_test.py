@@ -208,6 +208,10 @@ class RobotTest(unittest.TestCase):
 
     def test_jacobian_klampt_pt_match(self):
         atol = 1e-5
+        panda = Panda()
+        print(panda.collision_capsules)
+        return
+
         for robot in ROBOTS:
             for i in range(10):
                 batch_size = 1

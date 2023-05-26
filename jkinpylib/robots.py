@@ -1,7 +1,16 @@
 from typing import List
 
+import torch
+import numpy as np
+
 from jkinpylib.robot import Robot
 from jkinpylib.utils import get_filepath
+from jkinpylib.config import DEFAULT_TORCH_DTYPE
+
+
+def _load_capsule(path: str):
+    data = np.loadtxt(get_filepath(path), delimiter=",")
+    return torch.tensor(data, dtype=DEFAULT_TORCH_DTYPE)
 
 
 # TODO(@jstmn): Fix batch FK for baxter
@@ -142,6 +151,19 @@ class Panda(Robot):
             "panda_joint6",  # (-0.0175, 3.7525)
             "panda_joint7",  # (-2.8973, 2.8973)
         ]
+
+        self.collision_capsules = {
+            "panda_link0": _load_capsule("urdfs/panda/capsules/link0.txt"),
+            "panda_link1": _load_capsule("urdfs/panda/capsules/link1.txt"),
+            "panda_link2": _load_capsule("urdfs/panda/capsules/link2.txt"),
+            "panda_link3": _load_capsule("urdfs/panda/capsules/link3.txt"),
+            "panda_link4": _load_capsule("urdfs/panda/capsules/link4.txt"),
+            "panda_link5": _load_capsule("urdfs/panda/capsules/link5.txt"),
+            "panda_link6": _load_capsule("urdfs/panda/capsules/link6.txt"),
+            "panda_link7": _load_capsule("urdfs/panda/capsules/link7.txt"),
+            "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
+        }
+
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
         base_link = "panda_link0"
         end_effector_link_name = "panda_hand"

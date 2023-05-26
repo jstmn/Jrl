@@ -23,8 +23,8 @@ class TestGeometry(unittest.TestCase):
         # 1.5
 
         # Both are capsules with radius=0.25, height=2.0
-        c1 = torch.tensor([[0.25, 2.0]], device="cpu", dtype=torch.float32)
-        c2 = torch.tensor([[0.25, 2.0]], device="cpu", dtype=torch.float32)
+        c1 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
+        c2 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
 
         T1 = torch.tensor([[-1, 0, 0, 1, 0, 0, 0]], device="cpu", dtype=torch.float32)
         T2 = torch.tensor([[1, 0, 0, 1, 0, 0, 0]], device="cpu", dtype=torch.float32)
@@ -48,8 +48,8 @@ class TestGeometry(unittest.TestCase):
 
             fcl_c1 = fcl.Capsule(r1, h1)
             fcl_c2 = fcl.Capsule(r2, h2)
-            fcl_T1 = fcl.Transform(R1, t1 + R1 @ np.array([0, 0, h1 / 2]))
-            fcl_T2 = fcl.Transform(R2, t2 + R2 @ np.array([0, 0, h2 / 2]))
+            fcl_T1 = fcl.Transform(R1, t1)
+            fcl_T2 = fcl.Transform(R2, t2)
             o1 = fcl.CollisionObject(fcl_c1, fcl_T1)
             o2 = fcl.CollisionObject(fcl_c2, fcl_T2)
 
@@ -57,8 +57,8 @@ class TestGeometry(unittest.TestCase):
             result = fcl.DistanceResult()
             fcl_dist = fcl.distance(o1, o2, request, result)
 
-            c1 = torch.tensor([[r1, h1]])
-            c2 = torch.tensor([[r2, h2]])
+            c1 = torch.tensor([[0.0, 0.0, -h1 / 2, 0.0, 0.0, h1 / 2, r1]])
+            c2 = torch.tensor([[0.0, 0.0, -h2 / 2, 0.0, 0.0, h2 / 2, r2]])
             T1 = torch.cat((torch.tensor(t1), torch.tensor(q1)), dim=0).unsqueeze(0)
             T2 = torch.cat((torch.tensor(t2), torch.tensor(q2)), dim=0).unsqueeze(0)
 
