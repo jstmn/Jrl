@@ -152,7 +152,7 @@ class Panda(Robot):
             "panda_joint7",  # (-2.8973, 2.8973)
         ]
 
-        self.collision_capsules = {
+        collision_capsules_by_link = {
             "panda_link0": _load_capsule("urdfs/panda/capsules/link0.txt"),
             "panda_link1": _load_capsule("urdfs/panda/capsules/link1.txt"),
             "panda_link2": _load_capsule("urdfs/panda/capsules/link2.txt"),
@@ -161,7 +161,7 @@ class Panda(Robot):
             "panda_link5": _load_capsule("urdfs/panda/capsules/link5.txt"),
             "panda_link6": _load_capsule("urdfs/panda/capsules/link6.txt"),
             "panda_link7": _load_capsule("urdfs/panda/capsules/link7.txt"),
-            "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
+            # "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
         }
 
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
@@ -178,6 +178,7 @@ class Panda(Robot):
             ignored_collision_pairs,
             Panda.POSITIONAL_REPEATABILITY_MM,
             Panda.ROTATIONAL_REPEATABILITY_DEG,
+            collision_capsules_by_link,
             verbose=verbose,
         )
 
@@ -220,8 +221,8 @@ class Iiwa7(Robot):
         )
 
 
-# ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
-ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
+ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
+# ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
 
 
 def get_all_robots() -> List[Robot]:

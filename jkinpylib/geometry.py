@@ -19,9 +19,9 @@ def capsule_capsule_distance_batch(
 
     Args:
         caps1 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
-        T1 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
+        T1 (torch.Tensor): [n x 4 x 4] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
         caps2 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
-        T2 (torch.Tensor): [n x 7] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
+        T2 (torch.Tensor): [n x 4 x 4] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
 
     Returns:
         float: [n x 1] tensor with the minimum distance between each n capsules
@@ -30,22 +30,25 @@ def capsule_capsule_distance_batch(
     device = caps1.device
 
     n = caps1.shape[0]
-    assert T1.shape == T2.shape == (n, 7)
+    assert T1.shape == T2.shape == (n, 4, 4)
     assert caps1.shape == caps2.shape == (n, 7)
 
     # Local points are at the origin and top of capsule along the +z axis.
     r1 = caps1[:, 6]
-    c1_local_points = caps1[:, :6].reshape(n, 2, 3)
-    c1_world = calculate_points_in_world_frame_from_local_frame_batch(T1, c1_local_points)
+    T1[:, :3, :3]
+    caps1[:, 0:3].unsqueeze(2)
+    T1[:, :3, 3]
+    c1_world1 = T1[:, :3, :3].bmm(caps1[:, 0:3].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
+    c1_world2 = T1[:, :3, :3].bmm(caps1[:, 3:6].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
 
     r2 = caps2[:, 6]
-    c2_local_points = caps2[:, :6].reshape(n, 2, 3)
-    c2_world = calculate_points_in_world_frame_from_local_frame_batch(T2, c2_local_points)
+    c2_world1 = T2[:, :3, :3].bmm(caps2[:, 0:3].unsqueeze(2)).squeeze(2) + T2[:, :3, 3]
+    c2_world2 = T2[:, :3, :3].bmm(caps2[:, 3:6].unsqueeze(2)).squeeze(2) + T2[:, :3, 3]
 
-    p1 = c1_world[:, 0, :]
-    s1 = c1_world[:, 1, :] - p1
-    p2 = c2_world[:, 0, :]
-    s2 = c2_world[:, 1, :] - p2
+    p1 = c1_world1
+    s1 = c1_world2 - p1
+    p2 = c2_world1
+    s2 = c2_world2 - p2
 
     A = torch.stack((s2, -s1), dim=2)
     y = (p2 - p1).unsqueeze(2)

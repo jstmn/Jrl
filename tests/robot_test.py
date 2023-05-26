@@ -208,10 +208,6 @@ class RobotTest(unittest.TestCase):
 
     def test_jacobian_klampt_pt_match(self):
         atol = 1e-5
-        panda = Panda()
-        print(panda.collision_capsules)
-        return
-
         for robot in ROBOTS:
             for i in range(10):
                 batch_size = 1
@@ -401,6 +397,18 @@ class RobotTest(unittest.TestCase):
             self.assertEqual(len(driver_vec), gt_vector_dim)  # panda has 1 non user specified actuated joint
             x_returned = robot._x_from_driver_vec(driver_vec)
             np.testing.assert_allclose(x_original, x_returned)
+
+    def test_self_collision(self):
+        panda = Panda()
+        print("panda._collision_capsules:", panda._collision_capsules)
+        print("panda._collision_idx0:", panda._collision_idx0)
+        print("panda._collision_idx1:", panda._collision_idx1)
+        print("panda._collision_capsules[5]:", panda._collision_capsules[5])
+        print("panda._collision_capsules[7]:", panda._collision_capsules[7])
+        x = torch.tensor(panda.sample_joint_angles(1), dtype=torch.float32)
+        x[:] = 0
+        dists = panda.self_collision_distances_batch(x)
+        print(dists)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, Dict
 from time import time
 from functools import cached_property
 
@@ -11,6 +11,7 @@ from klampt.math import so3
 from klampt import robotsim
 from klampt.model.collide import WorldCollider
 import tqdm
+from copy import deepcopy
 
 from jkinpylib.conversions import (
     rpy_tuple_to_rotation_matrix,
@@ -25,7 +26,8 @@ from jkinpylib.conversions import (
     PT_NP_TYPE,
 )
 from jkinpylib.config import DEVICE, CUDA_AVAILABLE
-from jkinpylib.urdf_utils import get_joint_chain, get_urdf_filepath_w_filenames_updated, UNHANDLED_JOINT_TYPES
+from jkinpylib.urdf_utils import Joint, get_joint_chain, get_urdf_filepath_w_filenames_updated, UNHANDLED_JOINT_TYPES
+from jkinpylib.geometry import capsule_capsule_distance_batch
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -49,6 +51,55 @@ def _assert_is_np(x: np.ndarray, variable_name: str = "input"):
     assert isinstance(x, np.ndarray), f"Expected {variable_name} to be a numpy array but got {type(x)}"
 
 
+def _generate_self_collision_pairs(
+    collision_capsules_by_link: Dict[str, torch.Tensor],
+    joint_chain: List[Joint],
+    ignored_collision_pairs: List[Tuple[str, str]] = [],
+):
+    """
+    Generate collision pairs from collision capsules and joint chain. Adjacent
+    links in the joint chain are allowed to collide.
+
+    Returns capsules and idx0, idx1, such that
+        capsules[idx0[i]] and capsules[idx1[i]]
+    must be checked for collision.
+
+    Args:
+        joint_chain (List[Joint]): Joint chain of the robot.
+        ignored_collision_pairs (List[Tuple[str, str]], optional): List of collision pairs to ignore. Defaults to [].
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: capsules, idx0, idx1
+    """
+    ignored_collision_set = set(tuple(sorted(pair)) for pair in ignored_collision_pairs)
+
+    link_name_to_idx = {}
+    capsules = []
+    for i, joint in enumerate(joint_chain):
+        if i == 0 and joint.parent in collision_capsules_by_link:
+            capsules.append(collision_capsules_by_link[joint.parent])
+            link_name_to_idx[joint.parent] = 0
+
+        if joint.child in collision_capsules_by_link:
+            capsules.append(collision_capsules_by_link[joint.child])
+            link_name_to_idx[joint.child] = i + 1
+
+        ignored_collision_set.add(tuple(sorted((joint.parent, joint.child))))
+
+    idx0, idx1 = [], []
+    link_names = list(collision_capsules_by_link.keys())
+    for i in range(len(link_names)):
+        for j in range(i + 1, len(link_names)):
+            if (link_names[i], link_names[j]) in ignored_collision_set:
+                continue
+            if (link_names[j], link_names[i]) in ignored_collision_set:
+                continue
+            idx0.append(link_name_to_idx[link_names[i]])
+            idx1.append(link_name_to_idx[link_names[j]])
+
+    return torch.stack(capsules, dim=0), torch.tensor(idx0, dtype=torch.long), torch.tensor(idx1, dtype=torch.long)
+
+
 # TODO: Add base link
 class Robot:
     def __init__(
@@ -61,6 +112,7 @@ class Robot:
         ignored_collision_pairs: List[Tuple[str, str]],
         positional_repeatability_mm: float,
         rotational_repeatability_deg: float,
+        collision_capsules_by_link: Optional[Dict[str, torch.Tensor]] = None,
         batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
@@ -89,6 +141,7 @@ class Robot:
         self._urdf_filepath = urdf_filepath
         self._base_link = base_link
         self._end_effector_link_name = end_effector_link_name
+        self._collision_capsules_by_link = collision_capsules_by_link
         self._batch_fk_enabled = batch_fk_enabled
         self._positional_repeatability_mm = positional_repeatability_mm
         self._rotational_repeatability_deg = rotational_repeatability_deg
@@ -107,6 +160,12 @@ class Robot:
             f"Error - the number of active joints ({len(active_joints)}) does not match the degrees of freedom"
             f" ({self.n_dofs})."
         )
+
+        self._collision_capsules, self._collision_idx0, self._collision_idx1 = None, None, None
+        if self._collision_capsules_by_link is not None:
+            self._collision_capsules, self._collision_idx0, self._collision_idx1 = _generate_self_collision_pairs(
+                self._collision_capsules_by_link, self._joint_chain, ignored_collision_pairs
+            )
 
         # Create and fill cache of fixed rotations between links.
         self._parent_T_joint_cache = {}
@@ -542,6 +601,7 @@ class Robot:
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_quaternion: bool = True,
         return_runtime: bool = False,
+        return_full: bool = False,
     ) -> Tuple[torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
@@ -572,6 +632,7 @@ class Robot:
 
         # Rotation from body/base link to joint along the joint chain
         base_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
+        base_T_joints = [base_T_joint]
 
         # Iterate through each joint in the joint chain
         x_i = 0
@@ -599,6 +660,7 @@ class Robot:
                 T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 T[:, 0:3, 0:3] = joint_rotation
                 base_T_joint = base_T_joint.bmm(T)
+                base_T_joints.append(base_T_joint)
 
                 # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
                 # as a reminder
@@ -617,11 +679,12 @@ class Robot:
                 joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
                 joint_fixed_T_joint[:, 0:3, 3] = translations
                 base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
+                base_T_joints.append(base_T_joint)
 
                 x_i += 1
 
             elif joint.joint_type == "fixed":
-                pass
+                base_T_joints[-1] = base_T_joint
             else:
                 raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
 
@@ -632,6 +695,12 @@ class Robot:
 
         if return_runtime:
             return base_T_joint, time() - time0
+
+        if return_full:
+            ret = torch.stack(base_T_joints, dim=1)
+            assert ret.shape == (batch_size, self.n_dofs + 1, 4, 4), f"ret.shape={ret.shape}"
+            return ret
+
         return base_T_joint
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -706,60 +775,8 @@ class Robot:
         self._ensure_forward_kinematics_cache(out_device, dtype=dtype)
 
         # Rotation from body/base link to joint along the joint chain
-        base_T_joints = torch.diag_embed(torch.ones(batch_size, self.n_dofs, 4, device=out_device, dtype=dtype))
-
-        # Fill in FK for every joint in chain
-        x_i = 0
-        for joint in self._joint_chain:
-            assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
-            # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
-            fixed_rotation_dict = self._parent_T_joint_cache[out_device]
-            parent_T_child_fixed = fixed_rotation_dict[joint.name].expand(batch_size, 4, 4)  # zero-copy expansion
-
-            if joint.joint_type == "fixed":
-                base_T_joints[:, x_i - 1, :] = base_T_joints[:, x_i - 1, :].bmm(parent_T_child_fixed)
-                continue
-
-            if x_i > 0:
-                base_T_joints[:, x_i, :] = base_T_joints[:, x_i - 1, :].bmm(parent_T_child_fixed)
-
-            # Compute next joint transform
-            if joint.joint_type in {"revolute", "continuous"}:
-                # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
-                rotation_amt = x[:, x_i]
-                rotation_axis = joint.axis_xyz
-
-                # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
-                # or quaternions?
-                joint_rotation = single_axis_angle_to_rotation_matrix(
-                    rotation_axis, rotation_amt, out_device=out_device
-                )
-                assert joint_rotation.shape == (batch_size, 3, 3)
-
-                # TODO(@jstmn): determine which of these two implementations if faster
-                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                T[:, 0:3, 0:3] = joint_rotation
-                base_T_joints[:, x_i, :] = base_T_joints[:, x_i, :].bmm(T)
-
-                # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
-                # as a reminder
-                # base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
-
-                x_i += 1
-
-            elif joint.joint_type == "prismatic":
-                # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
-                translations = (
-                    torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype) * x[:, x_i, None]
-                )  # [batch x 3]
-                assert translations.shape == (batch_size, 3)
-
-                # TODO(@jstmn): consider making this more space efficient. create once and override?
-                joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                joint_fixed_T_joint[:, 0:3, 3] = translations
-                base_T_joints[:, x_i, :] = base_T_joints[:, x_i, :].bmm(joint_fixed_T_joint)
-
-                x_i += 1
+        base_T_joints = self.forward_kinematics_batch(x, return_full=True, out_device=out_device, dtype=dtype)
+        base_T_joints = base_T_joints[:, 1:, :, :]  # remove the base link
 
         # Compute jacobian
         J = torch.zeros((batch_size, 6, self.n_dofs), device=out_device, dtype=dtype)
@@ -770,7 +787,6 @@ class Robot:
                 axis = (
                     torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype).unsqueeze(1).expand(batch_size, 3, 1)
                 )
-                world_axes = base_T_joints[:, x_i, :3, :3].bmm(axis)
                 J[:, :3, x_i] = base_T_joints[:, x_i, :3, :3].bmm(axis).squeeze(2)
                 d = base_T_joints[:, -1, :3, 3] - base_T_joints[:, x_i, :3, 3]
                 world_axis = base_T_joints[:, x_i, :3, :3].bmm(axis).squeeze(2)
@@ -1070,6 +1086,30 @@ class Robot:
         if verbosity > 0:
             print("inverse_kinematics_klampt() - Failed to find IK solution after", n_tries, "optimization attempts")
         return None
+
+    def self_collision_distances_batch(self, x: torch.Tensor) -> torch.Tensor:
+        """Returns the distance between all valid collision pairs of the robot
+        for each joint angle vector in x
+
+        Args:
+            x (torch.Tensor): [n x ndofs] joint angle vectors
+
+        Returns:
+            torch.Tensor: [n x n_pairs] distances
+        """
+
+        # Capsule and joint indices are offset by 1 to make room for the base
+        # link.
+        batch_size = x.shape[0]
+        base_T_joints = self.forward_kinematics_batch(x, return_full=True, out_device=x.device, dtype=x.dtype)
+        T1s = base_T_joints[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
+        T2s = base_T_joints[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
+        c1s = self._collision_capsules[self._collision_idx0, :].expand(batch_size, -1, -1).reshape(-1, 7)
+        c2s = self._collision_capsules[self._collision_idx1, :].expand(batch_size, -1, -1).reshape(-1, 7)
+
+        dists = capsule_capsule_distance_batch(c1s, T1s, c2s, T2s).reshape(batch_size, -1)
+
+        return dists
 
 
 def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:

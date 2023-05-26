@@ -26,8 +26,10 @@ class TestGeometry(unittest.TestCase):
         c1 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
         c2 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
 
-        T1 = torch.tensor([[-1, 0, 0, 1, 0, 0, 0]], device="cpu", dtype=torch.float32)
-        T2 = torch.tensor([[1, 0, 0, 1, 0, 0, 0]], device="cpu", dtype=torch.float32)
+        T1 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        T1[:, 0, 3] = -1
+        T2 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        T2[:, 0, 3] = 1
 
         returned = capsule_capsule_distance_batch(c1, T1, c2, T2)
         expected = 1.5
@@ -57,10 +59,14 @@ class TestGeometry(unittest.TestCase):
             result = fcl.DistanceResult()
             fcl_dist = fcl.distance(o1, o2, request, result)
 
-            c1 = torch.tensor([[0.0, 0.0, -h1 / 2, 0.0, 0.0, h1 / 2, r1]])
-            c2 = torch.tensor([[0.0, 0.0, -h2 / 2, 0.0, 0.0, h2 / 2, r2]])
-            T1 = torch.cat((torch.tensor(t1), torch.tensor(q1)), dim=0).unsqueeze(0)
-            T2 = torch.cat((torch.tensor(t2), torch.tensor(q2)), dim=0).unsqueeze(0)
+            c1 = torch.tensor([[0.0, 0.0, -h1 / 2, 0.0, 0.0, h1 / 2, r1]], dtype=torch.float32)
+            c2 = torch.tensor([[0.0, 0.0, -h2 / 2, 0.0, 0.0, h2 / 2, r2]], dtype=torch.float32)
+            T1 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T1[:, :3, :3] = torch.tensor(R1)
+            T1[:, :3, 3] = torch.tensor(t1)
+            T2 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T2[:, :3, :3] = torch.tensor(R2)
+            T2[:, :3, 3] = torch.tensor(t2)
 
             print(c1.dtype, T1.dtype, c2.dtype, T2.dtype)
 
