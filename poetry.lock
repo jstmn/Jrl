@@ -844,6 +844,22 @@ files = [
 ]
 
 [[package]]
+name = "numpy-stl"
+version = "3.0.1"
+description = "Library to make reading, writing and modifying both binary and ascii STL files easy."
+category = "main"
+optional = false
+python-versions = ">3.6.0"
+files = [
+    {file = "numpy-stl-3.0.1.tar.gz", hash = "sha256:dd4da1a379d2632f168518be8dcd9cddd7edc6c3238094fd8d21476b3586a0bc"},
+    {file = "numpy_stl-3.0.1-py3-none-any.whl", hash = "sha256:cd2c4b0032756bb1488559d507825b0dd8d5c2ac4a68638c2145387b2f804691"},
+]
+
+[package.dependencies]
+numpy = "*"
+python-utils = ">=3.4.5"
+
+[[package]]
 name = "nvidia-cublas-cu11"
 version = "11.10.3.66"
 description = "CUBLAS native runtime libraries"
@@ -1300,6 +1316,23 @@ files = [
 [package.dependencies]
 Cython = "*"
 numpy = "*"
+
+[[package]]
+name = "python-utils"
+version = "3.5.2"
+description = "Python Utils is a module with some convenient utilities not included with the standard Python install"
+category = "main"
+optional = false
+python-versions = ">3.6.0"
+files = [
+    {file = "python-utils-3.5.2.tar.gz", hash = "sha256:68198854fc276bc4b2403b261703c218e01ef564dcb072a7096ed9ea7aa5130c"},
+    {file = "python_utils-3.5.2-py2.py3-none-any.whl", hash = "sha256:8bfefc3430f1c48408fa0e5958eee51d39840a5a987c2181a579e99ab6fe5ca6"},
+]
+
+[package.extras]
+docs = ["mock", "python-utils", "sphinx"]
+loguru = ["loguru"]
+tests = ["flake8", "loguru", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mypy", "sphinx", "types-setuptools"]
 
 [[package]]
 name = "pytz"
@@ -1795,4 +1828,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "bde02b5ba1365ff371e530db4b06981673b7e5a1cbb2bfe02be35c436f3d9b85"
+content-hash = "e34fe7051cfbe1cb024a22c0b9bf7e7053b224eaefcd7c2ef1974c2110eccb86"
