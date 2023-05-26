@@ -14,6 +14,7 @@ from jkinpylib.conversions import (
     quaternion_product,
     quatmul,
     angular_subtraction,
+    calculate_points_in_world_frame_from_local_frame_batch,
 )
 from jkinpylib.utils import set_seed, to_torch
 from jkinpylib.robots import FetchArm
@@ -30,6 +31,41 @@ _2PI = 2 * PI
 
 
 class TestConversions(unittest.TestCase):
+    def test_calculate_points_in_world_frame_from_local_frame(self):
+        """Test calculate_points_in_world_frame_from_local_frame(). For this test, we are using m=4 points. Quaternions
+        copied from https://www.andre-gaschler.com/rotationconverter/
+        """
+        world__T__local_frame = torch.tensor(
+            [
+                [0, 0, 0, 1, 0, 0, 0],
+                [1, 0, 0, 1, 0, 0, 0],
+                [5, 0, 0, 0.9659258, 0, 0, 0.258819],  # 30deg rotation about +z
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        # 4 points for each world__T__local_frame tf
+        points_in_local_frame = torch.tensor(
+            [
+                [[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0], [0, 0, 0.1]],
+                [[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0], [0, 0, 0.1]],
+                [[0, 0, 0], [3, 0, 0], [-3, 0, 0], [0, 2, 7]],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        returned = calculate_points_in_world_frame_from_local_frame_batch(world__T__local_frame, points_in_local_frame)
+        expected = torch.tensor(
+            [
+                [[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0], [0, 0, 0.1]],
+                [[1, 0, 0], [1.1, 0, 0], [1, 0.1, 0], [1, 0, 0.1]],
+                [[5, 0, 0], [5 + 2.59808, 1.5, 0], [5 - 2.59808, -1.5, 0], [5 - 1, 1.73205, 7]],
+            ],
+            dtype=torch.float32,
+            device="cpu",
+        )
+        torch.testing.assert_close(returned, expected)
+
     def test_angular_subtraction(self):
         """Test that angular_subtraction() works as expected"""
         angles_1 = torch.tensor(
