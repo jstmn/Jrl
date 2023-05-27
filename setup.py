@@ -42,7 +42,7 @@ setup(
     py_modules=[],
     long_description=open("README.md").read(),
     # TODO: Specify version numbers. also move to pyproject.toml
-    install_requires=["klampt", "numpy", "torch", "more_itertools", "roma", "tqdm"],
+    install_requires=["klampt", "numpy", "torch==2.0.1", "more_itertools", "roma", "tqdm"],
     extras_require={  # pip install -e ".[dev]"
         "dev": [
             "black==22.12.0",
