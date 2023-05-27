@@ -5,12 +5,12 @@ import numpy as np
 
 from jkinpylib.robot import Robot
 from jkinpylib.utils import get_filepath
-from jkinpylib.config import DEFAULT_TORCH_DTYPE
+from jkinpylib.config import DEFAULT_TORCH_DTYPE, DEVICE
 
 
 def _load_capsule(path: str):
     data = np.loadtxt(get_filepath(path), delimiter=",")
-    return torch.tensor(data, dtype=DEFAULT_TORCH_DTYPE)
+    return torch.tensor(data, dtype=DEFAULT_TORCH_DTYPE, device=DEVICE)
 
 
 # TODO(@jstmn): Fix batch FK for baxter
@@ -24,7 +24,15 @@ class Baxter(Robot):
     ROTATIONAL_REPEATABILITY_DEG = -1  # TODO
 
     def __init__(self):
-        active_joints = ["left_s0", "left_s1", "left_e0", "left_e1", "left_w0", "left_w1", "left_w2"]
+        active_joints = [
+            "left_s0",
+            "left_s1",
+            "left_e0",
+            "left_e1",
+            "left_w0",
+            "left_w1",
+            "left_w2",
+        ]
 
         base_link = "base"
         end_effector_link_name = "left_hand"
@@ -167,7 +175,10 @@ class Panda(Robot):
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
         base_link = "panda_link0"
         end_effector_link_name = "panda_hand"
-        ignored_collision_pairs = [("panda_hand", "panda_link7"), ("panda_rightfinger", "panda_leftfinger")]
+        ignored_collision_pairs = [
+            ("panda_hand", "panda_link7"),
+            ("panda_rightfinger", "panda_leftfinger"),
+        ]
         Robot.__init__(
             self,
             Panda.name,
@@ -233,14 +244,18 @@ def get_robot(robot_name: str) -> Robot:
     for clc in ALL_CLCS:
         if clc.name == robot_name:
             return clc()
-    raise ValueError(f"Unable to find robot '{robot_name}' (available: {[clc.name for clc in ALL_CLCS]})")
+    raise ValueError(
+        f"Unable to find robot '{robot_name}' (available: {[clc.name for clc in ALL_CLCS]})"
+    )
 
 
 def robot_name_to_fancy_robot_name(name: str) -> str:
     for cls in ALL_CLCS:
         if cls.name == name:
             return cls.formal_robot_name
-    raise ValueError(f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})")
+    raise ValueError(
+        f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})"
+    )
 
 
 if __name__ == "__main__":

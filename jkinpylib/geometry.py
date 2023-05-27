@@ -28,6 +28,8 @@ def capsule_capsule_distance_batch(
     """
     dtype = caps1.dtype
     device = caps1.device
+    print("caps1.device", caps1.device)
+    print("T1.device", T1.device)
 
     n = caps1.shape[0]
     assert T1.shape == T2.shape == (n, 4, 4)
