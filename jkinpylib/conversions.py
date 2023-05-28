@@ -17,7 +17,11 @@ import roma.mappings
 from jkinpylib.config import DEFAULT_TORCH_DTYPE, DEVICE, PT_NP_TYPE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
-_TORCH_EPS_CUDA = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cuda")
+_TORCH_EPS_CUDA = torch.tensor(
+    1e-8,
+    dtype=DEFAULT_TORCH_DTYPE,
+    device="mps" if torch.backends.mps.is_available() else "cuda",
+)
 
 
 def enforce_pt_np_input(func: Callable):
@@ -29,9 +33,13 @@ def enforce_pt_np_input(func: Callable):
 
     def wrapper(*args, **kwargs):
         are_2_args = len(args) == 2
-        assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
+        assert (
+            len(args) == 1 or are_2_args
+        ), f"Expected 1 or 2 arguments, got {len(args)}"
         for arg in args:
-            assert isinstance(arg, (np.ndarray, torch.Tensor)), f"Expected np.ndarray or torch.Tensor, got {type(arg)}"
+            assert isinstance(
+                arg, (np.ndarray, torch.Tensor)
+            ), f"Expected np.ndarray or torch.Tensor, got {type(arg)}"
         if are_2_args and isinstance(args[0], torch.Tensor):
             assert type(args[0]) is type(
                 args[1]
@@ -49,9 +57,13 @@ def enforce_pt_input(func: Callable):
 
     def wrapper(*args, **kwargs):
         are_2_args = len(args) == 2
-        assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
+        assert (
+            len(args) == 1 or are_2_args
+        ), f"Expected 1 or 2 arguments, got {len(args)}"
         for arg in args:
-            assert isinstance(arg, torch.Tensor), f"Expected a torch.Tensor, got {type(arg)}"
+            assert isinstance(
+                arg, torch.Tensor
+            ), f"Expected a torch.Tensor, got {type(arg)}"
         return func(*args, **kwargs)
 
     return wrapper
@@ -99,11 +111,16 @@ def calculate_points_in_world_frame_from_local_frame_batch(
     points_in_world_frame = []
     for i in range(m):
         points_quat = torch.cat(
-            [torch.zeros((n, 1), device=world__T__local_frame.device), points_in_local_frame[:, i]], dim=1
+            [
+                torch.zeros((n, 1), device=world__T__local_frame.device),
+                points_in_local_frame[:, i],
+            ],
+            dim=1,
         )
         assert points_quat.shape == (n, 4)
         pts_rotated = quatmul(
-            quatmul(world__T__local_frame[:, 3:7], points_quat), quatconj(world__T__local_frame[:, 3:7])
+            quatmul(world__T__local_frame[:, 3:7], points_quat),
+            quatconj(world__T__local_frame[:, 3:7]),
         )[:, 1:]
         pts = pts_rotated + world__T__local_frame[:, 0:3]
         points_in_world_frame.append(pts[:, None, :])
@@ -194,7 +211,9 @@ def quaternion_xyzw_to_wxyz(quaternion: PT_NP_TYPE) -> PT_NP_TYPE:
     if isinstance(quaternion, torch.Tensor):
         return torch.cat([quaternion[:, 3:4], quaternion[:, 0:3]], dim=1)
 
-    raise ValueError(f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})")
+    raise ValueError(
+        f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})"
+    )
 
 
 @enforce_pt_np_input
@@ -228,11 +247,19 @@ def quaternion_to_rotation_matrix(quaternion: torch.Tensor):
     yw = qy * qw
     zw = qz * qw
 
-    row0 = torch.cat((1 - 2 * yy - 2 * zz, 2 * xy - 2 * zw, 2 * xz + 2 * yw), 1)  # batch*3
-    row1 = torch.cat((2 * xy + 2 * zw, 1 - 2 * xx - 2 * zz, 2 * yz - 2 * xw), 1)  # batch*3
-    row2 = torch.cat((2 * xz - 2 * yw, 2 * yz + 2 * xw, 1 - 2 * xx - 2 * yy), 1)  # batch*3
+    row0 = torch.cat(
+        (1 - 2 * yy - 2 * zz, 2 * xy - 2 * zw, 2 * xz + 2 * yw), 1
+    )  # batch*3
+    row1 = torch.cat(
+        (2 * xy + 2 * zw, 1 - 2 * xx - 2 * zz, 2 * yz - 2 * xw), 1
+    )  # batch*3
+    row2 = torch.cat(
+        (2 * xz - 2 * yw, 2 * yz + 2 * xw, 1 - 2 * xx - 2 * yy), 1
+    )  # batch*3
 
-    matrix = torch.cat((row0.view(batch, 1, 3), row1.view(batch, 1, 3), row2.view(batch, 1, 3)), 1)  # batch*3*3
+    matrix = torch.cat(
+        (row0.view(batch, 1, 3), row1.view(batch, 1, 3), row2.view(batch, 1, 3)), 1
+    )  # batch*3*3
 
     return matrix
 
@@ -353,7 +380,9 @@ def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
     elif isinstance(qs_1, torch.Tensor):
         q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=DEFAULT_TORCH_DTYPE)
     else:
-        raise ValueError(f"qs_1 must be a numpy array or a torch tensor (got {type(qs_1)})")
+        raise ValueError(
+            f"qs_1 must be a numpy array or a torch tensor (got {type(qs_1)})"
+        )
 
     q[:, 0] = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
     q[:, 1] = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
@@ -408,7 +437,9 @@ def geodesic_distance_between_quaternions(
     if isinstance(q1, np.ndarray):
         dot = np.clip(np.sum(q1 * q2, axis=1), -1, 1)
         # Note: Updated by @jstmn on Feb24 2023
-        distance = 2 * np.arccos(np.clip(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
+        distance = 2 * np.arccos(
+            np.clip(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon)
+        )
         # distance = 2 * np.arccos(dot)
         distance = np.abs(np.remainder(distance + np.pi, 2 * np.pi) - np.pi)
         assert distance.size == q1.shape[0], (
@@ -420,9 +451,13 @@ def geodesic_distance_between_quaternions(
     if isinstance(q1, torch.Tensor):
         dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
         # Note: Updated by @jstmn on Feb24 2023
-        distance = 2 * torch.acos(torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
+        distance = 2 * torch.acos(
+            torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon)
+        )
         # distance = 2 * torch.acos(dot)
-        distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
+        distance = torch.abs(
+            torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi
+        )
         assert distance.numel() == q1.shape[0], (
             f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="
             f" {distance.shape})"
@@ -485,13 +520,17 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
         r02 = wy * sin_theta + wx * wz * (k_one - cos_theta)
         r12 = -wx * sin_theta + wy * wz * (k_one - cos_theta)
         r22 = cos_theta + wz * wz * (k_one - cos_theta)
-        rotation_matrix = torch.cat([r00, r01, r02, r10, r11, r12, r20, r21, r22], dim=1)
+        rotation_matrix = torch.cat(
+            [r00, r01, r02, r10, r11, r12, r20, r21, r22], dim=1
+        )
         return rotation_matrix.view(-1, 3, 3)
 
     def _compute_rotation_matrix_taylor(angle_axis):
         rx, ry, rz = torch.chunk(angle_axis, 3, dim=1)
         k_one = torch.ones_like(rx)
-        rotation_matrix = torch.cat([k_one, -rz, ry, rz, k_one, -rx, -ry, rx, k_one], dim=1)
+        rotation_matrix = torch.cat(
+            [k_one, -rz, ry, rz, k_one, -rx, -ry, rx, k_one], dim=1
+        )
         return rotation_matrix.view(-1, 3, 3)
 
     # stolen from ceres/rotation.h
@@ -514,7 +553,9 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
     rotation_matrix = torch.eye(3).to(angle_axis.device).type_as(angle_axis)
     rotation_matrix = rotation_matrix.view(1, 3, 3).repeat(batch_size, 1, 1)
     # fill output matrix with masked values
-    rotation_matrix[..., :3, :3] = mask_pos * rotation_matrix_normal + mask_neg * rotation_matrix_taylor
+    rotation_matrix[..., :3, :3] = (
+        mask_pos * rotation_matrix_normal + mask_neg * rotation_matrix_taylor
+    )
     return rotation_matrix  # Nx4x4
 
 
@@ -609,5 +650,6 @@ def single_axis_angle_to_rotation_matrix(
     return (
         torch.eye(3, dtype=ang.dtype, device=ang.device).unsqueeze(0)
         + torch.sin(ang).view(-1, 1, 1) * angleaxis_skew.unsqueeze(0)
-        + (1 - torch.cos(ang).unsqueeze(1)).view(-1, 1, 1) * angleaxis_skew_sq.unsqueeze(0)
+        + (1 - torch.cos(ang).unsqueeze(1)).view(-1, 1, 1)
+        * angleaxis_skew_sq.unsqueeze(0)
     )

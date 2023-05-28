@@ -71,7 +71,7 @@ def random_choice_optimal_capsule(vertices: torch.Tensor):
     return p1, p2, r
 
 
-def lm_ip_optimal_capsule(vertices: torch.Tensor):
+def lm_penalty_optimal_capsule(vertices: torch.Tensor):
     p1_0 = torch.tensor([0.0, 0.0, -10.0])
     p2_0 = torch.tensor([0.0, 0.0, 10.0])
     r_0 = torch.tensor([10])
@@ -88,12 +88,14 @@ def lm_ip_optimal_capsule(vertices: torch.Tensor):
         return torch.cat(
             (
                 capsule_volume_batch(p1, p2, r),
-                torch.clamp(dists, min=0),
+                torch.clamp(mu * dists, min=0),
             )
         )
 
     Jfn = functorch.jacfwd(fg, argnums=0)
 
+    margin = 1e-3
+    xtol = 1e-6
     mu = 1.0
     outer_step = 0
     satisfied = False
@@ -108,7 +110,7 @@ def lm_ip_optimal_capsule(vertices: torch.Tensor):
             b = -J.t() @ fg(x, mu, vertices)
             dx = torch.linalg.solve(A, b)
             x = x + dx
-            if torch.norm(dx) < 1e-6:
+            if torch.norm(dx) < xtol:
                 converged = True
                 print(f"Converged in {inner_step} steps")
 
@@ -118,8 +120,7 @@ def lm_ip_optimal_capsule(vertices: torch.Tensor):
 
             inner_step += 1
 
-        print(torch.sum(fg(x, mu, vertices)[1:] <= 1e-3))
-        if torch.all(fg(x, mu, vertices)[1:] <= 1e-3):
+        if torch.all(fg(x, mu, vertices)[1:] <= margin):
             satisfied = True
             print(f"Satisfied in {outer_step} outer steps")
 
@@ -130,15 +131,15 @@ def lm_ip_optimal_capsule(vertices: torch.Tensor):
         mu *= 10
         outer_step += 1
 
-    return x[0:3], x[3:6], x[6]
+    return x[0:3], x[3:6], x[6] + margin
 
 
-def stl_to_capsule(stl_path: str):
+def stl_to_capsule(stl_path: str, outdir):
     mesh = stl.mesh.Mesh.from_file(stl_path)
     vertices = mesh.vectors.reshape(-1, 3)
     vertices = torch.tensor(vertices)
 
-    p1, p2, r = lm_ip_optimal_capsule(vertices)
+    p1, p2, r = lm_penalty_optimal_capsule(vertices)
     print("p1", p1)
     print("p2", p2)
     print("r", r)
@@ -152,22 +153,27 @@ def stl_to_capsule(stl_path: str):
     scale = mesh.points.flatten()
     axes.auto_scale_xyz(scale, scale, scale)
 
-    linkname = stl_path.split("/")[-1].split(".")[0]
-    dirname = pathlib.Path("capsule_apprixmations")
-    dirname.mkdir(exist_ok=True)
-    plt.savefig(dirname / f"capsule_approximation_{linkname}.png")
+    linkname = stl_path.stem
+    img_path = outdir / f"{linkname}.png"
+    print(f"Rendering to {img_path}")
+    plt.savefig(img_path)
+
+    txt_path = outdir / f"{linkname}.txt"
+    print(f"Saving capsule to {txt_path}")
+    with open(txt_path, "w") as f:
+        f.write(f"{p1[0]}, {p1[1]}, {p1[2]}, {p2[0]}, {p2[1]}, {p2[2]}, {r}\n")
 
 
 def main():
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link0.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link1.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link2.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link3.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link4.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link5.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link6.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/link7.stl")
-    stl_to_capsule("jkinpylib/urdfs/panda/meshes/collision/hand.stl")
+    outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
+    outdir.mkdir(exist_ok=False)
+    for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob("*.stl"):
+        stl_to_capsule(stl_path, outdir)
+
+    outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    outdir.mkdir(exist_ok=False)
+    for stl_path in pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob("*_collision.STL"):
+        stl_to_capsule(stl_path, outdir)
 
 
 if __name__ == "__main__":
