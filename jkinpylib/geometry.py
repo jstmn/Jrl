@@ -18,10 +18,10 @@ def capsule_capsule_distance_batch(
     The memory layout is [nx7]: [x1, y1, z1, x2, y2, z2, r1].
 
     Args:
-        caps1 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
-        T1 (torch.Tensor): [n x 4 x 4] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
-        caps2 (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
-        T2 (torch.Tensor): [n x 4 x 4] tensor (xyz + quat wxyz) describing the pose of the caps1 capsules
+        caps1 (torch.Tensor): [n x 7] tensor describing a batch of capsules.
+        T1 (torch.Tensor): [n x 4 x 4] tensor describing the pose of the caps1 capsules
+        caps2 (torch.Tensor): [n x 7] tensor describing a batch of capsules.
+        T2 (torch.Tensor): [n x 4 x 4] tensor describing the pose of the caps1 capsules
 
     Returns:
         float: [n x 1] tensor with the minimum distance between each n capsules
@@ -71,5 +71,85 @@ def capsule_capsule_distance_batch(
     sol = sol.unsqueeze(2)
 
     dist = torch.norm(A.bmm(sol) + y, dim=1) - r1.unsqueeze(1) - r2.unsqueeze(1)
+
+    return dist
+
+
+def capsule_cuboid_distance_batch(
+    caps: torch.Tensor,
+    Tcaps: torch.Tensor,
+    cuboids: torch.Tensor,
+    Tcuboids: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Returns the minimum distance between any two points on the given batches of
+    capsules and cuboids.
+
+    Args:
+        caps (torch.Tensor): [n x 7] tensor descibing a batch of capsules.
+        Tcaps (torch.Tensor): [n x 4 x 4] tensor describing the pose of the caps
+        capsules.
+        cuboids (torch.Tensor): [n x 6] (x1, y1, z1, x2, y2, z2) tensor
+        describing a batch of cuboids, where (x1, y1, z1) is the bottom left
+        corner and (x2, y2, z2) is the top right corner.
+        Tcuboids (torch.Tensor): [n x 4 x 4] tensor describing the pose of the
+        cuboids.
+
+    Returns:
+        torch.Tensor: [n x 1] tensor with the minimum distance between each n
+        capsule and cuboid pair.
+    """
+
+    n = caps.shape[0]
+    assert Tcaps.shape == Tcuboids.shape == (n, 4, 4)
+    assert caps.shape == (n, 7)
+    assert cuboids.shape == (n, 6)
+
+    device = caps.device
+    dtype = caps.dtype
+
+    # Put everything in cuboid frame
+    r = caps[:, 6]
+    p = Tcaps[:, :3, :3].bmm(caps[:, 0:3].unsqueeze(2)).squeeze(2) + Tcaps[:, :3, 3]
+    p = (
+        Tcuboids[:, :3, :3]
+        .transpose(2, 1)
+        .bmm((p - Tcuboids[:, :3, 3]).unsqueeze(2))
+        .squeeze(2)
+    )
+    q = Tcaps[:, :3, :3].bmm(caps[:, 3:6].unsqueeze(2)).squeeze(2) + Tcaps[:, :3, 3]
+    q = (
+        Tcuboids[:, :3, :3]
+        .transpose(2, 1)
+        .bmm((q - Tcuboids[:, :3, 3]).unsqueeze(2))
+        .squeeze(2)
+    )
+    s = q - p
+
+    Q = torch.diag_embed(torch.ones(n, 4, dtype=dtype, device=device))
+    Q[:, :3, 3] = -s
+    Q[:, 3, :3] = -s
+    Q[:, 3, 3] = (s * s).sum(dim=1)
+    Q = Q + 1e-4 * torch.eye(4, dtype=dtype, device=device).expand(n, -1, -1)
+
+    p_ = torch.zeros(n, 4, dtype=dtype, device=device)
+    p_[:, :3] = -2 * p
+    p_[:, 3] = 2 * (s * p).sum(dim=1)
+
+    G = torch.zeros(n, 8, 4, dtype=dtype, device=device)
+    G[:, :4, :4] = -torch.eye(4, dtype=dtype, device=device)
+    G[:, 4:, :4] = torch.eye(4, dtype=dtype, device=device)
+    h = torch.zeros(n, 8, dtype=dtype, device=device)
+    h[:, :3] = -cuboids[:, :3]
+    h[:, 3] = 0
+    h[:, 4:7] = cuboids[:, 3:]
+    h[:, 7] = 1
+
+    # Solve the QP
+    e = torch.Tensor()  # Dummy equality constraint
+    sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p_, G, h, e, e)
+
+    # sol = torch.tensor([osqpsol.x], dtype=dtype, device=device)
+    dist = torch.norm(sol[:, :3] - (s * sol[:, 3] + p), dim=1) - r.unsqueeze(1)
 
     return dist
