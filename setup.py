@@ -54,6 +54,7 @@ setup(
             "tabulate==0.9.0",
             "jupyter==1.0.0",
             "torchviz==0.0.2",
+            "meshcat==0.3.2"
         ]
     },
     packages=["jkinpylib"],

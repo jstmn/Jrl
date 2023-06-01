@@ -180,6 +180,7 @@ class Panda(Robot):
         ignored_collision_pairs = [
             ("panda_hand", "panda_link7"),
             ("panda_rightfinger", "panda_leftfinger"),
+            ("panda_link7", "panda_link5") # these two don't collide if joint limits are respected
         ]
         Robot.__init__(
             self,

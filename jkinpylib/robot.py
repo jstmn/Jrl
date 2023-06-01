@@ -744,7 +744,6 @@ class Robot:
             assert (
                 joint.joint_type not in UNHANDLED_JOINT_TYPES
             ), f"Joint type '{joint.joint_type}' is not implemented"
-            print(f"joint.name={joint.name}, joint.joint_type={joint.joint_type}")
 
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
             fixed_rotation_dict = self._parent_T_joint_cache[out_device]
