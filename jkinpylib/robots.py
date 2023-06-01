@@ -160,6 +160,8 @@ class Panda(Robot):
             "panda_joint7",  # (-2.8973, 2.8973)
         ]
 
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
         collision_capsules_by_link = {
             "panda_link0": _load_capsule("urdfs/panda/capsules/link0.txt"),
             "panda_link1": _load_capsule("urdfs/panda/capsules/link1.txt"),
