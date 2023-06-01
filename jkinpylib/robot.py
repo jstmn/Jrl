@@ -89,15 +89,18 @@ def _generate_self_collision_pairs(
     ignored_collision_set = set(tuple(sorted(pair)) for pair in ignored_collision_pairs)
 
     link_name_to_idx = {}
+    capsule_idx_to_joint_idx = []
     capsules = []
     for i, joint in enumerate(joint_chain):
         if i == 0 and joint.parent in collision_capsules_by_link:
             capsules.append(collision_capsules_by_link[joint.parent])
             link_name_to_idx[joint.parent] = 0
+            capsule_idx_to_joint_idx.append(i)
 
         if joint.child in collision_capsules_by_link:
             capsules.append(collision_capsules_by_link[joint.child])
             link_name_to_idx[joint.child] = i + 1
+            capsule_idx_to_joint_idx.append(i + 1)
 
         ignored_collision_set.add(tuple(sorted((joint.parent, joint.child))))
 
@@ -114,6 +117,7 @@ def _generate_self_collision_pairs(
 
     return (
         torch.stack(capsules, dim=0),
+        torch.tensor(capsule_idx_to_joint_idx, dtype=torch.long, device=DEVICE),
         torch.tensor(idx0, dtype=torch.long, device=DEVICE),
         torch.tensor(idx1, dtype=torch.long, device=DEVICE),
     )
@@ -187,14 +191,14 @@ class Robot:
             f" ({self.n_dofs})."
         )
 
-        self._collision_capsules, self._collision_idx0, self._collision_idx1 = (
-            None,
-            None,
-            None,
-        )
+        self._collision_capsules = None
+        self._capsule_idx_to_link_idx = None
+        self._collision_idx0 = None
+        self._collision_idx1 = None
         if self._collision_capsules_by_link is not None:
             (
                 self._collision_capsules,
+                self._capsule_idx_to_link_idx,
                 self._collision_idx0,
                 self._collision_idx1,
             ) = _generate_self_collision_pairs(
@@ -696,7 +700,8 @@ class Robot:
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_quaternion: bool = True,
         return_runtime: bool = False,
-        return_full: bool = False,
+        return_full_joint_fk: bool = False,
+        return_full_link_fk: bool = False,
     ) -> Tuple[torch.Tensor, float]:
         """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
         revolute then apply rotation x[i] and increment i
@@ -730,6 +735,8 @@ class Robot:
             torch.ones(batch_size, 4, device=out_device, dtype=dtype)
         )
         base_T_joints = [base_T_joint]
+        # Almost the same as base_T_joints except for fixed joints
+        base_T_links = [base_T_joint]
 
         # Iterate through each joint in the joint chain
         x_i = 0
@@ -737,6 +744,7 @@ class Robot:
             assert (
                 joint.joint_type not in UNHANDLED_JOINT_TYPES
             ), f"Joint type '{joint.joint_type}' is not implemented"
+            print(f"joint.name={joint.name}, joint.joint_type={joint.joint_type}")
 
             # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
             fixed_rotation_dict = self._parent_T_joint_cache[out_device]
@@ -764,6 +772,7 @@ class Robot:
                 T[:, 0:3, 0:3] = joint_rotation
                 base_T_joint = base_T_joint.bmm(T)
                 base_T_joints.append(base_T_joint)
+                base_T_links.append(base_T_joint)
 
                 # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
                 # as a reminder
@@ -786,11 +795,13 @@ class Robot:
                 joint_fixed_T_joint[:, 0:3, 3] = translations
                 base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
                 base_T_joints.append(base_T_joint)
+                base_T_links.append(base_T_joint)
 
                 x_i += 1
 
             elif joint.joint_type == "fixed":
                 base_T_joints[-1] = base_T_joint
+                base_T_links.append(base_T_joint)
             else:
                 raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
 
@@ -802,7 +813,7 @@ class Robot:
         if return_runtime:
             return base_T_joint, time() - time0
 
-        if return_full:
+        if return_full_joint_fk:
             ret = torch.stack(base_T_joints, dim=1)
             assert ret.shape == (
                 batch_size,
@@ -810,6 +821,16 @@ class Robot:
                 4,
                 4,
             ), f"ret.shape={ret.shape}"
+            return ret
+
+        if return_full_link_fk:
+            ret = torch.stack(base_T_links, dim=1)
+            assert ret.shape == (
+                batch_size,
+                len(self._joint_chain) + 1,
+                4,
+                4,
+            ), f"ret.shape={ret.shape} != ({batch_size}, {len(self._joint_chain)}, 4, 4)"
             return ret
 
         return base_T_joint
@@ -891,7 +912,7 @@ class Robot:
 
         # Rotation from body/base link to joint along the joint chain
         base_T_joints = self.forward_kinematics_batch(
-            x, return_full=True, out_device=out_device, dtype=dtype
+            x, return_full_joint_fk=True, out_device=out_device, dtype=dtype
         )
         base_T_joints = base_T_joints[:, 1:, :, :]  # remove the base link
 
@@ -1262,11 +1283,11 @@ class Robot:
         # Capsule and joint indices are offset by 1 to make room for the base
         # link.
         batch_size = x.shape[0]
-        base_T_joints = self.forward_kinematics_batch(
-            x, return_full=True, out_device=x.device, dtype=x.dtype
+        base_T_links = self.forward_kinematics_batch(
+            x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype
         )
-        T1s = base_T_joints[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
-        T2s = base_T_joints[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
+        T1s = base_T_links[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
+        T2s = base_T_links[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
         c1s = (
             self._collision_capsules[self._collision_idx0, :]
             .expand(batch_size, -1, -1)

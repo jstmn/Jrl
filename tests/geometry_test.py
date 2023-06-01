@@ -113,7 +113,8 @@ class TestGeometry(unittest.TestCase):
         np.testing.assert_allclose(returned, expected, atol=1e-4)
 
         np.random.seed(12345)
-        for i in range(20):
+        pos_dist_count = 0
+        for i in range(50):
             r, h = np.random.uniform(0.1, 1.0, (2,))
             xspan, yspan, zspan = np.random.uniform(0.1, 1.0, (3,))
             q1 = np.random.randn(4)
@@ -168,8 +169,13 @@ class TestGeometry(unittest.TestCase):
                 # FCL doesn't report penetration distance here, it just returns
                 # -1.0 for colliding geometry
                 our_dist[0] = -1.0
+            else:
+                pos_dist_count += 1
 
             np.testing.assert_allclose(fcl_dist, our_dist, atol=1e-4)
+
+        self.assertGreater(pos_dist_count, 0)
+        print("pos_dist_count:", pos_dist_count)
 
 
 if __name__ == "__main__":

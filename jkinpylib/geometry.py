@@ -28,8 +28,6 @@ def capsule_capsule_distance_batch(
     """
     dtype = caps1.dtype
     device = caps1.device
-    print("caps1.device", caps1.device)
-    print("T1.device", T1.device)
 
     n = caps1.shape[0]
     assert T1.shape == T2.shape == (n, 4, 4)
@@ -101,9 +99,11 @@ def capsule_cuboid_distance_batch(
     """
 
     n = caps.shape[0]
-    assert Tcaps.shape == Tcuboids.shape == (n, 4, 4)
-    assert caps.shape == (n, 7)
-    assert cuboids.shape == (n, 6)
+    assert (
+        Tcaps.shape == Tcuboids.shape == (n, 4, 4)
+    ), f"{Tcaps.shape}, {Tcuboids.shape}, ({n}, 4, 4)"
+    assert caps.shape == (n, 7), f"{caps.shape}, ({n}, 7)"
+    assert cuboids.shape == (n, 6), f"{cuboids.shape}, ({n}, 6)"
 
     device = caps.device
     dtype = caps.dtype
@@ -149,7 +149,8 @@ def capsule_cuboid_distance_batch(
     e = torch.Tensor()  # Dummy equality constraint
     sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p_, G, h, e, e)
 
-    # sol = torch.tensor([osqpsol.x], dtype=dtype, device=device)
-    dist = torch.norm(sol[:, :3] - (s * sol[:, 3] + p), dim=1) - r.unsqueeze(1)
+    dist = torch.norm(
+        sol[:, :3] - (s * sol[:, 3].unsqueeze(1) + p), dim=1
+    ) - r.unsqueeze(1)
 
     return dist
