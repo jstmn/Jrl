@@ -295,6 +295,17 @@ class Robot:
         return sum([1 for joint in self._joint_chain if joint.is_actuated])
 
     @property
+    def n_collision_pairs(self) -> int:
+        """Return the number of capsule-capsule collision pairs of the robot"""
+        assert self._collision_capsules is not None, f"collision_capsules not defined for '{self.name}'"
+        return self._collision_idx0.numel()
+
+    @property
+    def n_joints_in_kinematic_chain(self) -> int:
+        """The number of joints in the path from the base_link to the end effector"""
+        return len(self._joint_chain)
+
+    @property
     def actuated_joint_names(self) -> List[str]:
         return self._actuated_joint_names
 
@@ -822,6 +833,7 @@ class Robot:
             ), f"ret.shape={ret.shape}"
             return ret
 
+        # NOTe: DO NOT CHANGE THIS CODE!!! self-collision NN in cppflow depends on this format
         if return_full_link_fk:
             ret = torch.stack(base_T_links, dim=1)
             assert ret.shape == (
