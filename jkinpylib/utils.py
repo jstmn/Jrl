@@ -137,7 +137,7 @@ class QP:
         self.A = A
         self.b = b
 
-    def solve(self, trace=False):
+    def solve(self, trace=False, iterlimit=2000):
         x = torch.zeros((self.nbatch, self.dim, 1))
         if trace:
             trace = [x]
@@ -173,14 +173,15 @@ class QP:
 
             converged = converged | (at_ws_sol & (lmbdmin >= 0))
 
+            # remove inverted constraints from working set
             working_set = working_set.scatter(
                 1,
                 lmbdmin_idx,
-                ~at_ws_sol & working_set.gather(1, lmbdmin_idx),
+                (~at_ws_sol | (lmbdmin >= 0)) & working_set.gather(1, lmbdmin_idx),
             )
 
+            # check constraint violations
             mask = ~at_ws_sol & ~working_set & (self.G.bmm(p) > 0)
-
             alpha, alpha_idx = torch.min(
                 torch.where(
                     mask,
@@ -190,19 +191,24 @@ class QP:
                 dim=1,
                 keepdim=True,
             )
-            working_set = working_set.scatter(1, alpha_idx, ~at_ws_sol & (alpha < 1))
+
+            # add violated constraints to working set
+            working_set = working_set.scatter(
+                1,
+                alpha_idx,
+                working_set.gather(1, alpha_idx) | (~at_ws_sol & (alpha < 1)),
+            )
             alpha = torch.clamp(alpha, max=1)
 
+            # update solution
             x = x + alpha * p * (~at_ws_sol & ~converged)
             if trace:
                 trace.append(x.squeeze(2))
 
             iterations += 1
-            if iterations > 2000:
-                if iterations > 1980:
-                    print(f"{torch.sum(~converged).item()} out of {self.nbatch} not converged")}")
+            if iterations > iterlimit:
                 raise RuntimeError(
-                    f"Failed to converge in 2000 iterations\n\n{torch.sum(~converged).item()} out of {self.nbatch} not converged"
+                    f"Failed to converge in {iterlimit} iterations\n\n{torch.sum(~converged).item()} out of {self.nbatch} not converged"
                 )
 
         if trace:
