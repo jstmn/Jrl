@@ -17,9 +17,9 @@ args = argparser.parse_args()
 def main():
     torch.set_default_device(args.device)
 
-    dimrange = range(2, 100, 5)
+    dimrange = range(2, 50, 5)
     torch.manual_seed(1232)
-    ntrials = 50
+    ntrials = 5
     df = pd.DataFrame(
         columns=[
             "dim",
@@ -35,7 +35,7 @@ def main():
     )
 
     for dim in tqdm.tqdm(dimrange):
-        for batch_size in [1, 2, 4, 8, 16, 32, 64, 128]:
+        for batch_size in [1, 4, 32, 256]:
             for trial in range(ntrials):
                 Q = torch.eye(dim).expand(batch_size, dim, dim)
                 p = 2 * torch.ones((batch_size, dim))
@@ -50,7 +50,9 @@ def main():
                 oursoltime = time.time() - start
 
                 start = time.time()
-                qpthsol = qpth.qp.QPFunction(verbose=False)(2 * Q, p, G, h, torch.Tensor(), torch.Tensor())
+                qpthsol = qpth.qp.QPFunction(verbose=False)(
+                    2 * Q, p, G, h, torch.Tensor(), torch.Tensor()
+                )
                 qpthsoltime = time.time() - start
 
                 start = time.time()
@@ -61,17 +63,17 @@ def main():
                         sparse.csc_matrix(2 * Q[i].cpu().numpy()),
                         p[i].cpu().numpy(),
                         sparse.csc_matrix(G[i].cpu().numpy()),
-                        -np.inf * np.ones_like(h[i]),
+                        -np.inf * np.ones_like(h[i].cpu().numpy()),
                         h[i].cpu().numpy(),
                         verbose=False,
                     )
-                    osqpsol[i] = torch.tensor(prob.solve().x)
+                    osqpsol[i] = torch.tensor(prob.solve().x.astype(np.float32))
                 osqpsoltime = time.time() - start
 
                 osqperror = 0
                 # Compute error as mean squared error across batch
-                qptherror = torch.mean((qpthsol - osqpsol) ** 2)
-                ourerror = torch.mean((oursol - osqpsol) ** 2)
+                qptherror = torch.mean((qpthsol - osqpsol) ** 2).cpu().numpy()
+                ourerror = torch.mean((oursol - osqpsol) ** 2).cpu().numpy()
 
                 df.loc[len(df)] = [
                     dim,
@@ -85,7 +87,7 @@ def main():
                     osqperror,
                 ]
 
-    df.to_hdf("qp_benchmark.h5", key="df", mode="w")
+    df.to_csv("qp_benchmark.csv")
 
 
 if __name__ == "__main__":
