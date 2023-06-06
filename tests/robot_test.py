@@ -449,6 +449,48 @@ class RobotTest(unittest.TestCase):
         print(dists)
         print(dists.device)
 
+    def test_robot_self_collision_distances(self):
+        """Test that self_collision_distances_batch() returns the expected distances"""
+        atol = 1e-5
+        for robot in ROBOTS:
+            for i in range(10):
+                # batch_size = 5
+                batch_size = 1
+                x = robot.sample_joint_angles(batch_size)
+                x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
+                dists = robot.self_collision_distances_batch(x)
+                self.assertEqual(dists.shape, (batch_size,))
+                # Check that the distances are correct by comparing to the qpth
+                # implementation
+                dists_qpth = robot.self_collision_distances_batch(q, use_qpth=True)
+                np.testing.assert_allclose(dists, dists_qpth, atol=atol)
+
+    def test_robot_self_collision_distances_jacobian(self):
+        """Test that the jacobian of self_collision_distances_batch() is correct"""
+        atol = 1e-5
+        for robot in ROBOTS:
+            for i in range(10):
+                batch_size = 5
+                x = robot.sample_joint_angles(batch_size)
+                x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
+                J = robot.self_collision_distances_jacobian_batch(x)
+                self.assertEqual(J.shape, (batch_size, robot.n_dofs))
+                # Check that the jacobian is correct by comparing to finite
+                # differences
+                eps = 1e-5
+                J_fd = torch.zeros_like(J)
+                for i in range(batch_size):
+                    for j in range(robot.n_dofs):
+                        x_plus = x.clone()
+                        x_plus[i, j] += eps
+                        x_minus = x.clone()
+                        x_minus[i, j] -= eps
+                        dists_plus = robot.self_collision_distances_batch(x_plus)
+                        dists_minus = robot.self_collision_distances_batch(x_minus)
+                        J_fd[i, j] = (dists_plus[i] - dists_minus[i]) / (2 * eps)
+
+                np.testing.assert_allclose(J, J_fd, atol=atol)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1268,7 +1268,9 @@ class Robot:
             )
         return None
 
-    def self_collision_distances_batch(self, x: torch.Tensor) -> torch.Tensor:
+    def self_collision_distances_batch(
+        self, x: torch.Tensor, use_qpth: bool = False
+    ) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot
         for each joint angle vector in x
 
@@ -1298,11 +1300,27 @@ class Robot:
             .reshape(-1, 7)
         )
 
-        dists = capsule_capsule_distance_batch(c1s, T1s, c2s, T2s).reshape(
+        dists = capsule_capsule_distance_batch(c1s, T1s, c2s, T2s, use_qpth).reshape(
             batch_size, -1
         )
 
         return dists
+
+    def self_collision_distances_jacobian_batch(self, x: torch.Tensor) -> torch.Tensor:
+        """Returns the jacobian of the self collision distance function with
+        respect to the joint angles.
+
+        Args:
+            x (torch.Tensor): [n x ndofs] joint angle vectors
+
+        Returns:
+            torch.Tensor: [n x n_pairs x ndofs] jacobian
+        """
+
+        # Capsule and joint indices are offset by 1 to make room for the base
+        # link.
+        Jfn = torch.func.jacrev(self.self_collision_distances_batch)
+        return Jfn(x)
 
 
 def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:

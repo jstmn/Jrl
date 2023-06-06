@@ -3,10 +3,15 @@ import torch
 
 from jkinpylib.conversions import calculate_points_in_world_frame_from_local_frame_batch
 import qpth
+from jkinpylib.utils import QP
 
 
 def capsule_capsule_distance_batch(
-    caps1: torch.Tensor, T1: torch.Tensor, caps2: torch.Tensor, T2: torch.Tensor
+    caps1: torch.Tensor,
+    T1: torch.Tensor,
+    caps2: torch.Tensor,
+    T2: torch.Tensor,
+    use_qpth=False,
 ) -> float:
     """Returns the minimum distance between any two points on the given batch of capsules
 
@@ -64,9 +69,13 @@ def capsule_capsule_distance_batch(
     h = torch.tensor([1, 1, 0, 0], dtype=dtype, device=device)
 
     # Solve the QP
-    e = torch.Tensor()  # Dummy equality constraint
-    sol = qpth.qp.QPFunction(verbose=False)(Q, p, G, h, e, e)
-    sol = sol.unsqueeze(2)
+    if use_qpth:
+        e = torch.Tensor()  # Dummy equality constraint
+        sol = qpth.qp.QPFunction(verbose=False)(Q, p, G, h, e, e)
+        sol = sol.unsqueeze(2)
+    else:
+        qp = QP(Q, p, G, h)
+        sol = qp.solve().unsqueeze(2)
 
     dist = torch.norm(A.bmm(sol) + y, dim=1) - r1.unsqueeze(1) - r2.unsqueeze(1)
 
