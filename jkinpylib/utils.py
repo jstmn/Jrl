@@ -30,9 +30,7 @@ def set_seed(seed=0):
     print("set_seed() - random int: ", torch.randint(0, 1000, (1, 1)).item())
 
 
-def to_torch(
-    x: PT_NP_TYPE, device: str = DEVICE, dtype: torch.dtype = DEFAULT_TORCH_DTYPE
-) -> torch.Tensor:
+def to_torch(x: PT_NP_TYPE, device: str = DEVICE, dtype: torch.dtype = DEFAULT_TORCH_DTYPE) -> torch.Tensor:
     """Return a numpy array as a torch tensor."""
     if isinstance(x, torch.Tensor):
         return x
@@ -117,18 +115,10 @@ class QP:
         self.h = h.unsqueeze(2)
 
         assert (
-            self.nbatch
-            == self.p.shape[0]
-            == self.G.shape[0]
-            == self.h.shape[0]
-            == self.Q.shape[0]
+            self.nbatch == self.p.shape[0] == self.G.shape[0] == self.h.shape[0] == self.Q.shape[0]
         ), f"{self.nbatch}, {self.p.shape[0]}, {self.G.shape[0]}, {self.h.shape[0]}, {self.Q.shape[0]}"
         assert (
-            self.dim
-            == self.p.shape[1]
-            == self.G.shape[2]
-            == self.Q.shape[1]
-            == self.Q.shape[2]
+            self.dim == self.p.shape[1] == self.G.shape[2] == self.Q.shape[1] == self.Q.shape[2]
         ), f"{self.dim}, {self.p.shape[1]}, {self.G.shape[2]}, {self.Q.shape[1]}, {self.Q.shape[2]}"
         assert self.nc == self.G.shape[1] == self.h.shape[1]
 
@@ -138,11 +128,11 @@ class QP:
         self.b = b
 
     def solve(self, trace=False, iterlimit=2000):
-        x = torch.zeros((self.nbatch, self.dim, 1))
+        x = torch.zeros((self.nbatch, self.dim, 1), dtype=torch.float32, device=self.Q.device)
         if trace:
             trace = [x]
-        working_set = torch.zeros((self.nbatch, self.nc, 1), dtype=torch.bool)
-        converged = torch.zeros((self.nbatch, 1, 1), dtype=torch.bool)
+        working_set = torch.zeros((self.nbatch, self.nc, 1), dtype=torch.bool, device=x.device)
+        converged = torch.zeros((self.nbatch, 1, 1), dtype=torch.bool, device=x.device)
 
         iterations = 0
         while not torch.all(converged):

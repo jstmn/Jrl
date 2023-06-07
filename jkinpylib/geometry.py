@@ -59,7 +59,7 @@ def capsule_capsule_distance_batch(
     y = (p2 - p1).unsqueeze(2)
 
     # Construct the QP
-    Q = 2 * A.transpose(1, 2).bmm(A)
+    Q = A.transpose(1, 2).bmm(A)
     # Semidefiniteness arises with parallel capsules
     Q = Q + 1e-6 * torch.eye(2, dtype=dtype, device=device).expand(n, -1, -1)
     p = 2 * A.transpose(1, 2).bmm(y).squeeze(2)
@@ -71,10 +71,10 @@ def capsule_capsule_distance_batch(
     # Solve the QP
     if use_qpth:
         e = torch.Tensor()  # Dummy equality constraint
-        sol = qpth.qp.QPFunction(verbose=False)(Q, p, G, h, e, e)
+        sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p, G, h, e, e)
         sol = sol.unsqueeze(2)
     else:
-        qp = QP(Q, p, G, h)
+        qp = QP(2 * Q, p, G, h)
         sol = qp.solve().unsqueeze(2)
 
     dist = torch.norm(A.bmm(sol) + y, dim=1) - r1.unsqueeze(1) - r2.unsqueeze(1)
