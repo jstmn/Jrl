@@ -65,8 +65,8 @@ def capsule_capsule_distance_batch(
     p = 2 * A.transpose(1, 2).bmm(y).squeeze(2)
 
     # Inequality constraints
-    G = torch.tensor(([[1, 0], [0, 1], [-1, 0], [0, -1]]), dtype=dtype, device=device)
-    h = torch.tensor([1, 1, 0, 0], dtype=dtype, device=device)
+    G = torch.tensor(([[1, 0], [0, 1], [-1, 0], [0, -1]]), dtype=dtype, device=device).expand(n, -1, -1)
+    h = torch.tensor([1, 1, 0, 0], dtype=dtype, device=device).expand(n, -1)
 
     # Solve the QP
     if use_qpth:
@@ -87,6 +87,8 @@ def capsule_cuboid_distance_batch(
     Tcaps: torch.Tensor,
     cuboids: torch.Tensor,
     Tcuboids: torch.Tensor,
+    use_qpth=False,
+    use_osqp=False,
 ) -> torch.Tensor:
     """
     Returns the minimum distance between any two points on the given batches of
@@ -108,9 +110,7 @@ def capsule_cuboid_distance_batch(
     """
 
     n = caps.shape[0]
-    assert (
-        Tcaps.shape == Tcuboids.shape == (n, 4, 4)
-    ), f"{Tcaps.shape}, {Tcuboids.shape}, ({n}, 4, 4)"
+    assert Tcaps.shape == Tcuboids.shape == (n, 4, 4), f"{Tcaps.shape}, {Tcuboids.shape}, ({n}, 4, 4)"
     assert caps.shape == (n, 7), f"{caps.shape}, ({n}, 7)"
     assert cuboids.shape == (n, 6), f"{cuboids.shape}, ({n}, 6)"
 
@@ -120,19 +120,9 @@ def capsule_cuboid_distance_batch(
     # Put everything in cuboid frame
     r = caps[:, 6]
     p = Tcaps[:, :3, :3].bmm(caps[:, 0:3].unsqueeze(2)).squeeze(2) + Tcaps[:, :3, 3]
-    p = (
-        Tcuboids[:, :3, :3]
-        .transpose(2, 1)
-        .bmm((p - Tcuboids[:, :3, 3]).unsqueeze(2))
-        .squeeze(2)
-    )
+    p = Tcuboids[:, :3, :3].transpose(2, 1).bmm((p - Tcuboids[:, :3, 3]).unsqueeze(2)).squeeze(2)
     q = Tcaps[:, :3, :3].bmm(caps[:, 3:6].unsqueeze(2)).squeeze(2) + Tcaps[:, :3, 3]
-    q = (
-        Tcuboids[:, :3, :3]
-        .transpose(2, 1)
-        .bmm((q - Tcuboids[:, :3, 3]).unsqueeze(2))
-        .squeeze(2)
-    )
+    q = Tcuboids[:, :3, :3].transpose(2, 1).bmm((q - Tcuboids[:, :3, 3]).unsqueeze(2)).squeeze(2)
     s = q - p
 
     Q = torch.diag_embed(torch.ones(n, 4, dtype=dtype, device=device))
@@ -155,11 +145,14 @@ def capsule_cuboid_distance_batch(
     h[:, 7] = 1
 
     # Solve the QP
-    e = torch.Tensor()  # Dummy equality constraint
-    sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p_, G, h, e, e)
+    if use_qpth:
+        e = torch.Tensor()  # Dummy equality constraint
+        sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p_, G, h, e, e)
+        sol = sol.unsqueeze(2)
+    else:
+        qp = QP(2 * Q, p_, G, h)
+        sol = qp.solve().unsqueeze(2)
 
-    dist = torch.norm(
-        sol[:, :3] - (s * sol[:, 3].unsqueeze(1) + p), dim=1
-    ) - r.unsqueeze(1)
+    dist = torch.norm(sol[:, :3, 0] - (s * sol[:, 3] + p), dim=1, keepdim=True) - r.unsqueeze(1)
 
     return dist
