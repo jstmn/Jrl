@@ -85,12 +85,13 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
     for i in range(nruns):
         try:
             # p1_0 = torch.tensor([0.0, 0.0, -10.0])
-            p1_0 = 0.5 * torch.randn(3)
+            p1_0 = torch.randn(3)
+            p1_0 = 0.2 * p1_0 / torch.norm(p1_0)
             # p2_0 = torch.tensor([0.0, 0.0, 10.0])
             # p2_0 = 0.5 * torch.randn(3)
             p2_0 = -p1_0
             # r_0 = torch.tensor([10])
-            r_0 = 10 * torch.abs(torch.randn(1))
+            r_0 = torch.abs(torch.randn(1))
             x = torch.cat((p1_0, p2_0, r_0), dim=0)
 
             def fg(x, mu, vertices):
@@ -110,8 +111,8 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
 
             Jfn = torch.func.jacfwd(fg, argnums=0)
 
-            margin = 1e-2
-            xtol = 1e-3
+            margin = 1e-3
+            xtol = 1e-6
             mu = 0.1
             outer_step = 0
             satisfied = False
@@ -144,7 +145,10 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     T = np.eye(4)
                     T[:3, 3] = (p1vis + p2vis) / 2
                     v = p2vis - p1vis
-                    v = v / np.linalg.norm(v)
+                    if np.linalg.norm(v) > 1e-6:
+                        v = v / np.linalg.norm(v)
+                    else:
+                        v = np.array([0, 0, 1])
                     vx, vy, vz = v
                     sign = 1 if vz > 0 else -1
                     a = -1 / (sign + vz)
@@ -158,11 +162,11 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
 
                     J = Jfn(x, mu, vertices)
                     A = J.t() @ J
-                    lmbd = max(0, torch.min(torch.real(torch.linalg.eigvals(A))).item())
-                    A += (-lmbd + 1e-2) * torch.eye(J.shape[1])
+                    # lmbd = max(0, torch.min(torch.real(torch.linalg.eigvals(A))).item())
+                    A += (1e-6) * torch.eye(J.shape[1])
                     b = -J.t() @ fg(x, mu, vertices)
                     dx = torch.linalg.solve(A, b)
-                    x = x + 1e-3 / mu * dx
+                    x = x + 1e-2 / mu * dx
                     if torch.norm(dx) < xtol:
                         converged = True
                         print(f"Converged in {inner_step} steps")
@@ -176,8 +180,8 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     maxs = torch.max(vertices, dim=0)[0]
                     x = torch.clamp(
                         x,
-                        min=torch.cat([2 * mins, 2 * mins, torch.tensor([0.01])]),
-                        max=torch.cat([2 * maxs, 2 * maxs, torch.tensor([1])]),
+                        min=torch.cat([mins, mins, torch.tensor([0.01])]),
+                        max=torch.cat([maxs, maxs, torch.tensor([1])]),
                     )
 
                 if torch.all(fg(x, 1, vertices)[1:] <= margin):
@@ -244,19 +248,19 @@ def main():
         vis = meshcat.Visualizer()
         vis.open()
 
-    # outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
-    # outdir.mkdir(exist_ok=False)
-    # for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob(
-    #     "*.stl"
-    # ):
-    #     stl_to_capsule(stl_path, outdir)
-
-    outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
     outdir.mkdir(exist_ok=False)
-    for stl_path in pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob(
-        "*_collision.STL"
+    for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob(
+        "*.stl"
     ):
         stl_to_capsule(stl_path, outdir, vis)
+
+    # outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    # outdir.mkdir(exist_ok=False)
+    # for stl_path in pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob(
+    #     "*_collision.STL"
+    # ):
+    #     stl_to_capsule(stl_path, outdir, vis)
 
 
 if __name__ == "__main__":
