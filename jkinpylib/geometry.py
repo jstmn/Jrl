@@ -110,7 +110,9 @@ def capsule_cuboid_distance_batch(
     """
 
     n = caps.shape[0]
-    assert Tcaps.shape == Tcuboids.shape == (n, 4, 4), f"{Tcaps.shape}, {Tcuboids.shape}, ({n}, 4, 4)"
+    assert (
+        Tcaps.shape == Tcuboids.shape == (n, 4, 4)
+    ), f"Tcaps: {Tcaps.shape}, Tcuboids: {Tcuboids.shape}, Correct: ({n}, 4, 4)"
     assert caps.shape == (n, 7), f"{caps.shape}, ({n}, 7)"
     assert cuboids.shape == (n, 6), f"{cuboids.shape}, ({n}, 6)"
 
