@@ -32,7 +32,7 @@ from jkinpylib.urdf_utils import (
     get_urdf_filepath_w_filenames_updated,
     UNHANDLED_JOINT_TYPES,
 )
-from jkinpylib.geometry import capsule_capsule_distance_batch
+from jkinpylib.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -1208,6 +1208,44 @@ class Robot:
 
         start = time.time()
         Jfn = torch.func.jacfwd(self.self_collision_distances_batch)
+        J = Jfn(x)
+        J = J.diagonal(dim1=0, dim2=2).permute(2, 0, 1)
+        print("Jfn time:", time.time() - start)
+        return J
+
+    def env_collision_distances_batch(
+        self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
+    ) -> torch.Tensor:
+        """Returns the distance between the robot collision capsules and the
+        environment cuboid obstacle for each joint angle vector in x.
+
+        Args:
+            x (torch.Tensor): [n x ndofs] joint angle vectors
+            cuboid (torch.Tensor): [6] cuboid xyz min and xyz max
+            Tcuboid (torch.Tensor): [4 x 4] cuboid poses
+
+        Returns:
+            torch.Tensor: [n x n_capsules] distances
+        """
+
+        batch_size = x.shape[0]
+        base_T_links = self.forward_kinematics_batch(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
+        Tcapsules = base_T_links.reshape(-1, 4, 4)
+        capsules = self._collision_capsules.expand(batch_size, -1, -1).reshape(-1, 7)
+        Tcuboid = Tcuboid.expand(batch_size, 4, 4)
+        cuboid = cuboid.expand(batch_size, 6)
+
+        dists = capsule_cuboid_distance_batch(capsules, Tcapsules, cuboid, Tcuboid).reshape(batch_size, -1)
+
+        return dists
+
+    def env_collision_distances_jacobian_batch(
+        self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
+    ) -> torch.Tensor:
+        import time
+
+        start = time.time()
+        Jfn = torch.func.jacfwd(self.env_collision_distances_batch)
         J = Jfn(x)
         J = J.diagonal(dim1=0, dim2=2).permute(2, 0, 1)
         print("Jfn time:", time.time() - start)
