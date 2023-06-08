@@ -127,12 +127,15 @@ class QP:
         self.A = A
         self.b = b
 
-    def solve(self, trace=False, iterlimit=2000):
+    def solve(self, trace=False, iterlimit=None):
         x = torch.zeros((self.nbatch, self.dim, 1), dtype=torch.float32, device=self.Q.device)
         if trace:
             trace = [x]
         working_set = torch.zeros((self.nbatch, self.nc, 1), dtype=torch.bool, device=x.device)
         converged = torch.zeros((self.nbatch, 1, 1), dtype=torch.bool, device=x.device)
+
+        if iterlimit is None:
+            iterlimit = 10 * self.nc
 
         iterations = 0
         while not torch.all(converged):
@@ -197,6 +200,17 @@ class QP:
 
             iterations += 1
             if iterations > iterlimit:
+                Qs = self.Q[~converged.flatten()]
+                ps = self.p[~converged.flatten()]
+                Gs = self.G[~converged.flatten()]
+                hs = self.h[~converged.flatten()]
+                xs = x[~converged.flatten()]
+                for i in range(torch.sum(~converged)):
+                    print(f"Qs[{i}]:\n{Qs[i]}")
+                    print(f"ps[{i}]:\n{ps[i]}")
+                    print(f"Gs[{i}]:\n{Gs[i]}")
+                    print(f"hs[{i}]:\n{hs[i]}")
+                    print(f"xs[{i}]:\n{xs[i]}")
                 raise RuntimeError(
                     f"Failed to converge in {iterlimit} iterations\n\n{torch.sum(~converged).item()} out of {self.nbatch} not converged"
                 )

@@ -30,9 +30,7 @@ def capsule_volume_batch(c1: torch.Tensor, c2: torch.Tensor, r: torch.Tensor):
     return np.pi * h * (r**2) + (4 / 3) * np.pi * (r**3)
 
 
-def point_capsule_distance_batch(
-    p: torch.Tensor, c1: torch.Tensor, c2: torch.Tensor, r: torch.Tensor
-):
+def point_capsule_distance_batch(p: torch.Tensor, c1: torch.Tensor, c2: torch.Tensor, r: torch.Tensor):
     """Compute the distance between a point and a capsule given its end points and radius.
 
     Args:
@@ -124,24 +122,12 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     p2vis = np.array([x[3], x[4], x[5]], dtype=np.float64)
                     rvis = x[6].item()
                     h = np.linalg.norm(p2vis - p1vis)
-                    capsule_material = meshcat.geometry.MeshToonMaterial(
-                        color=0x8888FF, opacity=0.4
-                    )
-                    vis["p1"].set_object(
-                        meshcat.geometry.Sphere(rvis), capsule_material
-                    )
-                    vis["p1"].set_transform(
-                        meshcat.transformations.translation_matrix(p1vis)
-                    )
-                    vis["p2"].set_object(
-                        meshcat.geometry.Sphere(rvis), capsule_material
-                    )
-                    vis["p2"].set_transform(
-                        meshcat.transformations.translation_matrix(p2vis)
-                    )
-                    vis["cyl"].set_object(
-                        meshcat.geometry.Cylinder(h, rvis), capsule_material
-                    )
+                    capsule_material = meshcat.geometry.MeshToonMaterial(color=0x8888FF, opacity=0.4)
+                    vis["p1"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
+                    vis["p1"].set_transform(meshcat.transformations.translation_matrix(p1vis))
+                    vis["p2"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
+                    vis["p2"].set_transform(meshcat.transformations.translation_matrix(p2vis))
+                    vis["cyl"].set_object(meshcat.geometry.Cylinder(h, rvis), capsule_material)
                     T = np.eye(4)
                     T[:3, 3] = (p1vis + p2vis) / 2
                     v = p2vis - p1vis
@@ -197,9 +183,7 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
 
             if satisfied:
                 p1, p2, r = x[0:3], x[3:6], x[6]
-                cost = capsule_volume_batch(
-                    p1.reshape(-1, 3), p2.reshape(-1, 3), r.reshape(-1)
-                )
+                cost = capsule_volume_batch(p1.reshape(-1, 3), p2.reshape(-1, 3), r.reshape(-1))
                 if cost < best_cost:
                     best_p1, best_p2, best_r = p1, p2, r
                     best_cost = cost
@@ -248,19 +232,18 @@ def main():
         vis = meshcat.Visualizer()
         vis.open()
 
-    outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
-    outdir.mkdir(exist_ok=False)
-    for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob(
-        "*.stl"
-    ):
-        stl_to_capsule(stl_path, outdir, vis)
-
-    # outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    # outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
     # outdir.mkdir(exist_ok=False)
-    # for stl_path in pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob(
-    #     "*_collision.STL"
+    # for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob(
+    #    "*.stl"
     # ):
+    #    stl_to_capsule(stl_path, outdir, vis)
+
+    outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    # outdir.mkdir(exist_ok=False)
+    # for stl_path in list(pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob("*_collision.STL")):
     #     stl_to_capsule(stl_path, outdir, vis)
+    stl_to_capsule(pathlib.Path("jkinpylib/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
 
 
 if __name__ == "__main__":

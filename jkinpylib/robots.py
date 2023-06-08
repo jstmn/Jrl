@@ -80,10 +80,29 @@ class Fetch(Robot):
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
         ignored_collision_pairs = [
             ("torso_lift_link", "torso_fixed_link"),
+            ("torso_lift_link", "shoulder_lift_link"),
             ("r_gripper_finger_link", "l_gripper_finger_link"),
             ("bellows_link2", "base_link"),
             ("bellows_link2", "torso_fixed_link"),
+            ("wrist_flex_link", "gripper_link"),
         ]
+
+        collision_capsules_by_link = {
+            link: _load_capsule(f"urdfs/fetch/capsules/{link}_collision.txt")
+            for link in [
+                "base_link",
+                "torso_lift_link",
+                "shoulder_pan_link",
+                "shoulder_lift_link",
+                "upperarm_roll_link",
+                "elbow_flex_link",
+                "forearm_roll_link",
+                "wrist_flex_link",
+                "wrist_roll_link",
+                "gripper_link",
+            ]
+        }
+
         Robot.__init__(
             self,
             Fetch.name,
@@ -94,6 +113,7 @@ class Fetch(Robot):
             ignored_collision_pairs,
             Fetch.POSITIONAL_REPEATABILITY_MM,
             Fetch.ROTATIONAL_REPEATABILITY_DEG,
+            collision_capsules_by_link,
         )
 
 
@@ -126,6 +146,23 @@ class FetchArm(Robot):
             ("bellows_link2", "base_link"),
             ("bellows_link2", "torso_fixed_link"),
         ]
+
+        collision_capsules_by_link = {
+            link: _load_capsule(f"urdfs/fetch/capsules/{link}_collision.txt")
+            for link in [
+                "base_link",
+                "torso_lift_link",
+                "shoulder_pan_link",
+                "shoulder_lift_link",
+                "upperarm_roll_link",
+                "elbow_flex_link",
+                "forearm_roll_link",
+                "wrist_flex_link",
+                "wrist_roll_link",
+                "gripper_link",
+            ]
+        }
+
         Robot.__init__(
             self,
             FetchArm.name,
@@ -136,6 +173,7 @@ class FetchArm(Robot):
             ignored_collision_pairs,
             FetchArm.POSITIONAL_REPEATABILITY_MM,
             FetchArm.ROTATIONAL_REPEATABILITY_DEG,
+            collision_capsules_by_link,
             verbose=verbose,
         )
 
@@ -180,7 +218,7 @@ class Panda(Robot):
         ignored_collision_pairs = [
             ("panda_hand", "panda_link7"),
             ("panda_rightfinger", "panda_leftfinger"),
-            ("panda_link7", "panda_link5") # these two don't collide if joint limits are respected
+            ("panda_link7", "panda_link5"),  # these two don't collide if joint limits are respected
         ]
         Robot.__init__(
             self,
@@ -247,18 +285,14 @@ def get_robot(robot_name: str) -> Robot:
     for clc in ALL_CLCS:
         if clc.name == robot_name:
             return clc()
-    raise ValueError(
-        f"Unable to find robot '{robot_name}' (available: {[clc.name for clc in ALL_CLCS]})"
-    )
+    raise ValueError(f"Unable to find robot '{robot_name}' (available: {[clc.name for clc in ALL_CLCS]})")
 
 
 def robot_name_to_fancy_robot_name(name: str) -> str:
     for cls in ALL_CLCS:
         if cls.name == name:
             return cls.formal_robot_name
-    raise ValueError(
-        f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})"
-    )
+    raise ValueError(f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})")
 
 
 if __name__ == "__main__":

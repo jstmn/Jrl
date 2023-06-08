@@ -61,7 +61,7 @@ def capsule_capsule_distance_batch(
     # Construct the QP
     Q = A.transpose(1, 2).bmm(A)
     # Semidefiniteness arises with parallel capsules
-    Q = Q + 1e-6 * torch.eye(2, dtype=dtype, device=device).expand(n, -1, -1)
+    Q = Q + 1e-4 * torch.eye(2, dtype=dtype, device=device).expand(n, -1, -1)
     p = 2 * A.transpose(1, 2).bmm(y).squeeze(2)
 
     # Inequality constraints
