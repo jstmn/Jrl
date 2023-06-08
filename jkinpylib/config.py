@@ -13,3 +13,7 @@ DEFAULT_TORCH_DTYPE = torch.float32
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
 
 URDF_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".cache/jkinpylib/temp_urdfs")
+
+
+torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
+torch.set_default_device(DEVICE)

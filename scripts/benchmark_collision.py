@@ -6,16 +6,18 @@ import jkinpylib
 import time
 import tqdm
 
+from jkinpylib.config import DEVICE
+
 
 def main():
-    batch_sizes = [1, 10, 100, 200, 300, 500]
+    batch_sizes = [1, 10, 100, 200, 300, 500, 1000, 5000, 10000]
     robot = jkinpylib.robots.Fetch()
     timing_self_df = pd.DataFrame(columns=["nbatch", "ntrials", "time"])
     print("Self collisions")
     for nbatch in tqdm.tqdm(batch_sizes):
         ntrials = 10
         for i in range(ntrials):
-            x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32)
+            x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32, device=DEVICE)
             t0 = time.time()
             dists = robot.self_collision_distances_jacobian_batch(x)
             t1 = time.time()
@@ -28,7 +30,7 @@ def main():
     for nbatch in tqdm.tqdm(batch_sizes):
         ntrials = 10
         for i in range(ntrials):
-            x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32)
+            x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32, device=DEVICE)
             t0 = time.time()
             dists = robot.env_collision_distances_jacobian_batch(x, cuboid, Tcuboid)
             t1 = time.time()
@@ -54,6 +56,7 @@ def main():
         ax[i].set_xlabel("Batch size")
         ax[i].set_ylabel("Time (s)")
 
+    plt.savefig("benchmark_collision_checking.pdf")
     plt.show()
 
     print("device:", dists.device)
