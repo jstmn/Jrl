@@ -1202,16 +1202,20 @@ class Robot:
             torch.Tensor: [n x n_pairs x ndofs] jacobian
         """
 
-        # Jfn =
-        # torch.func.vmap(torch.func.jacrev(self.self_collision_distances_batch))
-        import time
+        nbatch = x.shape[0]
+        ndofs = x.shape[1]
 
-        start = time.time()
-        Jfn = torch.func.jacfwd(self.self_collision_distances_batch)
-        J = Jfn(x)
-        J = J.diagonal(dim1=0, dim2=2).permute(2, 0, 1)
-        print("Jfn time:", time.time() - start)
-        return J
+        with torch.autograd.forward_ad.dual_level():
+            dual_input = torch.autograd.forward_ad.make_dual(
+                x.unsqueeze(1).expand(nbatch, ndofs, ndofs).reshape(nbatch * ndofs, ndofs).clone(),
+                torch.eye(ndofs, device=x.device).expand(nbatch, ndofs, ndofs).reshape(-1, ndofs).clone(),
+            )
+            dual_output = self.self_collision_distances_batch(dual_input)
+            J = torch.autograd.forward_ad.unpack_dual(dual_output).tangent
+            ndists = J.shape[1]
+            J = J.reshape(nbatch, ndofs, ndists).permute(0, 2, 1)
+
+            return J
 
     def env_collision_distances_batch(
         self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
