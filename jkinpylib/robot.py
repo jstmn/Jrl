@@ -1206,7 +1206,6 @@ class Robot:
         Returns:
             torch.Tensor: [n x n_pairs x ndofs] jacobian
         """
-
         nbatch = x.shape[0]
         ndofs = x.shape[1]
 
@@ -1240,9 +1239,10 @@ class Robot:
         batch_size = x.shape[0]
         base_T_links = self.forward_kinematics_batch(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
         Tcapsules = base_T_links.reshape(-1, 4, 4)
+        big_batch_size = Tcapsules.shape[0]
         capsules = self._collision_capsules.expand(batch_size, -1, -1).reshape(-1, 7)
-        Tcuboid = Tcuboid.expand(batch_size, 4, 4)
-        cuboid = cuboid.expand(batch_size, 6)
+        Tcuboid = Tcuboid.expand(big_batch_size, 4, 4)
+        cuboid = cuboid.expand(big_batch_size, 6)
 
         dists = capsule_cuboid_distance_batch(capsules, Tcapsules, cuboid, Tcuboid).reshape(batch_size, -1)
 
@@ -1251,14 +1251,20 @@ class Robot:
     def env_collision_distances_jacobian_batch(
         self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
     ) -> torch.Tensor:
-        import time
+        nbatch = x.shape[0]
+        ndofs = x.shape[1]
 
-        start = time.time()
-        Jfn = torch.func.jacfwd(self.env_collision_distances_batch)
-        J = Jfn(x)
-        J = J.diagonal(dim1=0, dim2=2).permute(2, 0, 1)
-        print("Jfn time:", time.time() - start)
-        return J
+        with torch.autograd.forward_ad.dual_level():
+            dual_input = torch.autograd.forward_ad.make_dual(
+                x.unsqueeze(1).expand(nbatch, ndofs, ndofs).reshape(nbatch * ndofs, ndofs).clone(),
+                torch.eye(ndofs, device=x.device).expand(nbatch, ndofs, ndofs).reshape(-1, ndofs).clone(),
+            )
+            dual_output = self.env_collision_distances_batch(dual_input, cuboid, Tcuboid)
+            J = torch.autograd.forward_ad.unpack_dual(dual_output).tangent
+            ndists = J.shape[1]
+            J = J.reshape(nbatch, ndofs, ndists).permute(0, 2, 1)
+
+            return J
 
 
 def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:
