@@ -213,8 +213,8 @@ class Robot:
 
         # TODO: Consider finding a better way to fix the mesh filepath issue. This feels pretty hacky. But hey, it works
         # <insert-shrug-emoji>
-        urdf_filepath_updated = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
-        self._klampt_world_model.loadRobot(urdf_filepath_updated)  # TODO: supress output of loadRobot call
+        self._urdf_filepath_absolute = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
+        self._klampt_world_model.loadRobot(self._urdf_filepath_absolute)  # TODO: supress output of loadRobot call
         assert (
             self._klampt_world_model.numRobots()
         ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
@@ -260,6 +260,11 @@ class Robot:
     def urdf_filepath(self) -> str:
         """Returns the filepath to the urdf file"""
         return self._urdf_filepath
+
+    @property
+    def urdf_filepath_absolute(self) -> str:
+        """Returns the filepath to the urdf which was rewritten with absolute filepaths to the meshes in urdfs/"""
+        return self._urdf_filepath_absolute
 
     @property
     def end_effector_link_name(self) -> str:
