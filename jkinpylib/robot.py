@@ -81,7 +81,9 @@ def _generate_self_collision_pairs(
         if capsule is None:
             for other_link_name in collision_capsules_by_link.keys():
                 ignored_collision_set.add(tuple(sorted((link_name, other_link_name))))
-        collision_capsules_by_link[link_name] = torch.tensor([0, 0, 0, 0, 0, 0.01, 0.001], device=DEVICE, dtype=DEFAULT_TORCH_DTYPE)
+            collision_capsules_by_link[link_name] = torch.tensor(
+                [0, 0, 0, 0, 0, 0.01, 0.001], device=DEVICE, dtype=DEFAULT_TORCH_DTYPE
+            )
 
     link_name_to_idx = {}
     capsule_idx_to_joint_idx = []
