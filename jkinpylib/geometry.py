@@ -131,7 +131,8 @@ def capsule_cuboid_distance_batch(
     Q[:, :3, 3] = -s
     Q[:, 3, :3] = -s
     Q[:, 3, 3] = (s * s).sum(dim=1)
-    Q = Q + 1e-4 * torch.eye(4, dtype=dtype, device=device).expand(n, -1, -1)
+    # Q = Q + 1e-4 * torch.eye(4, dtype=dtype, device=device).expand(n, -1, -1)
+    Q = Q + 5e-4 * torch.eye(4, dtype=dtype, device=device).expand(n, -1, -1)
 
     p_ = torch.zeros(n, 4, dtype=dtype, device=device)
     p_[:, :3] = -2 * p

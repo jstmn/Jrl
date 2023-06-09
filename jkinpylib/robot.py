@@ -5,13 +5,13 @@ from functools import cached_property
 from more_itertools import locate
 import torch
 import numpy as np
+import klampt
 from klampt import IKSolver, WorldModel
 from klampt.model import ik
 from klampt.math import so3
 from klampt import robotsim
 from klampt.model.collide import WorldCollider
 import tqdm
-from copy import deepcopy
 
 from jkinpylib.conversions import (
     rpy_tuple_to_rotation_matrix,
@@ -133,6 +133,7 @@ class Robot:
         positional_repeatability_mm: float,
         rotational_repeatability_deg: float,
         collision_capsules_by_link: Optional[Dict[str, torch.Tensor]] = None,
+        klampt_rigid_objects=[],
         batch_fk_enabled: bool = True,
         verbose: bool = False,
     ):
@@ -226,12 +227,12 @@ class Robot:
             self._klampt_world_model.numRobots()
         ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
         self._klampt_robot: robotsim.RobotModel = self._klampt_world_model.robot(0)
-        ignored_collision_pairs_formatted = [
+        self._ignored_collision_pairs_formatted = [
             (self._klampt_robot.link(link1_name), self._klampt_robot.link(link2_name))
             for link1_name, link2_name in ignored_collision_pairs
         ]
         self._klampt_collision_checker = WorldCollider(
-            self._klampt_world_model, ignore=ignored_collision_pairs_formatted
+            self._klampt_world_model, ignore=self._ignored_collision_pairs_formatted
         )
         self._ignored_collision_pairs = ignored_collision_pairs + [(l2, l1) for l1, l2 in ignored_collision_pairs]
         self._klampt_ee_link: robotsim.RobotModelLink = self._klampt_robot.link(self._end_effector_link_name)
@@ -252,6 +253,11 @@ class Robot:
                 sjld += u - l
             print(f"sum joint range: {round(sjld, 4)} rads")
             print("-----------\n")
+
+    def make_new_collision_checker(self):
+        self._klampt_collision_checker = WorldCollider(
+            self._klampt_world_model, ignore=self._ignored_collision_pairs_formatted
+        )
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -457,6 +463,32 @@ class Robot:
         for link1, link2 in collisions:
             if debug_mode:
                 print(f"Collision between {link1.getName()} and {link2.getName()}")
+                is_collision = True
+            else:
+                return True
+        if debug_mode and is_collision:
+            return True
+        return False
+
+    def config_collides_with_env(self, x: PT_NP_TYPE, box: klampt.Geometry3D, debug_mode: bool = False) -> bool:
+        """Returns True if the given joint angle vector causes the robot to self collide
+
+        Args:
+            x (PT_NP_TYPE): [ndofs] tensor of joint angles
+        """
+        assert isinstance(x, (np.ndarray, torch.Tensor))
+        if isinstance(x, torch.Tensor):
+            x = x.detach().cpu().numpy()
+        self.set_klampt_robot_config(x)
+        collisions = self._klampt_collision_checker.robotObjectCollisions(self._klampt_robot, box)
+        if debug_mode:
+            is_collision = False
+
+        # (RobotModelLink,RigidObjectModel)
+        for link, rigid_object in collisions:
+            if debug_mode:
+                # print(f"Collision between {link.getName()} and {link2.getName()}")
+                print(f"config_collides_with_env() | collision between {link.getName()} and {rigid_object}")
                 is_collision = True
             else:
                 return True

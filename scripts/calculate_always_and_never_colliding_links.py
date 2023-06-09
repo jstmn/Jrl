@@ -13,8 +13,7 @@ torch.set_default_device(DEVICE)
 
 
 if __name__ == "__main__":
-
-    always_colliding_pct = 0.95 # value used in moveit
+    always_colliding_pct = 0.95  # value used in moveit
     never_colliding_pct = 0.001
 
     # Note: you need to manually comment out the collision pairs in 'ignored_collision_pairs' in __init__()
@@ -49,7 +48,6 @@ if __name__ == "__main__":
     t0 = time()
     for i in range(n):
         for j in range(n_pairs):
-
             link_idx0 = robot._collision_idx0[j]
             link_idx1 = robot._collision_idx1[j]
 
@@ -60,9 +58,11 @@ if __name__ == "__main__":
             print_collision_counter(i)
     print_collision_counter(i)
 
-    never_colliding = [pair for pair in collision_counter if collision_counter[pair]/n < never_colliding_pct]
-    always_colliding = [pair for pair in collision_counter if collision_counter[pair]/n > always_colliding_pct]
-    sometimes_colliding = [pair for pair in collision_counter if not (pair in never_colliding or pair in always_colliding)]
+    never_colliding = [pair for pair in collision_counter if collision_counter[pair] / n < never_colliding_pct]
+    always_colliding = [pair for pair in collision_counter if collision_counter[pair] / n > always_colliding_pct]
+    sometimes_colliding = [
+        pair for pair in collision_counter if not (pair in never_colliding or pair in always_colliding)
+    ]
     for p in never_colliding:
         assert p not in always_colliding, f"error, {p} is in never_colliding and always_colliding"
         assert p not in sometimes_colliding, f"error, {p} is in never_colliding and sometimes_colliding"
@@ -84,7 +84,9 @@ if __name__ == "__main__":
     for p in sometimes_colliding:
         print(f"  {p}:\t{collision_counter[p]}/{n}")
 
-    assert len(never_colliding) + len(always_colliding) + len(sometimes_colliding) == n_pairs, f"Error - len(never_colliding) + len(always_colliding) + len(sometimes_colliding) != n_pairs ({len(never_colliding)} + {len(always_colliding)} + {len(sometimes_colliding)} != {n_pairs})"
-
+    assert len(never_colliding) + len(always_colliding) + len(sometimes_colliding) == n_pairs, (
+        "Error - len(never_colliding) + len(always_colliding) + len(sometimes_colliding) != n_pairs"
+        f" ({len(never_colliding)} + {len(always_colliding)} + {len(sometimes_colliding)} != {n_pairs})"
+    )
 
     print(f"\nevaluated {n} configs in {time() - t0} seconds")

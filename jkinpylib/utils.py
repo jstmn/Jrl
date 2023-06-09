@@ -212,7 +212,8 @@ class QP:
                     print(f"hs[{i}]:\n{hs[i]}")
                     print(f"xs[{i}]:\n{xs[i]}")
                 raise RuntimeError(
-                    f"Failed to converge in {iterlimit} iterations\n\n{torch.sum(~converged).item()} out of {self.nbatch} not converged"
+                    f"Failed to converge in {iterlimit} iterations\n\n{torch.sum(~converged).item()} out of"
+                    f" {self.nbatch} not converged"
                 )
 
         if trace:

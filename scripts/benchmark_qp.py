@@ -50,9 +50,7 @@ def main():
                 oursoltime = time.time() - start
 
                 start = time.time()
-                qpthsol = qpth.qp.QPFunction(verbose=False)(
-                    2 * Q, p, G, h, torch.Tensor(), torch.Tensor()
-                )
+                qpthsol = qpth.qp.QPFunction(verbose=False)(2 * Q, p, G, h, torch.Tensor(), torch.Tensor())
                 qpthsoltime = time.time() - start
 
                 start = time.time()
