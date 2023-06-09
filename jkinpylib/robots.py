@@ -257,7 +257,8 @@ class Panda(Robot):
             "panda_link5": _load_capsule("urdfs/panda/capsules/link5.txt"),
             "panda_link6": _load_capsule("urdfs/panda/capsules/link6.txt"),
             "panda_link7": _load_capsule("urdfs/panda/capsules/link7.txt"),
-            # "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
+            "panda_link8": None,
+            "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
         }
 
         urdf_filepath = get_filepath("urdfs/panda/panda_arm_hand_formatted.urdf")
