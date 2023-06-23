@@ -38,9 +38,10 @@ setup(
     scripts=[],
     url="https://github.com/jstmn/jrl",
     license="LICENSE.txt",
-    description="Jeremy's Kinematics Python Library",
+    description="Jeremy's Robotics Library",
     py_modules=[],
     long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     # TODO: Specify version numbers. also move to pyproject.toml
     install_requires=["klampt", "numpy", "torch==2.0.1", "more_itertools", "roma", "tqdm"],
     extras_require={  # pip install -e ".[dev]"

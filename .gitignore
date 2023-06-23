@@ -1,7 +1,6 @@
 __pycache__/
 venv/
-venvTemp/
-jkinpylib.egg-info
+jrl.egg-info/
 dist/
 build/
 notes_to_self
