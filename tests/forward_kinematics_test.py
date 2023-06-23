@@ -4,11 +4,11 @@ import unittest
 import torch
 import numpy as np
 
-from jkinpylib import config
-from jkinpylib.robots import get_all_robots
-from jkinpylib.robot import Robot, forward_kinematics_kinpy
-from jkinpylib.conversions import geodesic_distance_between_quaternions
-from jkinpylib.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from jrl import config
+from jrl.robots import get_all_robots
+from jrl.robot import Robot, forward_kinematics_kinpy
+from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 torch.manual_seed(0)
 

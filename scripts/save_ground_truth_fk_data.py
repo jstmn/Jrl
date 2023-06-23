@@ -3,10 +3,10 @@ import argparse
 import numpy as np
 import torch
 
-from jkinpylib.robots import get_robot
-from jkinpylib.robot import forward_kinematics_kinpy
-from jkinpylib.conversions import geodesic_distance_between_quaternions
-from jkinpylib.utils import set_seed
+from jrl.robots import get_robot
+from jrl.robot import forward_kinematics_kinpy
+from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.utils import set_seed
 
 set_seed()
 

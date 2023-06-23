@@ -6,8 +6,8 @@ import pkg_resources
 import torch
 import numpy as np
 
-from jkinpylib.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jkinpylib.config import PT_NP_TYPE
+from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
+from jrl.config import PT_NP_TYPE
 
 
 def safe_mkdir(dir_name: str):

@@ -4,15 +4,15 @@ import torch
 import numpy as np
 from typing import List
 
-from jkinpylib.config import DEVICE
-from jkinpylib.robots import Panda
-from jkinpylib.evaluation import (
+from jrl.config import DEVICE
+from jrl.robots import Panda
+from jrl.evaluation import (
     solution_pose_errors,
     calculate_joint_limits_exceeded,
     angular_changes,
     angular_changes_old,
 )
-from jkinpylib.utils import set_seed
+from jrl.utils import set_seed
 
 set_seed()
 np.set_printoptions(suppress=True, precision=8)

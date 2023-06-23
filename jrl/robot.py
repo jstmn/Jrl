@@ -13,7 +13,7 @@ from klampt import robotsim
 from klampt.model.collide import WorldCollider
 import tqdm
 
-from jkinpylib.conversions import (
+from jrl.conversions import (
     rpy_tuple_to_rotation_matrix,
     single_axis_angle_to_rotation_matrix,
     quaternion_inverse,
@@ -25,14 +25,15 @@ from jkinpylib.conversions import (
     DEFAULT_TORCH_DTYPE,
     PT_NP_TYPE,
 )
-from jkinpylib.config import DEVICE, ACCELERATOR_AVAILABLE
-from jkinpylib.urdf_utils import (
+from jrl.config import DEVICE, ACCELERATOR_AVAILABLE
+from jrl.urdf_utils import (
     Joint,
     get_joint_chain,
     get_urdf_filepath_w_filenames_updated,
     UNHANDLED_JOINT_TYPES,
 )
-from jkinpylib.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
+from jrl.utils import to_torch
+from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -379,6 +380,7 @@ class Robot:
         joint_limit_eps: float = 1e-6,
         only_non_self_colliding: bool = True,
         tqdm_enabled: bool = False,
+        return_torch: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
         samples = np.zeros((n, self.n_dofs))
@@ -403,6 +405,8 @@ class Robot:
                     pbar.update(1)
 
                     if counter == n:
+                        if return_torch:
+                            return to_torch(samples), to_torch(poses)
                         return samples, poses
 
                 if counter0_i == counter:

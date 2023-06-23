@@ -3,18 +3,17 @@ import unittest
 import torch
 import numpy as np
 
-from jkinpylib.geometry import (
-    capsule_capsule_distance_batch,
-    capsule_cuboid_distance_batch,
-)
-
-from jkinpylib.utils import set_seed, to_torch
-from jkinpylib.conversions import quaternion_to_rotation_matrix
+from jrl.utils import set_seed
+from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
+from jrl.conversions import quaternion_to_rotation_matrix
+from jrl.config import DEVICE
 
 import fcl
 
 # Set seed to ensure reproducibility
 set_seed()
+torch.set_default_dtype(torch.float32)
+torch.set_default_device(DEVICE)
 
 
 class TestGeometry(unittest.TestCase):
@@ -26,15 +25,15 @@ class TestGeometry(unittest.TestCase):
         # 1.5
 
         # Both are capsules with radius=0.25, height=2.0
-        c1 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
-        c2 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]], device="cpu", dtype=torch.float32)
+        c1 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]])
+        c2 = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.25]])
 
-        T1 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        T1 = torch.eye(4).unsqueeze(0)
         T1[:, 0, 3] = -1
-        T2 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        T2 = torch.eye(4).unsqueeze(0)
         T2[:, 0, 3] = 1
 
-        returned = capsule_capsule_distance_batch(c1, T1, c2, T2)
+        returned = capsule_capsule_distance_batch(c1, T1, c2, T2).cpu()
         expected = 1.5
 
         np.testing.assert_allclose(returned, expected)
@@ -46,8 +45,8 @@ class TestGeometry(unittest.TestCase):
             q1 /= np.linalg.norm(q1)
             q2 = np.random.randn(4)
             q2 /= np.linalg.norm(q2)
-            R1 = quaternion_to_rotation_matrix(torch.tensor(q1).unsqueeze(0)).numpy().reshape((3, 3))
-            R2 = quaternion_to_rotation_matrix(torch.tensor(q2).unsqueeze(0)).numpy().reshape((3, 3))
+            R1 = quaternion_to_rotation_matrix(torch.tensor(q1).unsqueeze(0)).cpu().numpy().reshape((3, 3))
+            R2 = quaternion_to_rotation_matrix(torch.tensor(q2).unsqueeze(0)).cpu().numpy().reshape((3, 3))
             t1 = np.random.randn(3)
             t2 = np.random.randn(3)
 
@@ -64,32 +63,27 @@ class TestGeometry(unittest.TestCase):
 
             c1 = torch.tensor([[0.0, 0.0, -h1 / 2, 0.0, 0.0, h1 / 2, r1]], dtype=torch.float32)
             c2 = torch.tensor([[0.0, 0.0, -h2 / 2, 0.0, 0.0, h2 / 2, r2]], dtype=torch.float32)
-            T1 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T1 = torch.eye(4).unsqueeze(0)
             T1[:, :3, :3] = torch.tensor(R1)
             T1[:, :3, 3] = torch.tensor(t1)
-            T2 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T2 = torch.eye(4).unsqueeze(0)
             T2[:, :3, :3] = torch.tensor(R2)
             T2[:, :3, 3] = torch.tensor(t2)
 
-            print(c1.dtype, T1.dtype, c2.dtype, T2.dtype)
-
-            our_dist = capsule_capsule_distance_batch(c1, T1, c2, T2)
-
-            print(fcl_dist)
-            print(our_dist)
+            our_dist = capsule_capsule_distance_batch(c1, T1, c2, T2).cpu()
             np.testing.assert_allclose(fcl_dist, our_dist, atol=1e-4)
 
     def test_capsule_cuboid_distance_batch(self):
         """Test capsule_cuboid_distance_batch() returns the expected distance"""
 
-        Tcaps = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        Tcaps = torch.eye(4).unsqueeze(0)
         Tcaps[:, :3, 3] = torch.tensor([2.0, 0.0, 0.0])
-        Tcube = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+        Tcube = torch.eye(4).unsqueeze(0)
 
-        caps = torch.tensor([[0.0, 0.0, -2.0, 0.0, 0.0, 2.0, 0.25]], dtype=torch.float32)
-        cube = torch.tensor([[-1.0, -1.0, -1.0, 1.0, 1.0, 1.0]], dtype=torch.float32)
+        caps = torch.tensor([[0.0, 0.0, -2.0, 0.0, 0.0, 2.0, 0.25]])
+        cube = torch.tensor([[-1.0, -1.0, -1.0, 1.0, 1.0, 1.0]])
 
-        returned = capsule_cuboid_distance_batch(caps, Tcaps, cube, Tcube)
+        returned = capsule_cuboid_distance_batch(caps, Tcaps, cube, Tcube).cpu()
         expected = 0.75
 
         np.testing.assert_allclose(returned, expected, atol=1e-4)
@@ -105,8 +99,8 @@ class TestGeometry(unittest.TestCase):
             q2 = np.random.randn(4)
             q2 /= np.linalg.norm(q2)
             q2 = np.array([1.0, 0.0, 0.0, 0.0])
-            R1 = quaternion_to_rotation_matrix(torch.tensor(q1).unsqueeze(0)).numpy().reshape((3, 3))
-            R2 = quaternion_to_rotation_matrix(torch.tensor(q2).unsqueeze(0)).numpy().reshape((3, 3))
+            R1 = quaternion_to_rotation_matrix(torch.tensor(q1).unsqueeze(0)).cpu().numpy().reshape((3, 3))
+            R2 = quaternion_to_rotation_matrix(torch.tensor(q2).unsqueeze(0)).cpu().numpy().reshape((3, 3))
             t1 = np.random.randn(3)
             t2 = np.random.randn(3)
 
@@ -122,22 +116,18 @@ class TestGeometry(unittest.TestCase):
             result = fcl.DistanceResult()
             fcl_dist = fcl.distance(o_caps, o_box, request, result)
 
-            caps = torch.tensor(
-                [[0.0, 0.0, -h / 2, 0.0, 0.0, h / 2, r]],
-                dtype=torch.float32,
-            )
+            caps = torch.tensor([[0.0, 0.0, -h / 2, 0.0, 0.0, h / 2, r]], dtype=torch.float32)
             cuboid = torch.tensor(
-                [[-xspan / 2, -yspan / 2, -zspan / 2, xspan / 2, yspan / 2, zspan / 2]],
-                dtype=torch.float32,
+                [[-xspan / 2, -yspan / 2, -zspan / 2, xspan / 2, yspan / 2, zspan / 2]], dtype=torch.float32
             )
-            T1 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T1 = torch.eye(4).unsqueeze(0)
             T1[:, :3, :3] = torch.tensor(R1)
             T1[:, :3, 3] = torch.tensor(t1)
-            T2 = torch.eye(4, dtype=torch.float32).unsqueeze(0)
+            T2 = torch.eye(4).unsqueeze(0)
             T2[:, :3, :3] = torch.tensor(R2)
             T2[:, :3, 3] = torch.tensor(t2)
 
-            our_dist = capsule_cuboid_distance_batch(caps, T1, cuboid, T2)
+            our_dist = capsule_cuboid_distance_batch(caps, T1, cuboid, T2).cpu()
 
             if our_dist[0] < 0.0:
                 # FCL doesn't report penetration distance here, it just returns

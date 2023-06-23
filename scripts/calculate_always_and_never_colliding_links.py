@@ -1,7 +1,7 @@
 from time import time
 
-from jkinpylib.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jkinpylib.robots import FetchArm, Panda
+from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
+from jrl.robots import FetchArm, Panda
 
 import torch
 

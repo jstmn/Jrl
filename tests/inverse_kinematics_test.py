@@ -3,10 +3,10 @@ from time import time
 
 import numpy as np
 
-from jkinpylib.robot import Robot
-from jkinpylib.robots import get_all_robots, Panda
-from jkinpylib.utils import set_seed
-from jkinpylib.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from jrl.robot import Robot
+from jrl.robots import get_all_robots, Panda
+from jrl.utils import set_seed
+from jrl.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 # Set seed to ensure reproducibility
 set_seed()

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 import torch
 
-from jkinpylib.conversions import calculate_points_in_world_frame_from_local_frame_batch
+from jrl.conversions import calculate_points_in_world_frame_from_local_frame_batch
 import qpth
-from jkinpylib.utils import QP
+from jrl.utils import QP
 
 
 def capsule_capsule_distance_batch(

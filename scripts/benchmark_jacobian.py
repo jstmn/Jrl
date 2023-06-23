@@ -7,8 +7,8 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from jkinpylib.utils import to_torch
-from jkinpylib.robots import Panda
+from jrl.utils import to_torch
+from jrl.robots import Panda
 
 
 def fn_mean_std(fn: Callable, k: int):

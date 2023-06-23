@@ -6,8 +6,8 @@ from xml.etree.ElementTree import Element, ElementTree
 
 import numpy as np
 
-from jkinpylib.config import URDF_DOWNLOAD_DIR
-from jkinpylib.utils import get_filepath, safe_mkdir
+from jrl.config import URDF_DOWNLOAD_DIR
+from jrl.utils import get_filepath, safe_mkdir
 
 # See http://wiki.ros.org/urdf/XML/joint
 # All types: 'revolute', 'continuous', 'prismatic', 'fixed', 'floating', 'planar'

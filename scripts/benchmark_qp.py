@@ -6,7 +6,7 @@ from scipy import sparse
 import pandas as pd
 import time
 import tqdm
-from jkinpylib.utils import QP
+from jrl.utils import QP
 import argparse
 
 argparser = argparse.ArgumentParser()

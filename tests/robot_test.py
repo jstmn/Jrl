@@ -3,12 +3,12 @@ import unittest
 import torch
 import numpy as np
 
-from jkinpylib.urdf_utils import _len3_tuple_from_str
-from jkinpylib.utils import set_seed
-from jkinpylib.robot import Robot
-from jkinpylib.robots import get_all_robots, Panda, Fetch, Iiwa7, FetchArm
-from jkinpylib.conversions import PT_NP_TYPE
-from jkinpylib.config import DEVICE
+from jrl.urdf_utils import _len3_tuple_from_str
+from jrl.utils import set_seed
+from jrl.robot import Robot
+from jrl.robots import get_all_robots, Panda, Fetch, Iiwa7, FetchArm
+from jrl.conversions import PT_NP_TYPE
+from jrl.config import DEVICE
 
 set_seed(0)
 
@@ -217,14 +217,14 @@ class RobotTest(unittest.TestCase):
                 batch_size = 1
                 x = robot.sample_joint_angles(batch_size)
                 Jklampt = robot.jacobian_batch_np(x)
-                Jpt = robot.jacobian_batch_pt(torch.tensor(x))
+                Jpt = robot.jacobian_batch_pt(torch.tensor(x)).cpu().numpy()
                 self.assertEqual(Jklampt.shape, (batch_size, 6, robot.n_dofs))
                 self.assertEqual(Jpt.shape, (batch_size, 6, robot.n_dofs))
                 if not np.allclose(Jklampt, Jpt, atol=atol):
                     print("robot:", robot)
                     print("Jklampt:\n", Jklampt)
-                    print("Jpt:\n", Jpt.numpy())
-                    print("difference:\n", Jklampt - Jpt.numpy())
+                    print("Jpt:\n", Jpt)
+                    print("difference:\n", Jklampt - Jpt)
                 np.testing.assert_allclose(Jklampt, Jpt, atol=atol)
 
     def test_list_from_str(self):
@@ -469,7 +469,7 @@ class RobotTest(unittest.TestCase):
 
                 num_larger = torch.sum(torch.abs(J) > 100 * atol)
 
-                np.testing.assert_allclose(J, J_fd, atol=atol)
+                np.testing.assert_allclose(J.cpu(), J_fd.cpu(), atol=atol)
                 self.assertGreater(num_larger, 0)
                 print("Number of elements larger than 100 * atol:", num_larger)
 

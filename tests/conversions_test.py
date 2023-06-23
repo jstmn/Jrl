@@ -3,7 +3,7 @@ import unittest
 import torch
 import numpy as np
 
-from jkinpylib.conversions import (
+from jrl.conversions import (
     quaternion_inverse,
     quaternion_to_rotation_matrix,
     geodesic_distance_between_rotation_matrices,
@@ -16,8 +16,8 @@ from jkinpylib.conversions import (
     angular_subtraction,
     calculate_points_in_world_frame_from_local_frame_batch,
 )
-from jkinpylib.utils import set_seed, to_torch
-from jkinpylib.robots import FetchArm
+from jrl.utils import set_seed, to_torch
+from jrl.robots import FetchArm
 
 # Set seed to ensure reproducibility
 set_seed()

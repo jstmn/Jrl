@@ -14,7 +14,7 @@ import torch
 import numpy as np
 import roma.mappings
 
-from jkinpylib.config import DEFAULT_TORCH_DTYPE, DEVICE, PT_NP_TYPE
+from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE, PT_NP_TYPE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
 _TORCH_EPS_CUDA = torch.tensor(

@@ -17,26 +17,26 @@ def package_files(directory: str, ignore_ext: list = []) -> list:
     return paths
 
 
-urdf_files = package_files("jkinpylib/urdfs/")
+urdf_files = package_files("jrl/urdfs/")
 for file in urdf_files:
     assert os.path.isfile(file), f"Error: parsed filepath '{file}' does not exist"
 
 urdf_files = [
-    fname.replace("jkinpylib/", "") for fname in urdf_files
-]  # filenames are relative to the root directory, but we want them relative to the root/jkinpylib directory
+    fname.replace("jrl/", "") for fname in urdf_files
+]  # filenames are relative to the root directory, but we want them relative to the root/jrl directory
 assert len(urdf_files) > 0, "No URDF files found"
 
 for file in urdf_files:
-    reconstructed = "jkinpylib/" + file
+    reconstructed = "jrl/" + file
     assert os.path.isfile(reconstructed), f"Error: reconstructed filepath '{reconstructed}' does not exist"
 
 setup(
-    name="jkinpylib",
+    name="jrl",
     version="0.0.9",
     author="Jeremy Morgan",
     author_email="jsmorgan6@gmail.com",
     scripts=[],
-    url="https://github.com/jstmn/jkinpylib",
+    url="https://github.com/jstmn/jrl",
     license="LICENSE.txt",
     description="Jeremy's Kinematics Python Library",
     py_modules=[],
@@ -57,8 +57,8 @@ setup(
             "meshcat==0.3.2",
         ]
     },
-    packages=["jkinpylib"],
-    package_data={"jkinpylib": urdf_files},
+    packages=["jrl"],
+    package_data={"jrl": urdf_files},
     # setup.py dist does ommites non-py files when this command is included. See
     # https://stackoverflow.com/a/33167220/5191069. (... Wat?! ...)
     # include_package_data=True,

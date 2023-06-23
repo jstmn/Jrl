@@ -232,18 +232,18 @@ def main():
         vis = meshcat.Visualizer()
         vis.open()
 
-    # outdir = pathlib.Path("jkinpylib/urdfs/panda/capsules")
+    # outdir = pathlib.Path("jrl/urdfs/panda/capsules")
     # outdir.mkdir(exist_ok=False)
-    # for stl_path in pathlib.Path("jkinpylib/urdfs/panda/meshes/collision").glob(
+    # for stl_path in pathlib.Path("jrl/urdfs/panda/meshes/collision").glob(
     #    "*.stl"
     # ):
     #    stl_to_capsule(stl_path, outdir, vis)
 
-    outdir = pathlib.Path("jkinpylib/urdfs/fetch/capsules")
+    outdir = pathlib.Path("jrl/urdfs/fetch/capsules")
     # outdir.mkdir(exist_ok=False)
-    # for stl_path in list(pathlib.Path("jkinpylib/urdfs/fetch/meshes").glob("*_collision.STL")):
+    # for stl_path in list(pathlib.Path("jrl/urdfs/fetch/meshes").glob("*_collision.STL")):
     #     stl_to_capsule(stl_path, outdir, vis)
-    stl_to_capsule(pathlib.Path("jkinpylib/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
+    stl_to_capsule(pathlib.Path("jrl/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
 
 
 if __name__ == "__main__":

@@ -4,10 +4,10 @@ from time import time
 import numpy as np
 import torch
 
-from jkinpylib.robot import Robot
-from jkinpylib.robots import Panda
-from jkinpylib.conversions import geodesic_distance_between_quaternions, enforce_pt_np_input, PT_NP_TYPE
-from jkinpylib.config import DEVICE
+from jrl.robot import Robot
+from jrl.robots import Panda
+from jrl.conversions import geodesic_distance_between_quaternions, enforce_pt_np_input, PT_NP_TYPE
+from jrl.config import DEVICE
 
 
 DEVICE_TEMP = "cuda"
@@ -228,7 +228,7 @@ def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
 
 """ Benchmarking solution_pose_errors():
 
-python jkinpylib/evaluation.py
+python jrl/evaluation.py
 
 """
 

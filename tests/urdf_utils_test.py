@@ -1,6 +1,6 @@
 import unittest
 
-from jkinpylib.urdf_utils import DFSSearcher, Link, Joint, get_joint_chain
+from jrl.urdf_utils import DFSSearcher, Link, Joint, get_joint_chain
 
 
 def _get_joint(name: str, parent: str, child: str, joint_type: str):
@@ -13,6 +13,7 @@ def _get_joint(name: str, parent: str, child: str, joint_type: str):
         axis_xyz=(0, 0, 0),
         joint_type=joint_type,
         limits=(0, 0),
+        velocity_limit=1.0,
     )
 
 
@@ -38,14 +39,14 @@ class UrdfUtilsTest(unittest.TestCase):
             "iiwa_joint_6",
             "iiwa_joint_7",
         ]
-        urdf_filepath = "jkinpylib/urdfs/iiwa7/iiwa7_formatted.urdf"
+        urdf_filepath = "jrl/urdfs/iiwa7/iiwa7_formatted.urdf"
         base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
         joint_chain = get_joint_chain(urdf_filepath, active_joints, base_link, end_effector_link_name)
         self.assertEqual(len(joint_chain), 9)
 
     def test_get_joint_chain(self):
-        urdf_filepath = "jkinpylib/urdfs/panda/panda_arm_hand_formatted.urdf"
+        urdf_filepath = "jrl/urdfs/panda/panda_arm_hand_formatted.urdf"
 
         # Test 1:
         # Link+joint chain:     panda_link1 -> panda_joint2 -> panda_link2 -> panda_joint3 -> panda_link3 -> panda_joint4 -> panda_link4 -> panda_joint5 -> panda_link5

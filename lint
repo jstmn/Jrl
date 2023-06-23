@@ -9,7 +9,7 @@ python -m black **/*.py --line-length=120 --target-version=py38 --preview
 
 echo "______________"
 echo "Running pylint"
-python -m pylint jkinpylib/*.py 
+python -m pylint jrl/*.py 
 
 echo "_________________________________"
 echo "Clearing jupyter notebook outputs"

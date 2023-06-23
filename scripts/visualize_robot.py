@@ -7,8 +7,8 @@ from klampt.model import coordinates, trajectory
 from klampt.math import so3
 import numpy as np
 
-from jkinpylib.robot import Robot
-from jkinpylib.robots import get_robot
+from jrl.robot import Robot
+from jrl.robots import get_robot
 
 _TERRAIN_FILEPATH = "scripts/visualization_resources/plane.off"
 
@@ -21,12 +21,6 @@ def _init_vis(robot: Robot, window_title: str, show_collision_capsules: bool = T
     vis.add("x_axis", trajectory.Trajectory([1, 0], [[1, 0, 0], [0, 0, 0]]))
     vis.add("y_axis", trajectory.Trajectory([1, 0], [[0, 1, 0], [0, 0, 0]]))
     vis.setWindowTitle(window_title)
-
-    from klampt.model.geometry import sphere
-
-    mysphere = sphere(radius=0.25)
-    vis.add("mysphere", mysphere, color=[0, 1, 0, 0.1])
-
     vis.show()
 
 
@@ -131,12 +125,15 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument("--end_config", nargs="+", type=float, help="End config of the robot")
-    parser.add_argument("--show_collision_capsules", default="true", type=str)
+    parser.add_argument("--show_collision_capsules", default="false", type=str)
     args = parser.parse_args()
     args.show_collision_capsules = args.show_collision_capsules.upper() == "TRUE"
     assert (args.start_config is None and args.end_config is None) or (
         args.start_config is not None and args.end_config is not None
     ), "--start_config and --end_config must either have both provided, or neither be provided"
+    assert (
+        not args.show_collision_capsules
+    ), "--show_collision_capsules currently unimplemented. bug @jstmn if you want this feature"
 
     robot = get_robot(args.robot_name)
 

@@ -7,11 +7,11 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from jkinpylib.utils import to_torch, set_seed
-from jkinpylib.robot import Robot
-from jkinpylib.robots import Panda
-from jkinpylib.conversions import geodesic_distance_between_quaternions
-from jkinpylib.evaluation import solution_pose_errors
+from jrl.utils import to_torch, set_seed
+from jrl.robot import Robot
+from jrl.robots import Panda
+from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.evaluation import solution_pose_errors
 
 
 def fn_mean_std(fn: Callable, k: int):

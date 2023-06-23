@@ -4,11 +4,11 @@ import unittest
 import numpy as np
 import torch
 
-from jkinpylib.robot import Robot
-from jkinpylib.robots import get_all_robots, FetchArm
-from jkinpylib.evaluation import pose_errors
-from jkinpylib.utils import set_seed
-from jkinpylib.config import DEVICE
+from jrl.robot import Robot
+from jrl.robots import get_all_robots, FetchArm
+from jrl.evaluation import pose_errors
+from jrl.utils import set_seed
+from jrl.config import DEVICE
 
 # Set seed to ensure reproducibility
 set_seed()
@@ -149,7 +149,7 @@ class TestSolutionRerfinement(unittest.TestCase):
         poses_updated_ad_pt = robot.forward_kinematics(x_updated_ad_pt)
 
         self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_pt, f"{robot.name}, jac-pinv")
-        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, "{robot.name}, AD")
+        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, f"{robot.name}, AD")
 
     # ==================================================================================================================
     #  -- Tests

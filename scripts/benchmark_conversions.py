@@ -7,8 +7,8 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from jkinpylib.utils import random_quaternions
-from jkinpylib.conversions import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_old
+from jrl.utils import random_quaternions
+from jrl.conversions import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_old
 
 
 def fn_mean_std(fn: Callable, k: int):

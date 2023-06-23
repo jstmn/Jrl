@@ -2,16 +2,16 @@ import pandas as pd
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import jkinpylib
+import jrl
 import time
 import tqdm
 
-from jkinpylib.config import DEVICE
+from jrl.config import DEVICE
 
 
 def main():
     batch_sizes = [1, 10, 100, 200, 300, 500, 1000, 5000, 10000]
-    robot = jkinpylib.robots.Fetch()
+    robot = jrl.robots.Fetch()
     timing_self_df = pd.DataFrame(columns=["nbatch", "ntrials", "time"])
     print("Self collisions")
     for nbatch in tqdm.tqdm(batch_sizes):

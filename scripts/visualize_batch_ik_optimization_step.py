@@ -5,9 +5,9 @@ from klampt.model import coordinates, trajectory
 from klampt.math import so3
 import numpy as np
 
-from jkinpylib.robot import Robot
-from jkinpylib.robots import Panda
-from jkinpylib.utils import set_seed
+from jrl.robot import Robot
+from jrl.robots import Panda
+from jrl.utils import set_seed
 
 set_seed()
 
