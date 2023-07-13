@@ -18,7 +18,7 @@ ROBOTS = get_all_robots()
 class RobotTest(unittest.TestCase):
     def _assert_joint_angles_within_limits(self, joint_angles: PT_NP_TYPE, robot: Robot):
         for joint_angle in joint_angles:
-            for i in range(robot.n_dofs):
+            for i in range(robot.ndof):
                 self.assertGreaterEqual(joint_angle[i], robot.actuated_joints_limits[i][0])
                 self.assertLessEqual(joint_angle[i], robot.actuated_joints_limits[i][1])
 
@@ -114,7 +114,7 @@ class RobotTest(unittest.TestCase):
         """_summary_"""
         for robot in ROBOTS:
             joint_angles = robot.sample_joint_angles(1000)
-            self.assertEqual(joint_angles.shape, (1000, robot.n_dofs))
+            self.assertEqual(joint_angles.shape, (1000, robot.ndof))
             # Check joint angles are within joint limits
             self._assert_joint_angles_within_limits(joint_angles, robot)
             self._assert_joint_angles_uniform(joint_angles, robot)
@@ -125,7 +125,7 @@ class RobotTest(unittest.TestCase):
         for robot in ROBOTS:
             print(robot)
             joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=True)
-            self.assertEqual(joint_angles.shape, (1000, robot.n_dofs))
+            self.assertEqual(joint_angles.shape, (1000, robot.ndof))
             self.assertEqual(poses.shape, (1000, 7))
 
             # Check joint angles are within joint limits and uniform
@@ -143,37 +143,38 @@ class RobotTest(unittest.TestCase):
         """
         panda = Panda()
         x = torch.tensor([0, 0, 0, -0.0698, 0, 3.0, 0])
-        self.assertFalse(panda.config_self_collides(x, debug_mode=True))
+        self.assertFalse(panda.config_self_collides(x))
 
         x = torch.tensor([0.14, -1.7628, 0, -2.9118, -0.2800, 1.0425, 0.0])
-        self.assertTrue(panda.config_self_collides(x, debug_mode=True))
+        self.assertTrue(panda.config_self_collides(x))
 
         x = torch.tensor([0.14, -1.7628, 0, -2.8718, -0.2800, 1.0425, 0.0])
-        self.assertFalse(panda.config_self_collides(x, debug_mode=True))
+        self.assertFalse(panda.config_self_collides(x))
 
     def test_config_self_collides_fetch(self):
         """Test config_self_collides() for Fetch"""
         fetch = Fetch()
         x = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.float32)
-        self.assertFalse(fetch.config_self_collides(x, debug_mode=True))
+        self.assertFalse(fetch.config_self_collides(x))
 
         x = torch.tensor([0, 0, 1.5180, 0, 0, 0, 0, 0], dtype=torch.float32)
-        self.assertTrue(fetch.config_self_collides(x, debug_mode=True))
+        self.assertTrue(fetch.config_self_collides(x))
 
         x = torch.tensor([0, 0, 1.1126, 0, 0, 0, 0, 0], dtype=torch.float32)
-        self.assertFalse(fetch.config_self_collides(x, debug_mode=True))
+        self.assertFalse(fetch.config_self_collides(x))
 
-    def test_config_self_collides_iiwa7(self):
-        """Test config_self_collides() for Iiwa7"""
-        iiwa = Iiwa7()
-        x = torch.tensor([0, 0, 0, 0, 0, 0, 0], dtype=torch.float32)
-        self.assertFalse(iiwa.config_self_collides(x, debug_mode=True))
+    # TODO: Add test back once iiwa7 has capsules added
+    # def test_config_self_collides_iiwa7(self):
+    #     """Test config_self_collides() for Iiwa7"""
+    #     iiwa = Iiwa7()
+    #     x = torch.tensor([0, 0, 0, 0, 0, 0, 0], dtype=torch.float32)
+    #     self.assertFalse(iiwa.config_self_collides(x))
 
-        x = torch.tensor([0, -1.6200, -2.9671, -2.0944, 0.1371, 2.0944, 0], dtype=torch.float32)
-        self.assertTrue(iiwa.config_self_collides(x, debug_mode=True))
+    #     x = torch.tensor([0, -1.6200, -2.9671, -2.0944, 0.1371, 2.0944, 0], dtype=torch.float32)
+    #     self.assertTrue(iiwa.config_self_collides(x))
 
-        x = torch.tensor([0, -1.3, -2.9671, -2.0944, 0.1371, 2.0944, 0], dtype=torch.float32)
-        self.assertFalse(iiwa.config_self_collides(x, debug_mode=True))
+    #     x = torch.tensor([0, -1.3, -2.9671, -2.0944, 0.1371, 2.0944, 0], dtype=torch.float32)
+    #     self.assertFalse(iiwa.config_self_collides(x))
 
     def test_joint_limits(self):
         # panda_joint_lims:
@@ -206,9 +207,9 @@ class RobotTest(unittest.TestCase):
 
     def test_jacobian_np(self):
         for robot in ROBOTS:
-            x = np.zeros(robot.n_dofs)
+            x = np.zeros(robot.ndof)
             J = robot.jacobian_np(x)
-            self.assertEqual(J.shape, (6, robot.n_dofs))
+            self.assertEqual(J.shape, (6, robot.ndof))
 
     def test_jacobian_klampt_pt_match(self):
         atol = 1e-5
@@ -218,8 +219,8 @@ class RobotTest(unittest.TestCase):
                 x = robot.sample_joint_angles(batch_size)
                 Jklampt = robot.jacobian_batch_np(x)
                 Jpt = robot.jacobian_batch_pt(torch.tensor(x)).cpu().numpy()
-                self.assertEqual(Jklampt.shape, (batch_size, 6, robot.n_dofs))
-                self.assertEqual(Jpt.shape, (batch_size, 6, robot.n_dofs))
+                self.assertEqual(Jklampt.shape, (batch_size, 6, robot.ndof))
+                self.assertEqual(Jpt.shape, (batch_size, 6, robot.ndof))
                 if not np.allclose(Jklampt, Jpt, atol=atol):
                     print("robot:", robot)
                     print("Jklampt:\n", Jklampt)
@@ -257,7 +258,7 @@ class RobotTest(unittest.TestCase):
             "iiwa7": 7,
         }
         for robot in ROBOTS:
-            self.assertEqual(robot.n_dofs, ground_truth_n_dofs[robot.name])
+            self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
 
     def test_joint_limits(self):
         ground_truth_joint_limits = {
@@ -309,7 +310,7 @@ class RobotTest(unittest.TestCase):
             ],
         }
         for robot in ROBOTS:
-            self.assertEqual(len(robot.actuated_joints_limits), robot.n_dofs)
+            self.assertEqual(len(robot.actuated_joints_limits), robot.ndof)
             for gt_limit, parsed_limit in zip(ground_truth_joint_limits[robot.name], robot.actuated_joints_limits):
                 self.assertAlmostEqual(gt_limit[0], parsed_limit[0])
                 self.assertAlmostEqual(gt_limit[1], parsed_limit[1])
@@ -365,14 +366,14 @@ class RobotTest(unittest.TestCase):
             ],
         }
         for robot in ROBOTS:
-            self.assertEqual(len(robot.actuated_joint_names), robot.n_dofs)
+            self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
             self.assertListEqual(robot.actuated_joint_names, ground_truth_actuated_joints[robot.name])
 
     def test_q_x_conversion(self):
         print("test_q_x_conversion()")
         for robot in ROBOTS:
             print(robot)
-            ndofs = robot.n_dofs
+            ndofs = robot.ndof
             x_original = np.array(
                 [
                     [0] * ndofs,
@@ -396,7 +397,7 @@ class RobotTest(unittest.TestCase):
 
         for robot in ROBOTS:
             gt_vector_dim = gt_klampt_vector_dimensionality[robot.name]
-            ndof = robot.n_dofs
+            ndof = robot.ndof
 
             # test 1
             x_original = np.zeros(ndof)
@@ -452,13 +453,13 @@ class RobotTest(unittest.TestCase):
                 dists = robot.self_collision_distances_batch(x)
                 ndists = dists.shape[1]
                 J = robot.self_collision_distances_jacobian_batch(x)
-                self.assertEqual(J.shape, (batch_size, ndists, robot.n_dofs))
+                self.assertEqual(J.shape, (batch_size, ndists, robot.ndof))
                 # Check that the jacobian is correct by comparing to finite
                 # differences
                 eps = 1e-3
                 J_fd = torch.zeros_like(J)
                 for i in range(batch_size):
-                    for j in range(robot.n_dofs):
+                    for j in range(robot.ndof):
                         x_plus = x.clone()
                         x_plus[i, j] += eps
                         x_minus = x.clone()

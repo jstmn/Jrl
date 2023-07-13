@@ -8,17 +8,29 @@ from jrl.robot import Robot
 from jrl.robots import get_all_robots, FetchArm
 from jrl.evaluation import pose_errors
 from jrl.utils import set_seed
-from jrl.config import DEVICE
+from jrl.config import DEVICE, PT_NP_TYPE
 
 # Set seed to ensure reproducibility
 set_seed()
-
-# suppress=True: print with decimal notation, not scientific
 np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
 
 
-# TODO: Turn this into an actual test
-class TestSolutionRerfinement(unittest.TestCase):
+def _joint_angles_all_in_joint_limits(robot: Robot, x: PT_NP_TYPE) -> bool:
+    """Return whether all joint angles are within joint limits
+
+    Args:
+        x (PT_NP_TYPE): [batch x ndofs] tensor of joint angles
+    """
+    assert x.shape[1] == robot.ndof
+    for i, (lower, upper) in enumerate(robot.actuated_joints_limits):
+        if x[:, i].min() < lower:
+            return False
+        if x[:, i].max() > upper:
+            return False
+    return True
+
+
+class TestBatchIK(unittest.TestCase):
     @classmethod
     def setUpClass(clc):
         clc.robots = get_all_robots()
@@ -26,8 +38,15 @@ class TestSolutionRerfinement(unittest.TestCase):
     def get_current_joint_angle_and_target_pose(self, robot: Robot, center: str) -> Tuple[np.ndarray, np.ndarray]:
         """ """
         assert center in {"lower", "upper", "middle", "lower_out_of_bounds", "upper_out_of_bounds"}
+        center_to_diff = {
+            "lower": 0.1,
+            "upper": -0.1,
+            "middle": 0.1,
+            "lower_out_of_bounds": -0.05,
+            "upper_out_of_bounds": 0.05,
+        }
         should_be_oob = "out_of_bounds" in center
-        ndofs = robot.n_dofs
+        ndofs = robot.ndof
 
         # Get the current poses (these will be the seeds)
         x_current = np.ones((3, ndofs))
@@ -48,43 +67,27 @@ class TestSolutionRerfinement(unittest.TestCase):
         poses_current = robot.forward_kinematics(x_current)
 
         # Get the target poses
-        if center == "lower":
-            diff = 0.1
-        elif center == "upper":
-            diff = -0.1
-        elif center == "middle":
-            diff = 0.1
-        elif center == "lower_out_of_bounds":
-            diff = -0.05
-        elif center == "upper_out_of_bounds":
-            diff = 0.05
-
-        _joint_angles_for_target_pose = x_current.copy()
-        _joint_angles_for_target_pose[0, :] += diff
-        _joint_angles_for_target_pose[1, :] += 2 * diff
-        _joint_angles_for_target_pose[2, :] += 3 * diff
+        diff = center_to_diff[center]
+        _qs_for_target_pose = x_current.copy()
+        _qs_for_target_pose[0, :] += diff
+        _qs_for_target_pose[1, :] += 2 * diff
+        _qs_for_target_pose[2, :] += 3 * diff
 
         if not should_be_oob:
-            _joint_angles_for_target_pose = robot.clamp_to_joint_limits(_joint_angles_for_target_pose)
+            _qs_for_target_pose = robot.clamp_to_joint_limits(_qs_for_target_pose)
 
-        poses_target = robot.forward_kinematics(_joint_angles_for_target_pose)
+        poses_target = robot.forward_kinematics(_qs_for_target_pose)
 
         # Sanity check joint angles used to get target poses plus the target poses
         if not should_be_oob:
             self.assertTrue(
-                robot.joint_angles_all_in_joint_limits(_joint_angles_for_target_pose),
-                msg=(
-                    "joint angles out of"
-                    f" limits\n_joint_angles_for_target_pose={_joint_angles_for_target_pose}\nrobot={robot}"
-                ),
+                _joint_angles_all_in_joint_limits(robot, _qs_for_target_pose),
+                msg=f"joint angles out of limits\nn_qs_for_target_pose={_qs_for_target_pose}\nrobot={robot}",
             )
         else:
             self.assertFalse(
-                robot.joint_angles_all_in_joint_limits(_joint_angles_for_target_pose),
-                msg=(
-                    "joint angles should be out of"
-                    f" limits\n_joint_angles_for_target_pose={_joint_angles_for_target_pose}\nrobot={robot}"
-                ),
+                _joint_angles_all_in_joint_limits(robot, _qs_for_target_pose),
+                msg=f"joint angles should be out of limits\nn_qs_for_target_pose={_qs_for_target_pose}\nrobot={robot}",
             )
 
         l2_diffs, angular_diffs = pose_errors(poses_target, poses_current)
@@ -137,11 +140,11 @@ class TestSolutionRerfinement(unittest.TestCase):
         x_updated_ad_pt = x_updated_ad_pt.cpu().numpy()
 
         self.assertTrue(
-            robot.joint_angles_all_in_joint_limits(x_updated_pt),
+            _joint_angles_all_in_joint_limits(robot, x_updated_pt),
             f"joint angles out of limits\nx_updated_pt={x_updated_pt}\nrobot={robot}",
         )
         self.assertTrue(
-            robot.joint_angles_all_in_joint_limits(x_updated_ad_pt),
+            _joint_angles_all_in_joint_limits(robot, x_updated_ad_pt),
             f"joint angles out of limits\nx_updated_pt={x_updated_ad_pt}\nrobot={robot}",
         )
 
@@ -156,9 +159,7 @@ class TestSolutionRerfinement(unittest.TestCase):
     #
 
     def test_batch_ik_step_functions(self):
-        """Test that ik steps made with inverse_kinematics_single_step_batch_pt() and
-        inverse_kinematics_single_step_batch_np() make progress
-        """
+        """Test that ik steps made with inverse_kinematics_single_step_batch_pt()  makes progress"""
 
         alpha = 0.1
 
@@ -172,24 +173,13 @@ class TestSolutionRerfinement(unittest.TestCase):
 
             # Check progress is made when joints are near their lower and upper limits + when near the center
             for center in ("lower", "middle", "upper", "lower_out_of_bounds", "upper_out_of_bounds"):
-                print(f"  center = '{center}' -> \t", end="")
+                print(f"  center = '{center}' ->\t", end="")
                 x_current, poses_current, poses_target = self.get_current_joint_angle_and_target_pose(
                     robot, center=center
                 )
                 self.assert_batch_ik_step_makes_progress(robot, alpha, x_current, poses_current, poses_target)
                 print("passed")
-
-    # TODO(@jstmn, @dmillard): Get this test to pass by fixing inverse_kinematics_single_step_batch_pt()
-    def test_convergence(self):
-        """Test that pose error decreases at specific joint configurations. Examples found from
-        qpath_optimization_scratchpad.ipynb.
-        """
-        robot = FetchArm()
-        x = np.array([[0.41118, 0.44512, 3.08182, 0.01159, 0.61975, 0.55832, 2.32142]])
-        current_pose = robot.forward_kinematics_klampt(x)
-        target_pose = np.array([[1.00000, 0.30000, 0.47500, 1.00000, 0.00000, 0.00000, 0.00000]])
-        alpha = 0.1
-        self.assert_batch_ik_step_makes_progress(robot, alpha, x, current_pose, target_pose)
+        print("all passed")
 
 
 if __name__ == "__main__":

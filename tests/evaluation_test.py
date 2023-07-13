@@ -6,12 +6,7 @@ from typing import List
 
 from jrl.config import DEVICE
 from jrl.robots import Panda
-from jrl.evaluation import (
-    solution_pose_errors,
-    calculate_joint_limits_exceeded,
-    angular_changes,
-    angular_changes_old,
-)
+from jrl.evaluation import solution_pose_errors, calculate_joint_limits_exceeded, angular_changes
 from jrl.utils import set_seed
 
 set_seed()
@@ -29,20 +24,6 @@ class AngularChangesTest(unittest.TestCase):
     def assert_angular_changes_correct(self, qpath, expected_diff):
         returned_1 = angular_changes(qpath)
         torch.testing.assert_close(expected_diff, returned_1)
-        returned_2 = angular_changes_old(qpath)
-        torch.testing.assert_close(expected_diff, returned_2)
-
-    def test_angular_changes_1_vs_2(self):
-        qpath = 10 * torch.randn((300, 8))
-        from time import time
-
-        t0 = time()
-        returned_1 = angular_changes(qpath)
-        print(1000 * (time() - t0))
-        t0 = time()
-        returned_2 = angular_changes_old(qpath)
-        print(1000 * (time() - t0))
-        torch.testing.assert_close(returned_1, returned_2)
 
     def test_angular_changes_pt(self):
         """Test that the angular_changes() function returns the correct values."""

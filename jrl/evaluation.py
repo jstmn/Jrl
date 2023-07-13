@@ -1,5 +1,4 @@
 from typing import Tuple, List, Optional
-from time import time
 
 import numpy as np
 import torch
@@ -133,7 +132,7 @@ def solution_pose_errors(
         target_poses = target_poses.detach().cpu().numpy()
     target_poses = _get_target_pose_batch(target_poses, solutions.shape[0])
 
-    ee_pose_ikflow = robot.forward_kinematics(solutions[:, 0 : robot.n_dofs].detach().cpu().numpy())
+    ee_pose_ikflow = robot.forward_kinematics(solutions[:, 0 : robot.ndof].detach().cpu().numpy())
     rot_output = ee_pose_ikflow[:, 3:]
 
     # Positional Error
@@ -153,7 +152,7 @@ def calculate_joint_limits_exceeded(configs: torch.Tensor, joint_limits: List[Tu
     """Calculate if the given configs have exceeded the specified joint limits
 
     Args:
-        configs (torch.Tensor): [batch x n_dofs] tensor of robot configurations
+        configs (torch.Tensor): [batch x ndof] tensor of robot configurations
         joint_limits (List[Tuple[float, float]]): The joint limits for the robot. Should be a list of tuples, where each
                                                     tuple contains (lower, upper).
     Returns:
@@ -169,7 +168,7 @@ def calculate_self_collisions(robot: Robot, configs: torch.Tensor) -> torch.Tens
 
     Args:
         robot (Robot): The robot
-        configs (torch.Tensor): [batch x n_dofs] tensor of robot configurations
+        configs (torch.Tensor): [batch x ndof] tensor of robot configurations
 
     Returns:
         torch.Tensor: [batch] tensor of bools indicating if the given configs will self-collide
@@ -202,83 +201,14 @@ def evaluate_solutions(
 
 
 @enforce_pt_np_input
-def angular_changes_old(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
+def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
     """Computes the change in the configuration space path. Respects jumps from 0 <-> 2pi
 
-    WARNING: Results may be negative. Be sure to call .abs() if calculating mjac
+    WARNING: Results may be negative. Be sure to call .abs() if calculating the maximum absolute joint angle change
 
-    Returns: a [n x ndofs] array of the change in each joint angle over the n timesteps.
+    Returns: a [n x ndof] array of the change in each joint angle over the n timesteps.
     """
-    angle_vector_1 = qpath[0:-1]
-    angle_vector_2 = qpath[1:]
-    if isinstance(qpath, np.ndarray):
-        return np.arctan2(np.sin(angle_vector_2 - angle_vector_1), np.cos(angle_vector_2 - angle_vector_1))
-    if isinstance(qpath, torch.Tensor):
-        return torch.arctan2(torch.sin(angle_vector_2 - angle_vector_1), torch.cos(angle_vector_2 - angle_vector_1))
-
-
-@enforce_pt_np_input
-def angular_changes(qpath: PT_NP_TYPE) -> PT_NP_TYPE:
-    """Same as angular_changes but ~2x faster to run"""
     dqs = qpath[1:] - qpath[0:-1]
     if isinstance(qpath, torch.Tensor):
         return torch.remainder(dqs + torch.pi, 2 * torch.pi) - torch.pi
     return np.remainder(dqs + np.pi, 2 * np.pi) - np.pi
-
-
-""" Benchmarking solution_pose_errors():
-
-python jrl/evaluation.py
-
-"""
-
-if __name__ == "__main__":
-    robot_ = Panda()
-
-    print("\n=====================")
-    print("Implementation: numpy")
-    print("\nNumber of solutions | Time to calculate")
-    print("------------------- | -----------------")
-    for n_solutions_ in range(0, 2000, 100):
-        solutions_np_ = np.random.randn(n_solutions_, 7)
-        solutions_pt_ = torch.tensor(solutions_np_, device=DEVICE_TEMP, dtype=torch.float32)
-        target_pose_ = robot_.forward_kinematics(robot_.sample_joint_angles(1))[0]
-
-        runtimes = []
-        for _ in range(5):
-            t0 = time()
-            l2_errors, ang_errors = solution_pose_errors(robot_, solutions_pt_, target_pose_)
-            runtimes.append(time() - t0)
-        runtime = float(np.mean(runtimes))
-        print(f"{n_solutions_}  \t| {round(1000*(runtime), 5)}ms")
-
-        # Benchmarking result: it is faster to convert solutions to numpy to calculate errors when n_solutions < 1000.
-        # after that, it becomes faster to calculate errors with pytorch on the CPU. At some point longer in the future
-        # it will be faster to calculate errors with pytorch on the GPU.
-
-        # Current implementation:
-        # =====================
-        # Implementation: numpy
-
-        # Number of solutions | Time to calculate
-        # ------------------- | -----------------
-        # 0	    | 0.52063ms
-        # 100	| 2.02473ms
-        # 200	| 4.13291ms
-        # 300	| 4.01187ms
-        # 400	| 5.37546ms
-        # 500	| 5.68899ms
-        # 600	| 6.61222ms
-        # 700	| 7.88768ms
-        # 800	| 8.47348ms
-        # 900	| 9.6999ms
-        # 1000	| 10.7499ms
-        # 1100	| 11.24612ms
-        # 1200	| 12.73076ms
-        # 1300	| 13.11556ms
-        # 1400	| 15.02244ms
-        # 1500	| 15.03865ms
-        # 1600	| 16.01609ms
-        # 1700	| 16.87686ms
-        # 1800	| 17.74081ms
-        # 1900	| 19.45353ms

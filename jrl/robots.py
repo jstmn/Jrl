@@ -31,6 +31,14 @@ FETCH_NEVER_COLLIDING_LINKS = [
     ("elbow_flex_link", "gripper_link"),
     ("forearm_roll_link", "gripper_link"),
 ]
+FETCH_ADDITIONAL_IGNORED_COLLISION_PAIRS = [
+    ("torso_lift_link", "torso_fixed_link"),
+    ("torso_lift_link", "shoulder_lift_link"),
+    ("r_gripper_finger_link", "l_gripper_finger_link"),
+    ("bellows_link2", "base_link"),
+    ("bellows_link2", "torso_fixed_link"),
+    ("wrist_flex_link", "gripper_link"),
+]
 PANDA_ALWAYS_COLLIDING_LINKS = []
 PANDA_NEVER_COLLIDING_LINKS = [
     ("panda_link0", "panda_link2"),
@@ -88,8 +96,6 @@ class Baxter(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
-            Baxter.POSITIONAL_REPEATABILITY_MM,
-            Baxter.ROTATIONAL_REPEATABILITY_DEG,
             batch_fk_enabled=False,
         )
 
@@ -112,22 +118,16 @@ class Fetch(Robot):
             "elbow_flex_joint",
             "forearm_roll_joint",  # continuous
             "wrist_flex_joint",
-            "wrist_roll_joint",  # continous
+            "wrist_roll_joint",  # continuous
         ]
         base_link = "base_link"
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
-        ignored_collision_pairs = [
-            ("torso_lift_link", "torso_fixed_link"),
-            ("torso_lift_link", "shoulder_lift_link"),
-            ("r_gripper_finger_link", "l_gripper_finger_link"),
-            ("bellows_link2", "base_link"),
-            ("bellows_link2", "torso_fixed_link"),
-            ("wrist_flex_link", "gripper_link"),
-        ]
+
         # with additional ignored pairs, goes from 34 collision pair checks to 14
-        ignored_collision_pairs += FETCH_ALWAYS_COLLIDING_LINKS
-        ignored_collision_pairs += FETCH_NEVER_COLLIDING_LINKS
+        ignored_collision_pairs = (
+            FETCH_ADDITIONAL_IGNORED_COLLISION_PAIRS + FETCH_ALWAYS_COLLIDING_LINKS + FETCH_NEVER_COLLIDING_LINKS
+        )
 
         collision_capsules_by_link = {
             link: _load_capsule(f"urdfs/fetch/capsules/{link}_collision.txt")
@@ -142,6 +142,7 @@ class Fetch(Robot):
                 "wrist_flex_link",
                 "wrist_roll_link",
                 "gripper_link",
+                # "head_tilt_link"
             ]
         }
 
@@ -153,8 +154,6 @@ class Fetch(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
-            Fetch.POSITIONAL_REPEATABILITY_MM,
-            Fetch.ROTATIONAL_REPEATABILITY_DEG,
             collision_capsules_by_link,
         )
 
@@ -177,20 +176,16 @@ class FetchArm(Robot):
             "elbow_flex_joint",  # (-2.251,  2.251)
             "forearm_roll_joint",  # (-3.1415, 3.1415) continuous
             "wrist_flex_joint",  # (-2.16,   2.16)
-            "wrist_roll_joint",  # (-3.1415, 3.1415) continous
+            "wrist_roll_joint",  # (-3.1415, 3.1415) continuous
         ]
         base_link = "base_link"
         end_effector_link_name = "gripper_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
-        ignored_collision_pairs = [
-            ("torso_lift_link", "torso_fixed_link"),
-            ("r_gripper_finger_link", "l_gripper_finger_link"),
-            ("bellows_link2", "base_link"),
-            ("bellows_link2", "torso_fixed_link"),
-        ]
+
         # with additional ignored pairs, goes from 34 collision pair checks to 14. This results in a ~2x speedup
-        ignored_collision_pairs += FETCH_ALWAYS_COLLIDING_LINKS
-        ignored_collision_pairs += FETCH_NEVER_COLLIDING_LINKS
+        ignored_collision_pairs = (
+            FETCH_ADDITIONAL_IGNORED_COLLISION_PAIRS + FETCH_ALWAYS_COLLIDING_LINKS + FETCH_NEVER_COLLIDING_LINKS
+        )
 
         collision_capsules_by_link = {
             link: _load_capsule(f"urdfs/fetch/capsules/{link}_collision.txt")
@@ -205,6 +200,7 @@ class FetchArm(Robot):
                 "wrist_flex_link",
                 "wrist_roll_link",
                 "gripper_link",
+                # "head_tilt_link"
             ]
         }
 
@@ -216,8 +212,6 @@ class FetchArm(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
-            FetchArm.POSITIONAL_REPEATABILITY_MM,
-            FetchArm.ROTATIONAL_REPEATABILITY_DEG,
             collision_capsules_by_link,
             verbose=verbose,
         )
@@ -227,7 +221,7 @@ class Panda(Robot):
     name = "panda"
     formal_robot_name = "Panda"
 
-    # See 'Pose repeatability' in https://pkj-robotics.dk/wp-content/uploads/2020/09/Franka-Emika_Brochure_EN_April20_PKJ.pdf.
+    # See 'Pose repeatability' in https://pkj-robotics.dk/wp-content/uploads/2020/09/Franka-Emika_Brochure_EN_April20_PKJ.pdf
     # Rotational repeatability calculated in calculate_rotational_repeatability.py
     POSITIONAL_REPEATABILITY_MM = 0.1
     ROTATIONAL_REPEATABILITY_DEG = 0.14076593566091963
@@ -278,8 +272,6 @@ class Panda(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
-            Panda.POSITIONAL_REPEATABILITY_MM,
-            Panda.ROTATIONAL_REPEATABILITY_DEG,
             collision_capsules_by_link,
             verbose=verbose,
         )
@@ -323,7 +315,9 @@ class Iiwa7(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7]
+ALL_CLCS = [Panda, Fetch, FetchArm]
+# ALL_CLCS = [Panda]
+# TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
 
 
@@ -343,13 +337,3 @@ def robot_name_to_fancy_robot_name(name: str) -> str:
         if cls.name == name:
             return cls.formal_robot_name
     raise ValueError(f"Unable to find robot '{name}' (available: {[clc.name for clc in ALL_CLCS]})")
-
-
-if __name__ == "__main__":
-    import numpy as np
-
-    np.set_printoptions(suppress=True)
-    fa = FetchArm()
-    ff = FetchArm()
-    print(fa.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))
-    print(ff.forward_kinematics_klampt(np.zeros(7)[None, :], "torso_lift_link"))

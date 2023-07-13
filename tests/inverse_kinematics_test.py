@@ -24,7 +24,7 @@ class TestInverseKinematics(unittest.TestCase):
         if solution is None:
             print(" -> Solution is None, failing")
             return False, -1
-        self.assertEqual(solution.shape, (1, robot.n_dofs))
+        self.assertEqual(solution.shape, (1, robot.ndof))
         poses_ik = robot.forward_kinematics_klampt(solution)
         self.assertEqual(poses_ik.shape, (1, 7))
         # Check solution error

@@ -1,6 +1,6 @@
 import unittest
 
-from jrl.urdf_utils import DFSSearcher, Link, Joint, get_joint_chain
+from jrl.urdf_utils import DFSSearcher, Link, Joint, get_end_effector_kinematic_chain
 
 
 def _get_joint(name: str, parent: str, child: str, joint_type: str):
@@ -42,7 +42,7 @@ class UrdfUtilsTest(unittest.TestCase):
         urdf_filepath = "jrl/urdfs/iiwa7/iiwa7_formatted.urdf"
         base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
-        joint_chain = get_joint_chain(urdf_filepath, active_joints, base_link, end_effector_link_name)
+        joint_chain = get_end_effector_kinematic_chain(urdf_filepath, active_joints, base_link, end_effector_link_name)
         self.assertEqual(len(joint_chain), 9)
 
     def test_get_joint_chain(self):
@@ -63,7 +63,7 @@ class UrdfUtilsTest(unittest.TestCase):
             _get_joint("panda_joint5", "panda_link4", "panda_link5", "fixed"),
         ]
 
-        returned = get_joint_chain(urdf_filepath, active_joints, base_link_name, end_effector_name)
+        returned = get_end_effector_kinematic_chain(urdf_filepath, active_joints, base_link_name, end_effector_name)
 
         for expected_joint, returned_joint in zip(expected, returned):
             self.assertEqual(expected_joint.name, returned_joint.name)

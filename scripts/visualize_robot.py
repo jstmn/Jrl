@@ -42,7 +42,7 @@ def oscillate_joints(robot: Robot, show_collision_capsules: bool = True):
         sleep(time_p_loop)  # note: don't put sleep inside the lock()
 
     while vis.shown():
-        for i in range(robot.n_dofs):
+        for i in range(robot.ndof):
             l, u = robot.actuated_joints_limits[i]
 
             while x[i] < u:

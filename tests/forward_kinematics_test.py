@@ -160,7 +160,7 @@ class TestForwardKinematics(unittest.TestCase):
 
     def test_each_dimension_actuated(self):
         """
-        Test that each dimension in n_dofs is actuated. This is done by asserting that there is either a positional
+        Test that each dimension in ndof is actuated. This is done by asserting that there is either a positional
         or rotational change of the end effector when there is a change along each dimension of x
         """
         pos_min_diff = 0.001
@@ -174,9 +174,9 @@ class TestForwardKinematics(unittest.TestCase):
             # Iterate through each sample
             for sample_i in range(n_samples):
                 # For each sample, iterate through the number of joints
-                for joint_i in range(robot.n_dofs):
+                for joint_i in range(robot.ndof):
                     for offset in decimal_range(-np.pi, np.pi, 1.5):
-                        pertubation = np.zeros(robot.n_dofs)
+                        pertubation = np.zeros(robot.ndof)
                         pertubation[joint_i] = offset
                         sample = np.array([samples[sample_i, :] + pertubation])
                         fk_i = forward_kinematics_kinpy(robot, sample)

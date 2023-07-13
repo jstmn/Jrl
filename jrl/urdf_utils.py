@@ -307,15 +307,16 @@ def joint_path_from_link_path(link_path: List[Link], all_joints: List[Joint]) ->
     return path
 
 
-def get_joint_chain(
+def get_end_effector_kinematic_chain(
     urdf_filepath: str, active_joints: List[str], base_link_name: str, end_effector_name: str
 ) -> List[Joint]:
     """Returns a list of joints from the base link to the end effector. Runs DFS to find the path, and checks that the
-    path is valid before returning it.
+    path is valid before returning it. Sets all joints in the path which aren't in the active joints list to fixed
 
     Args:
         active_joints (List[str]): The joints in the kinematic chain (specified by the user).
     """
+    assert len(active_joints) == len(set(active_joints)), "Duplicate joints found in active_joints"
     all_joints, all_links = parse_urdf(urdf_filepath)  # Dicts
     all_joints = list(all_joints.values())
     all_joint_names = tuple([j.name for j in all_joints])
