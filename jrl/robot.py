@@ -451,7 +451,7 @@ class Robot:
                 return False
         return True
 
-    def config_self_collides(self, x: PT_NP_TYPE, debug_mode: bool = False) -> bool:
+    def config_self_collides(self, x: PT_NP_TYPE) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
 
         Args:
@@ -462,19 +462,11 @@ class Robot:
             x = x.detach().cpu().numpy()
         self.set_klampt_robot_config(x)
         collisions = self._klampt_collision_checker.robotSelfCollisions(self._klampt_robot)
-        if debug_mode:
-            is_collision = False
         for link1, link2 in collisions:
-            if debug_mode:
-                print(f"Collision between {link1.getName()} and {link2.getName()}")
-                is_collision = True
-            else:
-                return True
-        if debug_mode and is_collision:
             return True
         return False
 
-    def config_collides_with_env(self, x: PT_NP_TYPE, box: klampt.Geometry3D, debug_mode: bool = False) -> bool:
+    def config_collides_with_env(self, x: PT_NP_TYPE, box: klampt.Geometry3D, return_detailed: bool = False) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
 
         Args:
@@ -485,18 +477,14 @@ class Robot:
             x = x.detach().cpu().numpy()
         self.set_klampt_robot_config(x)
         collisions = self._klampt_collision_checker.robotObjectCollisions(self._klampt_robot, box)
-        if debug_mode:
-            is_collision = False
 
-        # (RobotModelLink,RigidObjectModel)
+        if return_detailed:
+            collisions_list = list(collisions)
+            return collisions_list
+
+        # Not sure if collisions lazily evaluated or not, so we need to iterate over instead of calling list(collisions)
+        # (RobotModelLink, RigidObjectModel)
         for link, rigid_object in collisions:
-            if debug_mode:
-                # print(f"Collision between {link.getName()} and {link2.getName()}")
-                print(f"config_collides_with_env() | collision between {link.getName()} and {rigid_object}")
-                is_collision = True
-            else:
-                return True
-        if debug_mode and is_collision:
             return True
         return False
 

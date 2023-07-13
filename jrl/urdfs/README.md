@@ -22,16 +22,16 @@ cd ../
 source devel/setup.bash
 catkin_make install
 rosrun xacro xacro src/iiwa_stack/iiwa_description/urdf/iiwa7.urdf.xacro > iiwa7.urdf # for some reason doing this with 'iiwa7.urdf' outputs an empty .urdf file
-# from here, manually move iiwa7.urdf, and the meshes to jkinpylib/jkinpylib/urdfs. Then create iiwa7_formatted.urdf and update it as neccessary
+# from here, manually move iiwa7.urdf, and the meshes to jrl/jrl/urdfs. Then create iiwa7_formatted.urdf and update it as neccessary
 ```
 
 ## Create a pdf of the urdf
 
 ``` bash
 sudo apt-get install liburdfdom-tools 
-urdf_to_graphiz jkinpylib/urdfs/iiwa7/iiwa7_formatted.urdf
+urdf_to_graphiz jrl/urdfs/iiwa7/iiwa7_formatted.urdf
 rm iiwa7.gv
-mv iiwa7.pdf jkinpylib/urdfs/iiwa7/
+mv iiwa7.pdf jrl/urdfs/iiwa7/
 ```
 
 
