@@ -1,14 +1,14 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.robots import FetchArm, Panda
+from jrl.robots import Fetch, FetchArm, Panda
 
 import torch
 
 torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
 torch.set_default_device(DEVICE)
 
-"""python scripts/capsule_collision_stats.py
+""" python scripts/calculate_ignorable_link_collision_pairs.py
 """
 
 
@@ -17,8 +17,9 @@ if __name__ == "__main__":
     never_colliding_pct = 0.001
 
     # Note: you need to manually comment out the collision pairs in 'ignored_collision_pairs' in __init__()
+    robot = Fetch()
     # robot = FetchArm()
-    robot = Panda()
+    # robot = Panda()
 
     link_names = list(robot._collision_capsules_by_link.keys())
     n_pairs = robot._collision_idx0.numel()

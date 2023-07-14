@@ -134,7 +134,6 @@ def _generate_self_collision_pairs(
     )
 
 
-# TODO: Add base link
 class Robot:
     def __init__(
         self,
@@ -160,8 +159,9 @@ class Robot:
                                         not in 'active_joints' will be ignored (by being changed to fixed joints).
             base_link (str): _description_
             end_effector_link_name (str): _description_
-            additional_link_name (Optional[str]): Optionally provide the name of an additional link which FK and
-                                                    jacobian functions will return the pose/jacobian of.
+            additional_link_name (Optional[str]): Optionally provide the name of an additional link whose pose will be
+                                                    returned by forward_kinematics_batch when 'return_full_link_fk' is
+                                                    True
             ignored_collision_pairs (List[Tuple[str, str]]): _description_
             collision_capsules_by_link (Optional[Dict[str, torch.Tensor]], optional): _description_. Defaults to None.
             batch_fk_enabled (bool, optional): _description_. Defaults to True.
