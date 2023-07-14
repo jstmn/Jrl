@@ -122,6 +122,7 @@ class Fetch(Robot):
         ]
         base_link = "base_link"
         end_effector_link_name = "gripper_link"
+        additional_link_name = "head_tilt_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
 
         # with additional ignored pairs, goes from 34 collision pair checks to 14
@@ -155,6 +156,7 @@ class Fetch(Robot):
             end_effector_link_name,
             ignored_collision_pairs,
             collision_capsules_by_link,
+            additional_link_name=additional_link_name,
         )
 
 
@@ -180,6 +182,7 @@ class FetchArm(Robot):
         ]
         base_link = "base_link"
         end_effector_link_name = "gripper_link"
+        additional_link_name = "head_tilt_link"
         urdf_filepath = get_filepath("urdfs/fetch/fetch_formatted.urdf")
 
         # with additional ignored pairs, goes from 34 collision pair checks to 14. This results in a ~2x speedup
@@ -214,6 +217,7 @@ class FetchArm(Robot):
             ignored_collision_pairs,
             collision_capsules_by_link,
             verbose=verbose,
+            additional_link_name=additional_link_name,
         )
 
 
@@ -274,6 +278,7 @@ class Panda(Robot):
             ignored_collision_pairs,
             collision_capsules_by_link,
             verbose=verbose,
+            additional_link_name=None,
         )
 
 
@@ -312,6 +317,7 @@ class Iiwa7(Robot):
             Iiwa7.POSITIONAL_REPEATABILITY_MM,
             Iiwa7.ROTATIONAL_REPEATABILITY_DEG,
             verbose=verbose,
+            additional_link_name=None,
         )
 
 

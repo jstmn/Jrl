@@ -12,10 +12,12 @@ from jrl.config import DEVICE
 
 set_seed(0)
 
-ROBOTS = get_all_robots()
-
 
 class RobotTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.robots = get_all_robots()
+
     def _assert_joint_angles_within_limits(self, joint_angles: PT_NP_TYPE, robot: Robot):
         for joint_angle in joint_angles:
             for i in range(robot.ndof):
@@ -112,7 +114,7 @@ class RobotTest(unittest.TestCase):
 
     def test_sample_joint_angles(self):
         """_summary_"""
-        for robot in ROBOTS:
+        for robot in self.robots:
             joint_angles = robot.sample_joint_angles(1000)
             self.assertEqual(joint_angles.shape, (1000, robot.ndof))
             # Check joint angles are within joint limits
@@ -122,7 +124,7 @@ class RobotTest(unittest.TestCase):
     def test_sample_joint_angles_and_poses(self):
         """_summary_"""
         print("test_sample_joint_angles_and_poses()")
-        for robot in ROBOTS:
+        for robot in self.robots:
             print(robot)
             joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=True)
             self.assertEqual(joint_angles.shape, (1000, robot.ndof))
@@ -206,14 +208,14 @@ class RobotTest(unittest.TestCase):
         torch.testing.assert_close(returned, expected)
 
     def test_jacobian_np(self):
-        for robot in ROBOTS:
+        for robot in self.robots:
             x = np.zeros(robot.ndof)
             J = robot.jacobian_np(x)
             self.assertEqual(J.shape, (6, robot.ndof))
 
     def test_jacobian_klampt_pt_match(self):
         atol = 1e-5
-        for robot in ROBOTS:
+        for robot in self.robots:
             for i in range(10):
                 batch_size = 1
                 x = robot.sample_joint_angles(batch_size)
@@ -257,7 +259,7 @@ class RobotTest(unittest.TestCase):
             "fetch_arm": 7,
             "iiwa7": 7,
         }
-        for robot in ROBOTS:
+        for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
 
     def test_joint_limits(self):
@@ -309,7 +311,7 @@ class RobotTest(unittest.TestCase):
                 (-3.0543261909900763, 3.0543261909900763),
             ],
         }
-        for robot in ROBOTS:
+        for robot in self.robots:
             self.assertEqual(len(robot.actuated_joints_limits), robot.ndof)
             for gt_limit, parsed_limit in zip(ground_truth_joint_limits[robot.name], robot.actuated_joints_limits):
                 self.assertAlmostEqual(gt_limit[0], parsed_limit[0])
@@ -365,13 +367,12 @@ class RobotTest(unittest.TestCase):
                 "iiwa_joint_7",
             ],
         }
-        for robot in ROBOTS:
+        for robot in self.robots:
             self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
             self.assertListEqual(robot.actuated_joint_names, ground_truth_actuated_joints[robot.name])
 
     def test_q_x_conversion(self):
-        print("test_q_x_conversion()")
-        for robot in ROBOTS:
+        for robot in self.robots:
             print(robot)
             ndofs = robot.ndof
             x_original = np.array(
@@ -381,13 +382,10 @@ class RobotTest(unittest.TestCase):
                 ]
             )
             q = robot._x_to_qs(x_original)
-            print("q:", q)
             x_returned = robot._qs_to_x(q)
-            print("x_returned:", x_returned)
             np.testing.assert_allclose(x_original, x_returned)
 
     def test_x_driver_vec_conversion_panda(self):
-        print("test_x_driver_vec_conversion_panda()")
         gt_klampt_vector_dimensionality = {
             "fetch": 14,  # 24 total joints, 10 of them are fixed
             "fetch_arm": 14,  # 24 total joints, 10 of them are fixed
@@ -395,7 +393,7 @@ class RobotTest(unittest.TestCase):
             "iiwa7": 7,  #
         }
 
-        for robot in ROBOTS:
+        for robot in self.robots:
             gt_vector_dim = gt_klampt_vector_dimensionality[robot.name]
             ndof = robot.ndof
 
@@ -413,24 +411,11 @@ class RobotTest(unittest.TestCase):
             x_returned = robot._x_from_driver_vec(driver_vec)
             np.testing.assert_allclose(x_original, x_returned)
 
-    def test_self_collision(self):
-        panda = Panda()
-        print("panda._collision_capsules:", panda._collision_capsules)
-        print("panda._collision_idx0:", panda._collision_idx0)
-        print("panda._collision_idx1:", panda._collision_idx1)
-        print("panda._collision_capsules[5]:", panda._collision_capsules[5])
-        print("panda._collision_capsules[7]:", panda._collision_capsules[7])
-        x = torch.tensor(panda.sample_joint_angles(1), device=DEVICE, dtype=torch.float32)
-        x[:] = 0
-        dists = panda.self_collision_distances_batch(x)
-        print(dists)
-        print(dists.device)
-
     def test_robot_self_collision_distances(self):
         """Test that self_collision_distances_batch() returns the expected distances"""
         atol = 1e-5
         for robot in [Panda()]:
-            for i in range(10):
+            for _ in range(10):
                 # batch_size = 5
                 batch_size = 1
                 x = robot.sample_joint_angles(batch_size)
