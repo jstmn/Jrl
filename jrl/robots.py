@@ -146,7 +146,6 @@ class Fetch(Robot):
                 "head_tilt_link",
             ]
         }
-        print(collision_capsules_by_link["head_tilt_link"])
         Robot.__init__(
             self,
             Fetch.name,
@@ -206,7 +205,6 @@ class FetchArm(Robot):
                 "head_tilt_link",
             ]
         }
-        print(collision_capsules_by_link["head_tilt_link"])
         Robot.__init__(
             self,
             FetchArm.name,
