@@ -38,11 +38,10 @@ class UrdfUtilsTest(unittest.TestCase):
 
             # Test chain
             expected = [
-                "torso_lift_link",
                 "head_pan_joint",
                 "head_tilt_joint",
             ]
-            returned = [joint.name for joint in fetch._additional_link_kinematic_chain]
+            returned = [joint.name for joint in fetch._addl_link_kinematic_chain]
             self.assertEqual(expected, returned)
 
     def test_iiwa7(self):

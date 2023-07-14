@@ -63,18 +63,21 @@ def _generate_self_collision_pairs(
     collision_capsules_by_link: Dict[str, torch.Tensor],
     joint_chain: List[Joint],
     ignored_collision_pairs: List[Tuple[str, str]],
+    additional_link: Optional[str] = None,
+    additional_link_lca_joint: Optional[Joint] = None,
 ):
     """
-    Generate collision pairs from collision capsules and joint chain. Adjacent
-    links in the joint chain are allowed to collide.
+    Generate collision pairs from collision capsules and joint chain. Adjacent links in the joint chain are allowed to
+    collide.
 
-    Returns capsules and idx0, idx1, such that
-        capsules[idx0[i]] and capsules[idx1[i]]
-    must be checked for collision.
+    Returns capsules and idx0, idx1, such that capsules[idx0[i]] and capsules[idx1[i]] must be checked for collision.
 
     Args:
         joint_chain (List[Joint]): Joint chain of the robot.
         ignored_collision_pairs (List[Tuple[str, str]], optional): List of collision pairs to ignore. Defaults to [].
+        additional_link (Optional[str]): An optional additional link to add to the collision pairs. Defaults to None.
+        additional_link_lca_joint (Optional[Joint]): The artificial joint that connects the additional link to the
+                                                        joint_chain
 
     Returns:
         Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: capsules, idx0, idx1
@@ -103,6 +106,14 @@ def _generate_self_collision_pairs(
             capsule_idx_to_joint_idx.append(i + 1)
 
         ignored_collision_set.add(tuple(sorted((joint.parent, joint.child))))
+
+    # Add in the additional link
+    if additional_link is not None:
+        capsules.append(collision_capsules_by_link[additional_link])
+        idx = capsule_idx_to_joint_idx[-1] + 1
+        link_name_to_idx[additional_link] = idx
+        capsule_idx_to_joint_idx.append(idx)
+        ignored_collision_set.add(tuple(sorted((additional_link_lca_joint.parent, additional_link_lca_joint.child))))
 
     idx0, idx1 = [], []
     link_names = list(collision_capsules_by_link.keys())
@@ -178,21 +189,16 @@ class Robot:
             self._base_link,
             self._end_effector_link_name,
         )
-        self._additional_link_kinematic_chain = []
+
+        # Handle the additional link
         if self._additional_link_name is not None:
             self._additional_link_lca_link = get_lowest_common_ancestor_link(
                 self._urdf_filepath, self._end_effector_kinematic_chain, self._active_joints, self._additional_link_name
             )
-            addl_link_kinematic_chain = get_kinematic_chain(
+            self._addl_link_kinematic_chain = get_kinematic_chain(
                 self._urdf_filepath, self._active_joints, self._additional_link_lca_link, self._additional_link_name
             )
-            self._additional_link_lca_joint = merge_fixed_joints_to_one(addl_link_kinematic_chain)
-            # print()
-            # print("self._additional_link_lca_link: ", self._additional_link_lca_link)
-            # print("addl_link_kinematic_chain:      ", addl_link_kinematic_chain)
-            # print("self._additional_link_lca_joint:", self._additional_link_lca_joint)
-            # print()
-            # exit()
+            self._additional_link_lca_joint = merge_fixed_joints_to_one(self._addl_link_kinematic_chain)
 
         self._actuated_joint_limits = [
             joint.limits for joint in self._end_effector_kinematic_chain if joint.is_actuated
@@ -220,6 +226,10 @@ class Robot:
                 self._collision_capsules_by_link,
                 self._end_effector_kinematic_chain,
                 ignored_collision_pairs,
+                additional_link=self._additional_link_name,
+                additional_link_lca_joint=self._additional_link_lca_joint
+                if self._additional_link_name is not None
+                else None,
             )
 
         # Create and fill cache of fixed rotations between links.

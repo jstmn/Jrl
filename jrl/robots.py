@@ -143,10 +143,10 @@ class Fetch(Robot):
                 "wrist_flex_link",
                 "wrist_roll_link",
                 "gripper_link",
-                # "head_tilt_link"
+                "head_tilt_link",
             ]
         }
-
+        print(collision_capsules_by_link["head_tilt_link"])
         Robot.__init__(
             self,
             Fetch.name,
@@ -203,10 +203,10 @@ class FetchArm(Robot):
                 "wrist_flex_link",
                 "wrist_roll_link",
                 "gripper_link",
-                # "head_tilt_link"
+                "head_tilt_link",
             ]
         }
-
+        print(collision_capsules_by_link["head_tilt_link"])
         Robot.__init__(
             self,
             FetchArm.name,
