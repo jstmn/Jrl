@@ -5,13 +5,14 @@ import torch
 import numpy as np
 
 from jrl import config
-from jrl.robots import get_all_robots
+from jrl.robots import get_all_robots, Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
-from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.conversions import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
 from jrl.evaluation import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 torch.manual_seed(0)
-
+np.set_printoptions(suppress=True, linewidth=200)
+torch.set_printoptions(linewidth=200, precision=5, sci_mode=False)
 DEVICE = config.DEVICE
 
 
@@ -29,10 +30,11 @@ def get_gt_samples_and_endpoints(robot_name: str) -> Tuple[np.ndarray, np.ndarra
     )
 
 
-ROBOTS = get_all_robots()
-
-
 class TestForwardKinematics(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.robots = get_all_robots()
+
     # ==================================================================================================================
     # Helper functions
     #
@@ -42,49 +44,60 @@ class TestForwardKinematics(unittest.TestCase):
         klampt_fk = robot.forward_kinematics_klampt(samples)
 
         if robot._batch_fk_enabled:
-            batch_fk, batch_fk_runtime = robot.forward_kinematics_batch(
-                torch.tensor(samples, dtype=torch.float32, device=DEVICE),
-                out_device=DEVICE,
-                return_runtime=True,
-                return_quaternion=True,
+            batch_fk = (
+                robot.forward_kinematics_batch(
+                    torch.tensor(samples, dtype=torch.float32, device=DEVICE),
+                    out_device=DEVICE,
+                    return_quaternion=True,
+                )
+                .cpu()
+                .numpy()
             )
-            batch_fk = batch_fk.cpu().numpy()
-            """
-            w precaching 1000
-                Took 5.38 ms to get 500 poses
-                Took 8.048 ms to get 10 poses
-            w/o precaching
-                Took 7.566 ms to get 500 poses
-                Took 5.131 ms to get 10 poses
-            """
-            print(f"Took {round(batch_fk_runtime*1000, 3)} ms to get {samples.shape[0]} poses")
         else:
             batch_fk = (None, None)
-
-        # TODO(@jeremysm): Get batch_fk_R to quaternion and return (n x 7) array
         return kinpy_fk, klampt_fk, batch_fk
 
     # ==================================================================================================================
     # Tests
     #
 
-    def test_forward_kinematics_batch_differentiability(self):
-        """Test that forward_kinematics_batch is differenetiable"""
+    def test_additional_link_fk(self):
+        """Test that the pose of the "head_tilt_link" link is returned for fetch and fetch-arm"""
+        for fetch in [Fetch(), FetchArm()]:
+            assert fetch._additional_link_name == "head_tilt_link"
+            q = fetch.sample_joint_angles(50)
 
-        for robot in ROBOTS:
+            # klampt
+            link_pose_klampt = torch.tensor(
+                fetch.forward_kinematics_klampt(q, link_name=fetch._additional_link_name), dtype=torch.float32
+            )
+
+            # batch_fk
+            batch_fk_out = fetch.forward_kinematics_batch(torch.tensor(q), return_full_link_fk=True)[:, -1]
+            quaternions = rotation_matrix_to_quaternion(batch_fk_out[:, 0:3, 0:3])
+            translations = batch_fk_out[:, 0:3, 3]
+            link_pose_batchfk = torch.cat([translations, quaternions], dim=1)
+
+            # Check that they are equal
+            torch.testing.assert_close(link_pose_klampt, link_pose_batchfk, rtol=1e-4, atol=1e-4)
+
+    def test_forward_kinematics_batch_differentiability(self):
+        """Test that forward_kinematics_batch is differentiable"""
+
+        for robot in self.robots:
             if not robot._batch_fk_enabled:
                 continue
 
             samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
             out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
 
-            # Should be able to progogate the gradient of the error (out.mean()) through forward_kinematics_batch()
+            # Should be able to propagate the gradient of the error (out.mean()) through forward_kinematics_batch()
             out.mean().backward()
 
     def test_forward_kinematics_batch(self):
         """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
         matrices"""
-        for robot in ROBOTS:
+        for robot in self.robots:
             if not robot._batch_fk_enabled:
                 continue
 
@@ -122,7 +135,7 @@ class TestForwardKinematics(unittest.TestCase):
         """
         Test that the all three forward kinematics functions return the expected value for saved input
         """
-        for robot in ROBOTS:
+        for robot in self.robots:
             samples, endpoints_expected = get_gt_samples_and_endpoints(robot.name)
             kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
 
@@ -148,7 +161,7 @@ class TestForwardKinematics(unittest.TestCase):
         Test that kinpy, klampt, and batch_fk all return the same poses
         """
         n_samples = 500
-        for robot in ROBOTS:
+        for robot in self.robots:
             samples = robot.sample_joint_angles(n_samples)
             kinpy_fk, klampt_fk, batch_fk = self.get_fk_poses(robot, samples)
             assert_pose_positions_almost_equal(kinpy_fk, klampt_fk)
@@ -160,23 +173,23 @@ class TestForwardKinematics(unittest.TestCase):
 
     def test_each_dimension_actuated(self):
         """
-        Test that each dimension in n_dofs is actuated. This is done by asserting that there is either a positional
+        Test that each dimension in ndof is actuated. This is done by asserting that there is either a positional
         or rotational change of the end effector when there is a change along each dimension of x
         """
         pos_min_diff = 0.001
         rad_min_diff = 0.001
 
         n_samples = 5
-        for robot in ROBOTS:
+        for robot in self.robots:
             samples = robot.sample_joint_angles(n_samples)
             samples_fks = forward_kinematics_kinpy(robot, samples)
 
             # Iterate through each sample
             for sample_i in range(n_samples):
                 # For each sample, iterate through the number of joints
-                for joint_i in range(robot.n_dofs):
+                for joint_i in range(robot.ndof):
                     for offset in decimal_range(-np.pi, np.pi, 1.5):
-                        pertubation = np.zeros(robot.n_dofs)
+                        pertubation = np.zeros(robot.ndof)
                         pertubation[joint_i] = offset
                         sample = np.array([samples[sample_i, :] + pertubation])
                         fk_i = forward_kinematics_kinpy(robot, sample)

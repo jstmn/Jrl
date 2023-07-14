@@ -33,7 +33,7 @@ if __name__ == "__main__":
         for q, pose in tqdm(zip(joint_angles, poses), total=n_poses):
             q_last_inbound = []
             for _ in range(n_perturbs):
-                pertubation = np.random.random(robot.n_dofs) - 0.5
+                pertubation = np.random.random(robot.ndof) - 0.5
                 pertubation = 0.00001 * pertubation / np.linalg.norm(pertubation)
                 q_perturbed = q.copy()
                 while True:

@@ -25,12 +25,14 @@ from jrl.conversions import (
     DEFAULT_TORCH_DTYPE,
     PT_NP_TYPE,
 )
-from jrl.config import DEVICE, ACCELERATOR_AVAILABLE
+from jrl.config import DEVICE
 from jrl.urdf_utils import (
     Joint,
-    get_joint_chain,
+    get_kinematic_chain,
     get_urdf_filepath_w_filenames_updated,
+    get_lowest_common_ancestor_link,
     UNHANDLED_JOINT_TYPES,
+    merge_fixed_joints_to_one,
 )
 from jrl.utils import to_torch
 from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
@@ -48,9 +50,9 @@ def _assert_is_pose_matrix(poses: Union[torch.Tensor, np.ndarray]):
     assert max(norms) < 1.01 and min(norms) > 0.99, "quaternion(s) are not unit quaternion(s)"
 
 
-def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], n_dofs: int):
+def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], ndof: int):
     _assert_is_2d(xs)
-    assert xs.shape[1] == n_dofs, f"Expected matrix to be [n x n_dofs] ([{xs.shape[0]} x {n_dofs}]) but got {xs.shape}"
+    assert xs.shape[1] == ndof, f"Expected matrix to be [n x ndof] ([{xs.shape[0]} x {ndof}]) but got {xs.shape}"
 
 
 def _assert_is_np(x: np.ndarray, variable_name: str = "input"):
@@ -60,19 +62,22 @@ def _assert_is_np(x: np.ndarray, variable_name: str = "input"):
 def _generate_self_collision_pairs(
     collision_capsules_by_link: Dict[str, torch.Tensor],
     joint_chain: List[Joint],
-    ignored_collision_pairs: List[Tuple[str, str]] = [],
+    ignored_collision_pairs: List[Tuple[str, str]],
+    additional_link: Optional[str] = None,
+    additional_link_lca_joint: Optional[Joint] = None,
 ):
     """
-    Generate collision pairs from collision capsules and joint chain. Adjacent
-    links in the joint chain are allowed to collide.
+    Generate collision pairs from collision capsules and joint chain. Adjacent links in the joint chain are allowed to
+    collide.
 
-    Returns capsules and idx0, idx1, such that
-        capsules[idx0[i]] and capsules[idx1[i]]
-    must be checked for collision.
+    Returns capsules and idx0, idx1, such that capsules[idx0[i]] and capsules[idx1[i]] must be checked for collision.
 
     Args:
         joint_chain (List[Joint]): Joint chain of the robot.
         ignored_collision_pairs (List[Tuple[str, str]], optional): List of collision pairs to ignore. Defaults to [].
+        additional_link (Optional[str]): An optional additional link to add to the collision pairs. Defaults to None.
+        additional_link_lca_joint (Optional[Joint]): The artificial joint that connects the additional link to the
+                                                        joint_chain
 
     Returns:
         Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: capsules, idx0, idx1
@@ -101,6 +106,14 @@ def _generate_self_collision_pairs(
             capsule_idx_to_joint_idx.append(i + 1)
 
         ignored_collision_set.add(tuple(sorted((joint.parent, joint.child))))
+
+    # Add in the additional link
+    if additional_link is not None:
+        capsules.append(collision_capsules_by_link[additional_link])
+        idx = capsule_idx_to_joint_idx[-1] + 1
+        link_name_to_idx[additional_link] = idx
+        capsule_idx_to_joint_idx.append(idx)
+        ignored_collision_set.add(tuple(sorted((additional_link_lca_joint.parent, additional_link_lca_joint.child))))
 
     idx0, idx1 = [], []
     link_names = list(collision_capsules_by_link.keys())
@@ -131,25 +144,26 @@ class Robot:
         base_link: str,
         end_effector_link_name: str,
         ignored_collision_pairs: List[Tuple[str, str]],
-        positional_repeatability_mm: float,
-        rotational_repeatability_deg: float,
         collision_capsules_by_link: Optional[Dict[str, torch.Tensor]] = None,
-        klampt_rigid_objects=[],
         batch_fk_enabled: bool = True,
         verbose: bool = False,
+        additional_link_name: Optional[str] = None,
     ):
-        """TODO
+        """Create a Robot object
 
         Args:
             name (str): _description_
-            base_link (str): _description_
             urdf_filepath (str): _description_
             active_joints (List[str]): The name of the actuated joints in the kinematic chain that is being represented.
                                         These joints must be along the link chain from the 'base_link' to the
                                         'end_effector_link_name'. Note that all non-fixed joints in this chain that are
                                         not in 'active_joints' will be ignored (by being changed to fixed joints).
+            base_link (str): _description_
             end_effector_link_name (str): _description_
+            additional_link_name (Optional[str]): Optionally provide the name of an additional link which FK and
+                                                    jacobian functions will return the pose/jacobian of.
             ignored_collision_pairs (List[Tuple[str, str]]): _description_
+            collision_capsules_by_link (Optional[Dict[str, torch.Tensor]], optional): _description_. Defaults to None.
             batch_fk_enabled (bool, optional): _description_. Defaults to True.
             verbose (bool, optional): _description_. Defaults to False.
         """
@@ -163,27 +177,39 @@ class Robot:
         self._urdf_filepath = urdf_filepath
         self._base_link = base_link
         self._end_effector_link_name = end_effector_link_name
+        self._additional_link_name = additional_link_name
         self._collision_capsules_by_link = collision_capsules_by_link
         self._batch_fk_enabled = batch_fk_enabled
-        self._positional_repeatability_mm = positional_repeatability_mm
-        self._rotational_repeatability_deg = rotational_repeatability_deg
+        self._active_joints = active_joints
 
-        # Note: `_joint_chain`, `_actuated_joint_limits`, `_actuated_joint_names` only includes the joints that were
-        # specified by the subclass. It does not include all actuated joints in the urdf
-        self._joint_chain = get_joint_chain(
+        # Create the kinematic chain
+        self._end_effector_kinematic_chain = get_kinematic_chain(
             self._urdf_filepath,
-            active_joints,
+            self._active_joints,
             self._base_link,
             self._end_effector_link_name,
         )
-        self._actuated_joint_limits = [joint.limits for joint in self._joint_chain if joint.is_actuated]
-        self._actuated_joint_names = [joint.name for joint in self._joint_chain if joint.is_actuated]
-        self._actuated_joint_velocity_limits = [
-            joint.velocity_limit for joint in self._joint_chain if joint.is_actuated
+
+        # Handle the additional link
+        if self._additional_link_name is not None:
+            self._additional_link_lca_link = get_lowest_common_ancestor_link(
+                self._urdf_filepath, self._end_effector_kinematic_chain, self._active_joints, self._additional_link_name
+            )
+            self._addl_link_kinematic_chain = get_kinematic_chain(
+                self._urdf_filepath, self._active_joints, self._additional_link_lca_link, self._additional_link_name
+            )
+            self._additional_link_lca_joint = merge_fixed_joints_to_one(self._addl_link_kinematic_chain)
+
+        self._actuated_joint_limits = [
+            joint.limits for joint in self._end_effector_kinematic_chain if joint.is_actuated
         ]
-        assert len(active_joints) == self.n_dofs, (
-            f"Error - the number of active joints ({len(active_joints)}) does not match the degrees of freedom"
-            f" ({self.n_dofs})."
+        self._actuated_joint_names = [joint.name for joint in self._end_effector_kinematic_chain if joint.is_actuated]
+        self._actuated_joint_velocity_limits = [
+            joint.velocity_limit for joint in self._end_effector_kinematic_chain if joint.is_actuated
+        ]
+        assert len(self._active_joints) == self.ndof, (
+            f"Error - the number of active joints ({len(self._active_joints)}) does not match the degrees of freedom"
+            f" ({self.ndof})."
         )
 
         self._collision_capsules = None
@@ -198,8 +224,12 @@ class Robot:
                 self._collision_idx1,
             ) = _generate_self_collision_pairs(
                 self._collision_capsules_by_link,
-                self._joint_chain,
+                self._end_effector_kinematic_chain,
                 ignored_collision_pairs,
+                additional_link=self._additional_link_name,
+                additional_link_lca_joint=self._additional_link_lca_joint
+                if self._additional_link_name is not None
+                else None,
             )
 
         # Create and fill cache of fixed rotations between links.
@@ -212,18 +242,13 @@ class Robot:
                     dtype=DEFAULT_TORCH_DTYPE,
                 )
             )
-        # self.forward_kinematics_batch(
-        #     torch.tensor(self.sample_joint_angles(1000), device="cpu", dtype=DEFAULT_TORCH_DTYPE), out_device="cpu"
-        # )
 
         # Initialize klampt
         # Note: Need to save `_klampt_world_model` as a member variable otherwise you'll be doomed to get a segfault
         self._klampt_world_model = WorldModel()
-
-        # TODO: Consider finding a better way to fix the mesh filepath issue. This feels pretty hacky. But hey, it works
-        # <insert-shrug-emoji>
+        # TODO: Consider finding a better way to fix the mesh filepath issue.
         self._urdf_filepath_absolute = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
-        self._klampt_world_model.loadRobot(self._urdf_filepath_absolute)  # TODO: supress output of loadRobot call
+        self._klampt_world_model.loadRobot(self._urdf_filepath_absolute)  # TODO: suppress output of loadRobot call
         assert (
             self._klampt_world_model.numRobots()
         ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
@@ -285,9 +310,14 @@ class Robot:
         """Returns the name of the end effector link in the urdf"""
         return self._end_effector_link_name
 
+    @property
+    def additional_link(self) -> Optional[str]:
+        """Returns the name of the additional link in the urdf"""
+        return self._additional_link_name
+
     @cached_property
-    def n_dofs(self) -> int:
-        return sum([1 for joint in self._joint_chain if joint.is_actuated])
+    def ndof(self) -> int:
+        return sum([1 for joint in self._end_effector_kinematic_chain if joint.is_actuated])
 
     @property
     def n_collision_pairs(self) -> int:
@@ -298,7 +328,7 @@ class Robot:
     @property
     def n_joints_in_kinematic_chain(self) -> int:
         """The number of joints in the path from the base_link to the end effector"""
-        return len(self._joint_chain)
+        return len(self._end_effector_kinematic_chain)
 
     @property
     def actuated_joint_names(self) -> List[str]:
@@ -306,7 +336,7 @@ class Robot:
 
     @cached_property
     def actuated_joint_types(self) -> List[str]:
-        return [joint.joint_type for joint in self._joint_chain if joint.is_actuated]
+        return [joint.joint_type for joint in self._end_effector_kinematic_chain if joint.is_actuated]
 
     @property
     def actuated_joints_limits(self) -> List[Tuple[float, float]]:
@@ -321,26 +351,18 @@ class Robot:
     def actuated_joints_velocity_limits_deg(self) -> List[float]:
         """Measured in deg/s for revolute joints, m/s for prismatic joints"""
         vals = []
-        for joint in self._joint_chain:
+        for joint in self._end_effector_kinematic_chain:
             if joint.is_actuated and (joint.joint_type == "revolute" or joint.joint_type == "continuous"):
                 vals.append(joint.velocity_limit * 180 / np.pi)
             elif joint.is_actuated and (joint.joint_type == "prismatic"):
                 vals.append(joint.velocity_limit)
 
-        assert len(vals) == self.n_dofs, f"Error, only {len(vals)} in vals, but {self.n_dofs} degrees of freedom"
+        assert len(vals) == self.ndof, f"Error, only {len(vals)} in vals, but {self.ndof} degrees of freedom"
         return vals
 
     @property
     def klampt_world_model(self) -> WorldModel:
         return self._klampt_world_model
-
-    @property
-    def positional_repeatability_mm(self) -> float:
-        return self._positional_repeatability_mm
-
-    @property
-    def rotational_repeatability_deg(self) -> float:
-        return self._rotational_repeatability_deg
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -349,25 +371,24 @@ class Robot:
 
     def split_configs_to_revolute_and_prismatic(self, configs: torch.Tensor) -> Tuple[torch.Tensor]:
         """Returns the values for the values from the revolute, and prismatic joints separately"""
-        assert configs.shape[1] == self.n_dofs
+        assert configs.shape[1] == self.ndof
         joint_types = self.actuated_joint_types
-        revolute_idxs = [i for i in range(self.n_dofs) if joint_types[i] in {"revolute", "continuous"}]
-        prismatic_idxs = [i for i in range(self.n_dofs) if joint_types[i] == "prismatic"]
-        assert len(revolute_idxs) + len(prismatic_idxs) == self.n_dofs
+        revolute_idxs = [i for i in range(self.ndof) if joint_types[i] in {"revolute", "continuous"}]
+        prismatic_idxs = [i for i in range(self.ndof) if joint_types[i] == "prismatic"]
+        assert len(revolute_idxs) + len(prismatic_idxs) == self.ndof
         return configs[:, revolute_idxs], configs[:, prismatic_idxs]
 
     def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors. The joint angles are sampled from the
         range [lower+joint_limit_eps, upper-joint_limit_eps]
         """
-        angs = np.random.rand(n, self.n_dofs)  # between [0, 1)
+        angs = np.random.rand(n, self.ndof)  # between [0, 1)
 
         # Sample
         for i, (lower, upper) in enumerate(self.actuated_joints_limits):
             # Add eps padding to avoid the joint limits
             upper = upper - joint_limit_eps
             lower = lower + joint_limit_eps
-
             range_ = upper - lower
             assert range_ > 0
             angs[:, i] *= range_
@@ -383,7 +404,7 @@ class Robot:
         return_torch: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
-        samples = np.zeros((n, self.n_dofs))
+        samples = np.zeros((n, self.ndof))
         poses = np.zeros((n, 7))
         internal_batch_size = 5000
         counter = 0
@@ -419,8 +440,8 @@ class Robot:
     def set_klampt_robot_config(self, x: np.ndarray):
         """Set the internal klampt robots config with the given joint angle vector"""
         _assert_is_np(x)
-        assert x.shape == (self.n_dofs,), f"Expected x to be of shape ({self.n_dofs},) but got {x.shape}"
-        q = self._x_to_qs(np.resize(x, (1, self.n_dofs)))[0]
+        assert x.shape == (self.ndof,), f"Expected x to be of shape ({self.ndof},) but got {x.shape}"
+        q = self._x_to_qs(np.resize(x, (1, self.ndof)))[0]
         self._klampt_robot.setConfig(q)
 
     def clamp_to_joint_limits(self, x: PT_NP_TYPE):
@@ -430,26 +451,11 @@ class Robot:
             x (PT_NP_TYPE): [batch x ndofs] tensor of joint angles
         """
         assert isinstance(x, (np.ndarray, torch.Tensor))
-        assert x.shape[1] == self.n_dofs
+        assert x.shape[1] == self.ndof
         clamp_fn = torch.clamp if isinstance(x, torch.Tensor) else np.clip
         for i, (l, u) in enumerate(self.actuated_joints_limits):
             x[:, i] = clamp_fn(x[:, i], l, u)
         return x
-
-    def joint_angles_all_in_joint_limits(self, x: PT_NP_TYPE) -> bool:
-        """Return whether all joint angles are within joint limits
-
-        Args:
-            x (PT_NP_TYPE): [batch x ndofs] tensor of joint angles
-        """
-        assert isinstance(x, (np.ndarray, torch.Tensor))
-        assert x.shape[1] == self.n_dofs
-        for i, (lower, upper) in enumerate(self.actuated_joints_limits):
-            if x[:, i].min() < lower:
-                return False
-            if x[:, i].max() > upper:
-                return False
-        return True
 
     def config_self_collides(self, x: PT_NP_TYPE) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
@@ -462,7 +468,8 @@ class Robot:
             x = x.detach().cpu().numpy()
         self.set_klampt_robot_config(x)
         collisions = self._klampt_collision_checker.robotSelfCollisions(self._klampt_robot)
-        for link1, link2 in collisions:
+        # for link1, link2 in collisions:
+        for _ in collisions:
             return True
         return False
 
@@ -483,8 +490,8 @@ class Robot:
             return collisions_list
 
         # Not sure if collisions lazily evaluated or not, so we need to iterate over instead of calling list(collisions)
-        # (RobotModelLink, RigidObjectModel)
-        for link, rigid_object in collisions:
+        # (RobotModelLink, RigidObjectModel) (for link, rigid_object in collisions:)
+        for _ in collisions:
             return True
         return False
 
@@ -497,7 +504,7 @@ class Robot:
         """Returns the names of the children of the actuated joints"""
 
         def get_child_name_from_joint_name(joint_name: str) -> str:
-            for joint in self._joint_chain:
+            for joint in self._end_effector_kinematic_chain:
                 if joint.name == joint_name:
                     return joint.child
             raise ValueError(f"Could not find joint child of joint '{joint_name}'")
@@ -516,9 +523,9 @@ class Robot:
         driver_vec_tester = [1000 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
         q_test_result = self._klampt_robot.configFromDrivers(driver_vec_tester)
         q_active_joint_idxs = list(locate(q_test_result, lambda x: x == 1000))
-        assert len(q_active_joint_idxs) == self.n_dofs, (
-            f"Error - the number of active drivers in the klampt config != n_dofs ({len(q_active_joint_idxs)} !="
-            f" {self.n_dofs})"
+        assert len(q_active_joint_idxs) == self.ndof, (
+            f"Error - the number of active drivers in the klampt config != ndof ({len(q_active_joint_idxs)} !="
+            f" {self.ndof})"
         )
         return q_active_joint_idxs
 
@@ -538,8 +545,8 @@ class Robot:
         active_driver_idxs = list(locate(driver_vec_tester, lambda x: x == 1))
 
         assert (
-            len(active_driver_idxs) == self.n_dofs
-        ), f"Error - the number of active drivers != n_dofs ({len(active_driver_idxs)} != {self.n_dofs})"
+            len(active_driver_idxs) == self.ndof
+        ), f"Error - the number of active drivers != ndof ({len(active_driver_idxs)} != {self.ndof})"
         return active_driver_idxs
 
     # TODO(@jstm): Consider changing this to take (batch x ndofs)
@@ -547,14 +554,14 @@ class Robot:
         """Format a joint angle vector into a klampt driver vector. Non user specified joints will have a value of 0.
 
         Args:
-            x (np.ndarray): (self.n_dofs,) joint angle vector
+            x (np.ndarray): (self.ndof,) joint angle vector
 
         Returns:
             List[float]: A list with the joint angle vector formatted in the klampt driver format. Note that klampt
                             needs a list of floats when recieving a driver vector.
         """
-        assert x.size == self.n_dofs, f"x doesn't have {self.n_dofs} (n_dofs) elements ({self.n_dofs} != {x.size})"
-        assert x.shape == (self.n_dofs,), f"x.shape must be (n_dofs,) - ({(self.n_dofs,)}) != {x.shape}"
+        assert x.size == self.ndof, f"x doesn't have {self.ndof} (ndof) elements ({self.ndof} != {x.size})"
+        assert x.shape == (self.ndof,), f"x.shape must be (ndof,) - ({(self.ndof,)}) != {x.shape}"
         x = x.tolist()
 
         # return x as a list if there are no additional active joints in the urdf
@@ -574,7 +581,7 @@ class Robot:
     # TODO(@jstm): Consider changing this to take (batch x driver_vec_dim)
     def _x_from_driver_vec(self, driver_vec: List[float]) -> List[float]:
         """Remove the non relevant joints from the klampt driver vector."""
-        if len(driver_vec) == self.n_dofs:
+        if len(driver_vec) == self.ndof:
             return driver_vec
         # TODO(@jstm): Consider a non iterative implementation for this
         return [driver_vec[i] for i in self._klampt_active_driver_idxs]
@@ -583,13 +590,13 @@ class Robot:
         """Return a list of klampt configurations (qs) from an array of joint angles (x)
 
         Args:
-            x: (n x n_dofs) array of joint angle settings
+            x: (n x ndof) array of joint angle settings
 
         Returns:
             A list of configurations representing the robots state in klampt
         """
         _assert_is_np(x)
-        _assert_is_joint_angle_matrix(x, self.n_dofs)
+        _assert_is_joint_angle_matrix(x, self.ndof)
 
         n = x.shape[0]
         qs = []
@@ -600,7 +607,7 @@ class Robot:
 
     def _qs_to_x(self, qs: List[List[float]]) -> np.array:
         """Calculate joint angle values (x) from klampt configurations (qs)"""
-        res = np.zeros((len(qs), self.n_dofs))
+        res = np.zeros((len(qs), self.ndof))
         for idx, q in enumerate(qs):
             driver_vec = self._klampt_robot.configToDrivers(q)
             res[idx, :] = self._x_from_driver_vec(driver_vec)
@@ -610,7 +617,7 @@ class Robot:
         s = "<Robot[{}] name:{}, ndofs:{}>".format(
             self.__class__.__name__,
             self.name,
-            self.n_dofs,
+            self.ndof,
         )
         return s
 
@@ -627,14 +634,12 @@ class Robot:
             solver (str, optional): Solver to use. Options are "klampt" and "batchfk". The solver must be 'batchfk' if x
                                         is a torch.Tensor. Defaults to "klampt".
         """
-
         if isinstance(x, torch.Tensor):
             assert solver == "batchfk", "Only batchfk is supported for torch tensors"
-
         if solver == "klampt":
             return self.forward_kinematics_klampt(x)
         if solver == "batchfk":
-            return self.forward_kinematics_batch(x, return_quaternion=True, return_runtime=False)
+            return self.forward_kinematics_batch(x, return_quaternion=True)
         raise ValueError(f"Solver '{solver}' not recognized")
 
     def forward_kinematics_klampt(self, x: np.array, link_name: Optional[str] = None) -> np.array:
@@ -661,8 +666,8 @@ class Robot:
         if device not in self._parent_T_joint_cache:
             self._parent_T_joint_cache[device] = {}
 
-        if self._joint_chain[0].name not in self._parent_T_joint_cache[device]:
-            for joint in self._joint_chain:
+        if self._end_effector_kinematic_chain[0].name not in self._parent_T_joint_cache[device]:
+            for joint in self._end_effector_kinematic_chain:
                 T = torch.diag_embed(torch.ones(1, 4, device=device, dtype=dtype))
                 # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
                 # to the gpu
@@ -673,6 +678,60 @@ class Robot:
                 T[:, 2, 3] = joint.origin_xyz[2]
                 self._parent_T_joint_cache[device][joint.name] = T.to(device)
 
+            #
+            if self._additional_link_name is not None:
+                joint = self._additional_link_lca_joint
+                T = torch.diag_embed(torch.ones(1, 4, device=device, dtype=dtype))
+                # TODO(@jstmn): Confirm that its faster to run `rpy_tuple_to_rotation_matrix` on the cpu and then send
+                # to the gpu
+                R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device=device)
+                T[:, 0:3, 0:3] = R
+                T[:, 0, 3] = joint.origin_xyz[0]
+                T[:, 1, 3] = joint.origin_xyz[1]
+                T[:, 2, 3] = joint.origin_xyz[2]
+                self._parent_T_joint_cache[device][joint.name] = T.to(device)
+
+    def _batch_fk_iteration(self, joint: Joint, x_i: torch.Tensor, base_T_joint: torch.Tensor, out_device: str):
+        assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+        assert joint.joint_type in (
+            "revolute",
+            "continuous",
+            "prismatic",
+            "fixed",
+        ), f"Unknown joint type '{joint.joint_type}'"
+        batch_size = x_i.shape[0]
+
+        # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
+        parent_T_child_fixed = self._parent_T_joint_cache[out_device][joint.name].expand(
+            batch_size, 4, 4
+        )  # zero-copy expansion
+        base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
+
+        if joint.joint_type in ("revolute", "continuous"):
+            # rotate the joint frame about the `axis_xyz` axis by `x_i` radians
+            rotation_axis = joint.axis_xyz
+            # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
+            # or quaternions?
+            joint_rotation = single_axis_angle_to_rotation_matrix(rotation_axis, x_i, out_device=out_device)
+            assert joint_rotation.shape == (batch_size, 3, 3)
+            T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device))
+            T[:, 0:3, 0:3] = joint_rotation
+            return base_T_joint.bmm(T)
+
+        if joint.joint_type == "prismatic":
+            # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
+            translations = torch.tensor(joint.axis_xyz, device=out_device) * x_i[:, None]  # [batch x 3]
+            assert translations.shape == (batch_size, 3)
+            # TODO(@jstmn): consider making this more space efficient. create once and override?
+            joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device))
+            joint_fixed_T_joint[:, 0:3, 3] = translations
+            return base_T_joint.bmm(joint_fixed_T_joint)
+
+        if joint.joint_type == "fixed":
+            return base_T_joint
+
+        raise RuntimeError(f"I shouldn't be here {joint.joint_type}")
+
     # TODO: Do FK starting at specific joint (like 'base_link') instead of the first joint.
     # TODO: Consider removing all cpu code from this function
     def forward_kinematics_batch(
@@ -681,34 +740,39 @@ class Robot:
         out_device: Optional[str] = None,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
         return_quaternion: bool = True,
-        return_runtime: bool = False,
         return_full_joint_fk: bool = False,
         return_full_link_fk: bool = False,
     ) -> Tuple[torch.Tensor, float]:
-        """Iterate through each joint in `self.joint_chain` and apply the joint's fixed transformation. If the joint is
-        revolute then apply rotation x[i] and increment i
+        """Iterate through each joint in `_end_effector_kinematic_chain` and apply the joint's fixed transformation. If
+        the joint is actuated then apply the angle from `x`.
 
         Args:
-            x (torch.tensor): [N x n_dofs] tensor, representing the joint angle values to calculate the robots FK with
+            x (torch.tensor): [N x ndof] tensor, storing the N configurations to calculate the robots FK for
             out_device (str): The device to save tensors to.
             return_quaternion (bool): Return format is [N x 7] where [:, 0:3] are xyz, and [:, 3:7] are quaternions.
-                                        Otherwise return [N x 4 x 4] homogenious transformation matrices
+                                        Otherwise return [N x 4 x 4] homogeneous transformation matrices
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor, float]:
-                2. [N x 4 x 4] torch tensor of the transform between the parent link of the first joint and the end
-                                effector of the robot
-                3. The total runtime of the function. For convenience
-        """
-        assert self._batch_fk_enabled, f"BatchFK is disabled for '{self.name}'"
-        # assert CUDA_AVAILABLE, f"forward_kinematics_batch() requires cuda"
+            if return_quaternion:
+                torch.Tensor: [batch x 7] tensor of the end effector pose in quaternion format
 
-        time0 = time()
+            if return_full_joint_fk:
+                torch.Tensor: [batch x ndof x 4 x 4] tensor of the pose of each actuated joint
+
+            if return_full_link_fk:
+                torch.Tensor: [batch x (s+1) (+ 1 if addl_link) x 4 x 4] tensor of the pose of each link in the end
+                                                                            effectors kinematic chain. If there is an
+                                                                            additional_link saved, the dimensionality of
+                                                                            the second dimension will be (s+1) + 1
+
+        """
+        # TODO: return_full_link_fk needs to return additional_link poses as well
+        assert self._batch_fk_enabled, f"BatchFK is disabled for '{self.name}'"
+
         batch_size = x.shape[0]
-        _assert_is_joint_angle_matrix(x, self.n_dofs)
+        _assert_is_joint_angle_matrix(x, self.ndof)
         if out_device is None:
             out_device = x.device
-        out_device_is_cpu = "cpu" in str(out_device)
 
         self._ensure_forward_kinematics_cache(out_device, dtype=dtype)
 
@@ -719,89 +783,56 @@ class Robot:
         base_T_links = [base_T_joint]
 
         # Iterate through each joint in the joint chain
-        x_i = 0
-        for joint in self._joint_chain:
-            assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+        # lca: lowest common ancestor. The index of the joint in the kinematic chain that is the lca of the
+        # additional_link
+        addl_link_lca_index = -1
+        i = 0
+        for joint in self._end_effector_kinematic_chain:
+            # Check to see if this joint is the lca of the additional_link
+            if self.additional_link is not None and joint.child == self._additional_link_lca_link:
+                addl_link_lca_index = i
 
-            # translate + rotate joint frame by `origin_xyz`, `origin_rpy`
-            fixed_rotation_dict = self._parent_T_joint_cache[out_device]
-            parent_T_child_fixed = fixed_rotation_dict[joint.name].expand(batch_size, 4, 4)  # zero-copy expansion
-            base_T_joint = base_T_joint.bmm(parent_T_child_fixed)
+            i = min(
+                i, self.ndof - 1
+            )  # handles an edge case where a fixed joint after the final actuated joint causes an index error
+            base_T_joint_new = self._batch_fk_iteration(joint, x[:, i], base_T_joint, out_device)
+            base_T_links.append(base_T_joint_new)
 
-            if joint.joint_type in {"revolute", "continuous"}:
-                # rotate the joint frame about the `axis_xyz` axis by `x[:, x_i]` radians
-                rotation_amt = x[:, x_i]
-                rotation_axis = joint.axis_xyz
+            if joint.joint_type in ("revolute", "continuous"):
+                base_T_joints.append(base_T_joint_new)
+                i += 1
+            if joint.joint_type == "prismatic":
+                base_T_joints.append(base_T_joint_new)
+                i += 1
+            if joint.joint_type == "fixed":
+                base_T_joints[-1] = base_T_joint_new
+            base_T_joint = base_T_joint_new
 
-                # TODO: Implement a more efficient approach than converting to rotation matrices. work just with rpy?
-                # or quaternions?
-                joint_rotation = single_axis_angle_to_rotation_matrix(
-                    rotation_axis, rotation_amt, out_device=out_device
-                )
-                assert joint_rotation.shape == (batch_size, 3, 3)
-
-                # TODO(@jstmn): determine which of these two implementations if faster
-                T = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                T[:, 0:3, 0:3] = joint_rotation
-                base_T_joint = base_T_joint.bmm(T)
-                base_T_joints.append(base_T_joint)
-                base_T_links.append(base_T_joint)
-
-                # Note: The line below can't be used because inplace operation is non differentiable. Keeping this here
-                # as a reminder
-                # base_T_joint[:, 0:3, 0:3] = base_T_joint[:, 0:3, 0:3].bmm(joint_rotation)
-
-                x_i += 1
-
-            elif joint.joint_type == "prismatic":
-                # Note: [..., None] is a trick to expand the x[:, x_i] tensor.
-                translations = (
-                    torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype) * x[:, x_i, None]
-                )  # [batch x 3]
-                assert translations.shape == (batch_size, 3)
-
-                # TODO(@jstmn): consider making this more space efficient. create once and override?
-                joint_fixed_T_joint = torch.diag_embed(torch.ones(batch_size, 4, device=out_device, dtype=dtype))
-                joint_fixed_T_joint[:, 0:3, 3] = translations
-                base_T_joint = base_T_joint.bmm(joint_fixed_T_joint)
-                base_T_joints.append(base_T_joint)
-                base_T_links.append(base_T_joint)
-
-                x_i += 1
-
-            elif joint.joint_type == "fixed":
-                base_T_joints[-1] = base_T_joint
-                base_T_links.append(base_T_joint)
-            else:
-                raise RuntimeError(f"Unhandled joint type {joint.joint_type}")
+        # Format output and return
+        if self.additional_link is not None:
+            assert addl_link_lca_index >= 0, f"LCA link not found"
+            # Note: the joint angles x[:, 0] will not be read, just need this to get the batch_size
+            lca_link_T_addl_link = self._batch_fk_iteration(
+                self._additional_link_lca_joint, x[:, 0], base_T_links[addl_link_lca_index + 1], out_device
+            )
+            base_T_links.append(lca_link_T_addl_link)
 
         if return_quaternion:
             quaternions = rotation_matrix_to_quaternion(base_T_joint[:, 0:3, 0:3])
             translations = base_T_joint[:, 0:3, 3]
             base_T_joint = torch.cat([translations, quaternions], dim=1)
 
-        if return_runtime:
-            return base_T_joint, time() - time0
-
         if return_full_joint_fk:
             ret = torch.stack(base_T_joints, dim=1)
-            assert ret.shape == (
-                batch_size,
-                self.n_dofs + 1,
-                4,
-                4,
-            ), f"ret.shape={ret.shape}"
+            assert ret.shape == (batch_size, self.ndof + 1, 4, 4), f"ret.shape={ret.shape}"
             return ret
 
-        # NOTe: DO NOT CHANGE THIS CODE!!! self-collision NN in cppflow depends on this format
         if return_full_link_fk:
             ret = torch.stack(base_T_links, dim=1)
-            assert ret.shape == (
-                batch_size,
-                len(self._joint_chain) + 1,
-                4,
-                4,
-            ), f"ret.shape={ret.shape} != ({batch_size}, {len(self._joint_chain)}, 4, 4)"
+            n_links = len(self._end_effector_kinematic_chain) + 1
+            if self.additional_link is not None:
+                n_links += 1
+            assert ret.shape == (batch_size, n_links, 4, 4), f"ret.shape={ret.shape} != ({batch_size}, {n_links}, 4, 4)"
             return ret
 
         return base_T_joint
@@ -839,9 +870,9 @@ class Robot:
         Returns:
             np.ndarray: _description_
         """
-        _assert_is_joint_angle_matrix(xs, self.n_dofs)
+        _assert_is_joint_angle_matrix(xs, self.ndof)
         n = xs.shape[0]
-        Js = np.zeros((n, 6, self.n_dofs))
+        Js = np.zeros((n, 6, self.ndof))
         for i in range(n):
             Js[i] = self.jacobian_np(xs[i])
         return Js
@@ -852,8 +883,7 @@ class Robot:
         out_device: Optional[str] = None,
         dtype: torch.dtype = DEFAULT_TORCH_DTYPE,
     ) -> torch.Tensor:
-        """Return a batch of jacobian matrices for the given joint angle
-        vectors. The rows are:
+        """Return a batch of jacobian matrices for the given joint angle vectors. The rows are:
 
         0: roll (rx)
         1: pitch (ry)
@@ -863,15 +893,15 @@ class Robot:
         5: z
 
         Args:
-            x (np.ndarray): The joint angle to the jacobian with respect to
+            x (torch.Tensor): The joint angle to the jacobian with respect to
 
         Returns:
-            np.ndarray: a [6 x ndof] matrix, where the top 3 rows are the orientation derivatives, and the bottom three
-                        rows are the positional derivatives.
+            torch.Tensor: a [6 x ndof] matrix, where the top 3 rows are the orientation derivatives, and the bottom
+                            three rows are the positional derivatives.
         """
 
         batch_size = x.shape[0]
-        _assert_is_joint_angle_matrix(x, self.n_dofs)
+        _assert_is_joint_angle_matrix(x, self.ndof)
         if out_device is None:
             out_device = x.device
 
@@ -882,11 +912,11 @@ class Robot:
         base_T_joints = base_T_joints[:, 1:, :, :]  # remove the base link
 
         # Compute jacobian
-        J = torch.zeros((batch_size, 6, self.n_dofs), device=out_device, dtype=dtype)
+        J = torch.zeros((batch_size, 6, self.ndof), device=out_device, dtype=dtype)
         x_i = 0
-        for joint in self._joint_chain:
+        for joint in self._end_effector_kinematic_chain:
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
-            if joint.joint_type in {"revolute", "continuous"}:
+            if joint.joint_type in ("revolute", "continuous"):
                 axis = (
                     torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype).unsqueeze(1).expand(batch_size, 3, 1)
                 )
@@ -904,52 +934,6 @@ class Robot:
 
         return J
 
-    def inverse_kinematics_single_step_batch_np(
-        self, target_poses: np.ndarray, xs_current: np.ndarray, alpha: float = 0.25
-    ) -> Tuple[np.ndarray, float]:
-        """Perform a single inverse kinematics step on a batch of joint angle vectors
-
-        Note: the previous title for this function was jac_pinvstep_single_pose_np (see
-                https://github.com/cbames/nn_ik/commit/d99fb10429f2529a94a284bfdafd08f8776877a4)
-
-        Args:
-            target_poses (np.ndarray): [batch x 7] poses to optimize the joint angles towards
-            xs_current (np.ndarray): [batch x ndofs] joint angles to start the optimization from
-            alpha (float, optional): Step size for the optimization step. Defaults to 0.25.
-
-        Returns:
-            Tuple[np.ndarray, float]: _description_
-        """
-        _assert_is_pose_matrix(target_poses)
-        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
-        assert xs_current.shape[0] == target_poses.shape[0]
-        n = target_poses.shape[0]
-
-        # Get the jacobian of the end effector with respect to the current joint angles
-        J = self.jacobian_batch_np(xs_current)
-        J_pinv = np.linalg.pinv(J)  # Jacobian pseudo-inverse
-
-        # Run the xs_current through FK to get their realized poses
-        current_poses = self.forward_kinematics_klampt(xs_current)
-        assert current_poses.shape == target_poses.shape
-
-        # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
-        pose_errors = np.zeros((n, 6, 1))
-        for i in range(3):
-            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
-
-        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
-        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
-        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)  # check
-        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
-
-        # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
-        delta_x = J_pinv @ pose_errors
-        xs_updated = xs_current + alpha * delta_x[:, :, 0]
-        xs_updated = self.clamp_to_joint_limits(xs_updated)
-
-        return xs_updated
-
     def inverse_kinematics_single_step_levenburg_marquardt(
         self,
         target_poses: torch.Tensor,
@@ -958,7 +942,7 @@ class Robot:
     ) -> torch.Tensor:
         """Perform a levenburg-marquardt optimization step."""
         n = xs_current.shape[0]
-        eye = torch.eye(self.n_dofs, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
+        eye = torch.eye(self.ndof, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
 
         # Get current error
         current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
@@ -976,13 +960,13 @@ class Robot:
             device=xs_current.device,
             dtype=xs_current.dtype,
         )  # [n 6 ndof]
-        assert J_batch.shape == (n, 6, self.n_dofs)
+        assert J_batch.shape == (n, 6, self.ndof)
         J_batch_T = torch.transpose(J_batch, 1, 2)  # [n ndof 6]
         assert J_batch_T.shape == (
             n,
-            self.n_dofs,
+            self.ndof,
             6,
-        ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.n_dofs, 6)}"
+        ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.ndof, 6)}"
 
         lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
         rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
@@ -1011,9 +995,9 @@ class Robot:
         Returns:
             torch.Tensor: Updated joint angles
         """
-        assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
+        assert self._batch_fk_enabled, "_batch_fk_enabled is required for batch_ik, but is disabled for this robot"
         _assert_is_pose_matrix(target_poses)
-        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
+        _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
         assert (
             xs_current.device == target_poses.device
@@ -1086,9 +1070,9 @@ class Robot:
         Returns:
             torch.Tensor: Updated joint angles
         """
-        assert self._batch_fk_enabled, f"batch_fk is required for batch_ik, but is disabled for this robot"
+        assert self._batch_fk_enabled, "_batch_fk_enabled is required for batch_ik, but is disabled for this robot"
         _assert_is_pose_matrix(target_poses)
-        _assert_is_joint_angle_matrix(xs_current, self.n_dofs)
+        _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
         assert (
             xs_current.device == target_poses.device
@@ -1145,8 +1129,8 @@ class Robot:
         if seed is not None:
             _assert_is_np(seed, variable_name="seed")
             assert len(seed.shape) == 1, f"Seed must be a 1D array (currently: {seed.shape})"
-            assert seed.size == self.n_dofs
-            seed_q = self._x_to_qs(seed.reshape((1, self.n_dofs)))[0]
+            assert seed.size == self.ndof
+            seed_q = self._x_to_qs(seed.reshape((1, self.ndof)))[0]
 
         max_iterations = 150
         R = so3.from_quaternion(pose[3 : 3 + 4])
@@ -1203,6 +1187,11 @@ class Robot:
                 "optimization attempts",
             )
         return None
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ---                                                                                                            ---
+    # ---                                            Collision Detection                                             ---
+    # ---                                                                                                            ---
 
     def self_collision_distances_batch(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot
@@ -1302,7 +1291,7 @@ def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:
     """
     Returns the pose of the end effector for each joint parameter setting in x
     """
-    _assert_is_joint_angle_matrix(x, robot.n_dofs)
+    _assert_is_joint_angle_matrix(x, robot.ndof)
 
     import kinpy as kp
 
@@ -1317,7 +1306,7 @@ def forward_kinematics_kinpy(robot: Robot, x: np.array) -> np.array:
         fk_dict[joint_name] = 0.0
 
     def get_fk_dict(xs):
-        for i in range(robot.n_dofs):
+        for i in range(robot.ndof):
             fk_dict[robot.actuated_joint_names[i]] = xs[i]
         return fk_dict
 

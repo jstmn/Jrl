@@ -4,8 +4,11 @@ from dataclasses import dataclass
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, ElementTree
 
+import torch
 import numpy as np
+from klampt.math import so3
 
+from jrl.conversions import rpy_tuple_to_rotation_matrix
 from jrl.config import URDF_DOWNLOAD_DIR
 from jrl.utils import get_filepath, safe_mkdir
 
@@ -193,10 +196,6 @@ def parse_urdf(urdf_filepath: str) -> Tuple[Dict[str, Joint], Dict[str, Link]]:
                         if child.tag == "joint" and child.attrib["type"] == "continuous":
                             limits[0] = -np.pi
                             limits[1] = np.pi
-                            print(
-                                "Heads up: Setting joint limits to [-pi, pi] for continuous joint"
-                                f" '{child.attrib['name']}'"
-                            )
                         else:
                             limits[0] = float(subelem.attrib["lower"])
                             limits[1] = float(subelem.attrib["upper"])
@@ -307,15 +306,66 @@ def joint_path_from_link_path(link_path: List[Link], all_joints: List[Joint]) ->
     return path
 
 
-def get_joint_chain(
-    urdf_filepath: str, active_joints: List[str], base_link_name: str, end_effector_name: str
+def merge_fixed_joints_to_one(joints: List[Joint]) -> Joint:
+    """Create one fixed joint from a list of fixed joints. Additionally checks that all joints are fixed"""
+    T = torch.diag_embed(torch.ones(4, device="cpu"))
+    for joint in joints:
+        R = rpy_tuple_to_rotation_matrix(joint.origin_rpy, device="cpu")
+        T_i = torch.diag_embed(torch.ones(4, device="cpu"))
+        T_i[0:3, 0:3] = R
+        T_i[0, 3] = joint.origin_xyz[0]
+        T_i[1, 3] = joint.origin_xyz[1]
+        T_i[2, 3] = joint.origin_xyz[2]
+        T = T.matmul(T_i)
+
+    R_final = T[0:3, 0:3].numpy()
+    origin_rpy = so3.rpy(so3.from_ndarray(R_final))
+    return Joint(
+        name="merged_fixed_joint",
+        parent=joints[0].parent,
+        child=joints[-1].child,
+        origin_rpy=origin_rpy,
+        origin_xyz=T[0:3, 3].tolist(),
+        axis_xyz=None,
+        joint_type="fixed",
+        limits=(0, 0),
+        velocity_limit=1.0,
+    )
+
+
+def get_lowest_common_ancestor_link(
+    urdf_filepath: str, joint_chain: List[Joint], active_joints: List[str], link: str
+) -> str:
+    """Find the first link in the path from 'link' to 'base_link' that is in the link chain defined by the joint chain.
+    """
+    all_joints, _ = parse_urdf(urdf_filepath)  # Dicts
+    links_in_joint_chain = set([joint.parent for joint in joint_chain] + [joint.child for joint in joint_chain])
+
+    def _get_parent_link(link_name: str) -> str:
+        for joint in all_joints.values():
+            if joint.child == link:
+                return joint.parent, joint
+        raise RuntimeError(f"Could not find parent link for link {link_name}")
+
+    while True:
+        parent_link, joint = _get_parent_link(link)
+        if parent_link in links_in_joint_chain:
+            return parent_link
+        link = parent_link
+
+    raise RuntimeError(f"Could not find common ancestor link for link {link}")
+
+
+def get_kinematic_chain(
+    urdf_filepath: str, active_joints: List[str], base_link_name: str, tip_link_name: str
 ) -> List[Joint]:
     """Returns a list of joints from the base link to the end effector. Runs DFS to find the path, and checks that the
-    path is valid before returning it.
+    path is valid before returning it. Sets all joints in the path which aren't in the active joints list to fixed
 
     Args:
         active_joints (List[str]): The joints in the kinematic chain (specified by the user).
     """
+    assert len(active_joints) == len(set(active_joints)), "Duplicate joints found in active_joints"
     all_joints, all_links = parse_urdf(urdf_filepath)  # Dicts
     all_joints = list(all_joints.values())
     all_joint_names = tuple([j.name for j in all_joints])
@@ -323,16 +373,12 @@ def get_joint_chain(
     all_link_names = tuple([j.name for j in all_links])
 
     base_link = _get_link_by_name(base_link_name, all_links)
-    end_effector_link = _get_link_by_name(end_effector_name, all_links)
+    end_effector_link = _get_link_by_name(tip_link_name, all_links)
 
     # Run DFS to find the path from the base link to the end effector
     dfs_searcher = DFSSearcher(all_joints, all_links, base_link, end_effector_link)
     link_path = dfs_searcher.dfs()
     joint_path = joint_path_from_link_path(link_path, all_joints)
-    assert len(joint_path) >= len(active_joints), (
-        f"Expected as many joints in the joint_path as active_joints (expected {len(active_joints)} but got"
-        f" {len(joint_path)}"
-    )
 
     # Set all joints not in `active_joints` to fixed
     for joint in all_joints:
@@ -353,7 +399,7 @@ def get_joint_chain(
         else:
             assert joint.joint_type == "fixed", f"joint '{joint.name}' should be fixed, because it's in active_joints"
 
-    # Check that `end_effector_name` and `base_link_name` are in the urdf and in the link path
+    # Check that `tip_link_name` and `base_link_name` are in the urdf and in the link path
     for link in (base_link, end_effector_link):
         assert link in all_links, f"link '{link}' not found in the urdf (all links: {all_link_names})"
         assert link in link_path, f"link '{link}' not found in the link_path (link_path: {link_path})"

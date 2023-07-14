@@ -1,8 +1,6 @@
-from dataclasses import dataclass
 import torch
-
-from jrl.conversions import calculate_points_in_world_frame_from_local_frame_batch
 import qpth
+
 from jrl.utils import QP
 
 
@@ -41,7 +39,7 @@ def capsule_capsule_distance_batch(
     # Local points are at the origin and top of capsule along the +z axis.
     r1 = caps1[:, 6]
     T1[:, :3, :3]
-    caps1[:, 0:3].unsqueeze(2)
+    # caps1[:, 0:3].unsqueeze(2)
     T1[:, :3, 3]
     c1_world1 = T1[:, :3, :3].bmm(caps1[:, 0:3].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
     c1_world2 = T1[:, :3, :3].bmm(caps1[:, 3:6].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
