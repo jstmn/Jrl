@@ -364,6 +364,14 @@ class Robot:
     def klampt_world_model(self) -> WorldModel:
         return self._klampt_world_model
 
+    @property
+    def revolute_joint_idxs(self) -> List[int]:
+        return [i for i in range(self.ndof) if self.actuated_joint_types[i] in {"revolute", "continuous"}]
+
+    @property
+    def prismatic_joint__idxs(self) -> List[int]:
+        return [i for i in range(self.ndof) if self.actuated_joint_types[i] == "prismatic"]
+
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
     # ---                                             External Functions                                             ---
@@ -372,11 +380,8 @@ class Robot:
     def split_configs_to_revolute_and_prismatic(self, configs: torch.Tensor) -> Tuple[torch.Tensor]:
         """Returns the values for the values from the revolute, and prismatic joints separately"""
         assert configs.shape[1] == self.ndof
-        joint_types = self.actuated_joint_types
-        revolute_idxs = [i for i in range(self.ndof) if joint_types[i] in {"revolute", "continuous"}]
-        prismatic_idxs = [i for i in range(self.ndof) if joint_types[i] == "prismatic"]
-        assert len(revolute_idxs) + len(prismatic_idxs) == self.ndof
-        return configs[:, revolute_idxs], configs[:, prismatic_idxs]
+        assert len(self.revolute_joint_idxs) + len(self.prismatic_joint__idxs) == self.ndof
+        return configs[:, self.revolute_joint_idxs], configs[:, self.prismatic_joint__idxs]
 
     def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors. The joint angles are sampled from the
