@@ -369,8 +369,12 @@ class Robot:
         return [i for i in range(self.ndof) if self.actuated_joint_types[i] in {"revolute", "continuous"}]
 
     @property
-    def prismatic_joint__idxs(self) -> List[int]:
+    def prismatic_joint_idxs(self) -> List[int]:
         return [i for i in range(self.ndof) if self.actuated_joint_types[i] == "prismatic"]
+
+    @property
+    def has_prismatic_joints(self) -> bool:
+        return len(self.prismatic_joint_idxs) > 0
 
     # ------------------------------------------------------------------------------------------------------------------
     # ---                                                                                                            ---
@@ -380,8 +384,8 @@ class Robot:
     def split_configs_to_revolute_and_prismatic(self, configs: torch.Tensor) -> Tuple[torch.Tensor]:
         """Returns the values for the values from the revolute, and prismatic joints separately"""
         assert configs.shape[1] == self.ndof
-        assert len(self.revolute_joint_idxs) + len(self.prismatic_joint__idxs) == self.ndof
-        return configs[:, self.revolute_joint_idxs], configs[:, self.prismatic_joint__idxs]
+        assert len(self.revolute_joint_idxs) + len(self.prismatic_joint_idxs) == self.ndof
+        return configs[:, self.revolute_joint_idxs], configs[:, self.prismatic_joint_idxs]
 
     def sample_joint_angles(self, n: int, joint_limit_eps: float = 1e-6) -> np.ndarray:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors. The joint angles are sampled from the
