@@ -5,14 +5,28 @@ import numpy as np
 import torch
 
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, FetchArm
-from jrl.evaluation import pose_errors
+from jrl.robots import get_all_robots
 from jrl.utils import set_seed
+from jrl.conversions import geodesic_distance_between_quaternions
 from jrl.config import DEVICE, PT_NP_TYPE
+
 
 # Set seed to ensure reproducibility
 set_seed()
 np.set_printoptions(edgeitems=30, linewidth=100000, suppress=True)
+
+
+def _pose_errors(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, PT_NP_TYPE]:
+    """Return the positional and rotational angular error between two batch of poses."""
+    assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
+
+    if isinstance(poses_1, torch.Tensor):
+        l2_errors = torch.norm(poses_1[:, 0:3] - poses_2[:, 0:3], dim=1)
+    else:
+        l2_errors = np.linalg.norm(poses_1[:, 0:3] - poses_2[:, 0:3], axis=1)
+    angular_errors = geodesic_distance_between_quaternions(poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4])
+    assert l2_errors.shape == angular_errors.shape
+    return l2_errors, angular_errors
 
 
 def _joint_angles_all_in_joint_limits(robot: Robot, x: PT_NP_TYPE) -> bool:
@@ -90,7 +104,7 @@ class TestBatchIK(unittest.TestCase):
                 msg=f"joint angles should be out of limits\nn_qs_for_target_pose={_qs_for_target_pose}\nrobot={robot}",
             )
 
-        l2_diffs, angular_diffs = pose_errors(poses_target, poses_current)
+        l2_diffs, angular_diffs = _pose_errors(poses_target, poses_current)
         for i, (l2_diff_i, angular_diff_i) in enumerate(zip(l2_diffs, angular_diffs)):
             self.assertGreater(l2_diff_i, 0.005, msg=f"l2_diff = {l2_diff_i} should be > 0.005 (l2_dif={l2_diff_i})")
             self.assertGreater(
@@ -106,8 +120,8 @@ class TestBatchIK(unittest.TestCase):
     ):
         """Check that the pose errors decreased"""
 
-        l2_errs_original, angular_errs_original = pose_errors(_poses_target, _poses_original)
-        l2_errs_final, angular_errs_final = pose_errors(_poses_target, _poses_updated)
+        l2_errs_original, angular_errs_original = _pose_errors(_poses_target, _poses_original)
+        l2_errs_final, angular_errs_final = _pose_errors(_poses_target, _poses_updated)
         l2_errs_differences = l2_errs_final - l2_errs_original
         angular_errs_differences = angular_errs_final - angular_errs_original
         for i, (l2_err_diff_i, angular_errs_diff_i) in enumerate(zip(l2_errs_differences, angular_errs_differences)):
