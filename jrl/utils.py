@@ -239,17 +239,17 @@ class QP:
 
             iterations += 1
             if iterations > iterlimit:
-                Qs = self.Q[~converged.flatten()]
-                ps = self.p[~converged.flatten()]
-                Gs = self.G[~converged.flatten()]
-                hs = self.h[~converged.flatten()]
-                xs = x[~converged.flatten()]
-                for i in range(torch.sum(~converged)):
-                    print(f"Qs[{i}]:\n{Qs[i]}")
-                    print(f"ps[{i}]:\n{ps[i]}")
-                    print(f"Gs[{i}]:\n{Gs[i]}")
-                    print(f"hs[{i}]:\n{hs[i]}")
-                    print(f"xs[{i}]:\n{xs[i]}")
+                # Qs = self.Q[~converged.flatten()]
+                # ps = self.p[~converged.flatten()]
+                # Gs = self.G[~converged.flatten()]
+                # hs = self.h[~converged.flatten()]
+                # xs = x[~converged.flatten()]
+                # for i in range(torch.sum(~converged)):
+                #     print(f"Qs[{i}]:\n{Qs[i]}")
+                #     print(f"ps[{i}]:\n{ps[i]}")
+                #     print(f"Gs[{i}]:\n{Gs[i]}")
+                #     print(f"hs[{i}]:\n{hs[i]}")
+                #     print(f"xs[{i}]:\n{xs[i]}")
                 raise RuntimeError(
                     f"Failed to converge in {iterlimit} iterations\n\n{torch.sum(~converged).item()} out of"
                     f" {self.nbatch} not converged"
