@@ -99,7 +99,6 @@ def set_config(
     for link_i, link in enumerate(links):
         T = base_T_links[0, link_i, :, :].cpu().numpy().astype(np.float64)
         vis[f"{robot.name}/{link}"].set_transform(T)
-        print(link_i, link)
 
         color = [0.0, 1.0, 0.0, 0.4]
         is_self_collide = torch.any(self_dists[0, robot._collision_idx0 == link_i] < 0) or torch.any(
@@ -125,6 +124,10 @@ def main(robot: Robot):
     links = list(k for k, v in robot._collision_capsules_by_link.items() if v is not None)
     if "fetch" in robot.name:
         vis_mesh_path = "jrl/urdfs/fetch/meshes"
+    elif "rizon" in robot.name:
+        vis_mesh_path = "jrl/urdfs/rizon4/meshes/visual"
+        links.remove("base_link")
+        links.insert(0, "link0")
     elif "panda" in robot.name:
         vis_mesh_path = "jrl/urdfs/panda/meshes/visual"
         links = [link.replace("panda_", "") for link in links]
@@ -134,7 +137,7 @@ def main(robot: Robot):
     q = torch.zeros((1, robot.ndof))
 
     # for t in range(500):
-    for t in range(25):
+    for t in range(100):
         joint_idx = t % robot.ndof
         l, u = robot.actuated_joints_limits[joint_idx]
         q[0, joint_idx] = (u - l) * torch.rand(1) + l
@@ -150,12 +153,13 @@ def main(robot: Robot):
 """ 
 python scripts/visualize_robot_meshcat.py --robot_name panda
 python scripts/visualize_robot_meshcat.py --robot_name fetch
+python scripts/visualize_robot_meshcat.py --robot_name rizon4
 
 """
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--robot_name", type=str, help="Example: 'panda', 'baxter', ...")
+    parser.add_argument("--robot_name", type=str, help="Example: 'panda', 'fetch', ...")
     args = parser.parse_args()
     robot = get_robot(args.robot_name)
     main(robot)

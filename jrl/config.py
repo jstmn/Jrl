@@ -6,6 +6,7 @@ from time import sleep
 import torch
 import numpy as np
 
+
 def _get_device() -> str:
     if not torch.cuda.is_available():
         return "mps" if torch.backends.mps.is_available() else "cpu", -1
@@ -33,6 +34,7 @@ def _get_device() -> str:
         if mem_pct < 5.0 and util_pct < 9:
             return f"cuda:{i}", i
     raise EnvironmentError(f"No unused GPU's available. Minimum memory, utilization: {min_mem, min_util}%")
+
 
 DEVICE, GPU_IDX = _get_device()
 ACCELERATOR_AVAILABLE = torch.cuda.is_available() or torch.backends.mps.is_available()

@@ -10,16 +10,34 @@ import numpy as np
 from jrl.robot import Robot
 from jrl.robots import get_robot
 
-_TERRAIN_FILEPATH = "scripts/visualization_resources/plane.off"
-
 
 def _init_vis(robot: Robot, window_title: str, show_collision_capsules: bool = True):
     vis.init()
-    assert robot.klampt_world_model.loadTerrain(_TERRAIN_FILEPATH), f"Failed to load terrain '{_TERRAIN_FILEPATH}'"
+
+    background_color = (1, 1, 1, 0.7)
+    vis.setBackgroundColor(background_color[0], background_color[1], background_color[2], background_color[3])
+    size = 5
+    for x0 in range(-size, size + 1):
+        for y0 in range(-size, size + 1):
+            vis.add(
+                f"floor_{x0}_{y0}",
+                trajectory.Trajectory([1, 0], [(-size, y0, 0), (size, y0, 0)]),
+                color=(0.75, 0.75, 0.75, 1.0),
+                width=2.0,
+                hide_label=True,
+                pointSize=0,
+            )
+            vis.add(
+                f"floor_{x0}_{y0}2",
+                trajectory.Trajectory([1, 0], [(x0, -size, 0), (x0, size, 0)]),
+                color=(0.75, 0.75, 0.75, 1.0),
+                width=2.0,
+                hide_label=True,
+                pointSize=0,
+            )
+
     vis.add("world", robot.klampt_world_model)
     vis.add("coordinates", coordinates.manager())
-    vis.add("x_axis", trajectory.Trajectory([1, 0], [[1, 0, 0], [0, 0, 0]]))
-    vis.add("y_axis", trajectory.Trajectory([1, 0], [[0, 1, 0], [0, 0, 0]]))
     vis.setWindowTitle(window_title)
     vis.show()
 
@@ -104,6 +122,7 @@ python scripts/visualize_robot.py --robot_name=panda
 python scripts/visualize_robot.py --robot_name=baxter
 python scripts/visualize_robot.py --robot_name=iiwa7
 python scripts/visualize_robot.py --robot_name=fetch
+python scripts/visualize_robot.py --robot_name=rizon4
 
 # Move between configs
 python scripts/visualize_robot.py \

@@ -123,7 +123,6 @@ class RobotTest(unittest.TestCase):
 
     def test_sample_joint_angles_and_poses(self):
         """_summary_"""
-        print("test_sample_joint_angles_and_poses()")
         for robot in self.robots:
             print(robot)
             joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=True)
@@ -258,6 +257,7 @@ class RobotTest(unittest.TestCase):
             "fetch": 8,
             "fetch_arm": 7,
             "iiwa7": 7,
+            "rizon4": 7,
         }
         for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
@@ -309,6 +309,15 @@ class RobotTest(unittest.TestCase):
                 (-2.9670597283903604, 2.9670597283903604),
                 (-2.0943951023931953, 2.0943951023931953),
                 (-3.0543261909900763, 3.0543261909900763),
+            ],
+            "rizon4": [
+                (-2.7925, 2.7925),
+                (-2.2689, 2.2689),
+                (-2.9671, 2.9671),
+                (-1.8675, 2.6878),
+                (-2.9671, 2.9671),
+                (-1.3963, 4.5379),
+                (-2.9671, 2.9671),
             ],
         }
         for robot in self.robots:
@@ -366,6 +375,15 @@ class RobotTest(unittest.TestCase):
                 "iiwa_joint_6",
                 "iiwa_joint_7",
             ],
+            "rizon4": [
+                "joint1",
+                "joint2",
+                "joint3",
+                "joint4",
+                "joint5",
+                "joint6",
+                "joint7",
+            ],
         }
         for robot in self.robots:
             self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
@@ -391,6 +409,7 @@ class RobotTest(unittest.TestCase):
             "fetch_arm": 14,  # 24 total joints, 10 of them are fixed
             "panda": 8,  # panda has 1 non user specified actuated joint
             "iiwa7": 7,  #
+            "rizon4": 7,  #
         }
 
         for robot in self.robots:

@@ -143,7 +143,7 @@ class Robot:
         base_link: str,
         end_effector_link_name: str,
         ignored_collision_pairs: List[Tuple[str, str]],
-        collision_capsules_by_link: Optional[Dict[str, torch.Tensor]] = None,
+        collision_capsules_by_link: Dict[str, torch.Tensor],
         batch_fk_enabled: bool = True,
         verbose: bool = False,
         additional_link_name: Optional[str] = None,

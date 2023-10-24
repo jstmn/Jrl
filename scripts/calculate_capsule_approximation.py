@@ -196,7 +196,8 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
 
 def stl_to_capsule(stl_path: str, outdir, vis=None):
     print(f"Approximating {stl_path}")
-    vis["mesh"].set_object(meshcat.geometry.StlMeshGeometry.from_file(stl_path))
+    stl_mesh_geom = meshcat.geometry.StlMeshGeometry.from_file(stl_path)
+    vis["mesh"].set_object(stl_mesh_geom)
     mesh = stl.mesh.Mesh.from_file(stl_path)
     vertices = mesh.vectors.reshape(-1, 3)
     vertices = torch.tensor(vertices)
@@ -226,24 +227,27 @@ def stl_to_capsule(stl_path: str, outdir, vis=None):
         f.write(f"{p1[0]}, {p1[1]}, {p1[2]}, {p2[0]}, {p2[1]}, {p2[2]}, {r}\n")
 
 
+"""
+python scripts/calculate_capsule_approximation.py --visualize
+"""
+
+
 def main():
     vis = None
     if args.visualize:
         vis = meshcat.Visualizer()
         vis.open()
 
-    # outdir = pathlib.Path("jrl/urdfs/panda/capsules")
+    outdir = pathlib.Path("jrl/urdfs/rizon4/capsules")
     # outdir.mkdir(exist_ok=False)
-    # for stl_path in pathlib.Path("jrl/urdfs/panda/meshes/collision").glob(
-    #    "*.stl"
-    # ):
-    #    stl_to_capsule(stl_path, outdir, vis)
+    for stl_path in pathlib.Path("jrl/urdfs/rizon4/meshes/collision").glob("*.stl"):
+        stl_to_capsule(stl_path, outdir, vis)
 
-    outdir = pathlib.Path("jrl/urdfs/fetch/capsules")
+    # outdir = pathlib.Path("jrl/urdfs/fetch/capsules")
     # outdir.mkdir(exist_ok=False)
     # for stl_path in list(pathlib.Path("jrl/urdfs/fetch/meshes").glob("*_collision.STL")):
     #     stl_to_capsule(stl_path, outdir, vis)
-    stl_to_capsule(pathlib.Path("jrl/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
+    # stl_to_capsule(pathlib.Path("jrl/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
 
 
 if __name__ == "__main__":

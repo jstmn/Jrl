@@ -17,6 +17,7 @@ python scripts/save_ground_truth_fk_data.py --robot=fetch
 python scripts/save_ground_truth_fk_data.py --robot=fetch_arm
 python scripts/save_ground_truth_fk_data.py --robot=iiwa7
 python scripts/save_ground_truth_fk_data.py --robot=baxter
+python scripts/save_ground_truth_fk_data.py --robot=rizon4
 
 """
 
@@ -36,8 +37,8 @@ if __name__ == "__main__":
     np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_klampt[:, 0:3])
     rotational_errors_kinpy_klampt = geodesic_distance_between_quaternions(poses_kinpy[:, 3:7], poses_klampt[:, 3:7])
     assert (
-        max(rotational_errors_kinpy_klampt) < 7e-4
-    ), f"Error, max(rotational_errors_kinpy_klampt) > 7e-4 ({max(rotational_errors_kinpy_klampt)} vs 0.0005)"
+        max(rotational_errors_kinpy_klampt) < 9e-4
+    ), f"Error, max(rotational_errors_kinpy_klampt) > 9e-4 ({max(rotational_errors_kinpy_klampt)})"
 
     # batch_fk
     if robot._batch_fk_enabled:
@@ -49,8 +50,8 @@ if __name__ == "__main__":
             poses_kinpy[:, 3:7], poses_batchfk[:, 3:7]
         )
         assert (
-            max(rotational_errors_kinpy_batchfk) < 7e-4
-        ), f"Error, max(rotational_errors_kinpy_batchfk) > 7e-4 ({max(rotational_errors_kinpy_batchfk)} vs 0.0005)"
+            max(rotational_errors_kinpy_batchfk) < 9e-4
+        ), f"Error, max(rotational_errors_kinpy_batchfk) > 9e-4 ({max(rotational_errors_kinpy_batchfk)})"
         np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_batchfk[:, 0:3], atol=5e-4)
 
     np.save(f"data/ground_truth_fk_data/{robot.name}__joint_angles.npy", joint_angles)

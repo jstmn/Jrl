@@ -58,6 +58,21 @@ PANDA_NEVER_COLLIDING_LINKS = [
     ("panda_link4", "panda_link6"),
     ("panda_link4", "panda_link7"),
 ]
+RIZON4_ALWAYS_COLLIDING_LINKS = []
+RIZON4_NEVER_COLLIDING_LINKS = [
+    ("base_link", "link2"),
+    ("base_link", "link3"),
+    ("base_link", "link4"),
+    ("link1", "link3"),
+    ("link1", "link4"),
+    ("link2", "link4"),
+    ("link2", "link5"),
+    ("link3", "link5"),
+    ("link3", "link6"),
+    ("link3", "link7"),
+    ("link4", "link6"),
+    ("link4", "link7"),
+]
 
 
 def _load_capsule(path: str):
@@ -309,6 +324,7 @@ class Iiwa7(Robot):
         urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
         base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
+        collision_capsules_by_link = {}  # TODO
 
         ignored_collision_pairs = []
         Robot.__init__(
@@ -319,14 +335,64 @@ class Iiwa7(Robot):
             base_link,
             end_effector_link_name,
             ignored_collision_pairs,
-            Iiwa7.POSITIONAL_REPEATABILITY_MM,
-            Iiwa7.ROTATIONAL_REPEATABILITY_DEG,
+            collision_capsules_by_link,
             verbose=verbose,
             additional_link_name=None,
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm]
+class Rizon4(Robot):
+    name = "rizon4"
+    formal_robot_name = "Flexiv Rizon 4"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+            "joint7",
+        ]
+        urdf_filepath = get_filepath("urdfs/rizon4/flexiv_rizon4_kinematics.urdf")
+        base_link = "base_link"
+        end_effector_link_name = "link7"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        collision_capsules_by_link = {
+            "base_link": _load_capsule("urdfs/rizon4/capsules/link0.txt"),
+            "link1": _load_capsule("urdfs/rizon4/capsules/link1.txt"),
+            "link2": _load_capsule("urdfs/rizon4/capsules/link2.txt"),
+            "link3": _load_capsule("urdfs/rizon4/capsules/link3.txt"),
+            "link4": _load_capsule("urdfs/rizon4/capsules/link4.txt"),
+            "link5": _load_capsule("urdfs/rizon4/capsules/link5.txt"),
+            "link6": _load_capsule("urdfs/rizon4/capsules/link6.txt"),
+            "link7": _load_capsule("urdfs/rizon4/capsules/link7.txt"),
+        }
+
+        ignored_collision_pairs = RIZON4_NEVER_COLLIDING_LINKS + RIZON4_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Rizon4.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4]
 # ALL_CLCS = [Panda]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
