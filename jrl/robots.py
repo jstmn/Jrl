@@ -74,6 +74,18 @@ RIZON4_NEVER_COLLIDING_LINKS = [
     ("link4", "link7"),
 ]
 
+UR5_NEVER_COLLIDING_LINKS = [
+    ('base_link_inertia', 'upper_arm_link'),
+    ('upper_arm_link', 'forearm_link'),
+    ('upper_arm_link', 'wrist_2_link'),
+    ('upper_arm_link', 'wrist_3_link'),
+    ('wrist_1_link', 'wrist_3_link'),
+]
+
+UR5_ALWAYS_COLLIDING_LINKS = [
+  ('base_link_inertia', 'shoulder_link')
+]
+
 
 def _load_capsule(path: str):
     data = np.loadtxt(get_filepath(path), delimiter=",")
@@ -392,7 +404,56 @@ class Rizon4(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4]
+class Ur5(Robot):
+    name = "ur5"
+    formal_robot_name = "UR5"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur5/ur5_formatted.urdf")
+        base_link = "base_link_inertia"
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur5/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur5/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur5/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur5/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur5/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur5/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur5/capsules/wrist3.txt"),
+        }
+
+        ignored_collision_pairs = UR5_NEVER_COLLIDING_LINKS + UR5_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur5.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5]
 # ALL_CLCS = [Panda]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]

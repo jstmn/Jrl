@@ -123,6 +123,7 @@ python scripts/visualize_robot.py --robot_name=baxter
 python scripts/visualize_robot.py --robot_name=iiwa7
 python scripts/visualize_robot.py --robot_name=fetch
 python scripts/visualize_robot.py --robot_name=rizon4
+python scripts/visualize_robot.py --robot_name=ur5
 
 # Move between configs
 python scripts/visualize_robot.py \

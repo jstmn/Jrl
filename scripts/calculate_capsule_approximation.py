@@ -238,9 +238,14 @@ def main():
         vis = meshcat.Visualizer()
         vis.open()
 
-    outdir = pathlib.Path("jrl/urdfs/rizon4/capsules")
-    # outdir.mkdir(exist_ok=False)
-    for stl_path in pathlib.Path("jrl/urdfs/rizon4/meshes/collision").glob("*.stl"):
+    # outdir = pathlib.Path("jrl/urdfs/rizon4/capsules")
+    # # outdir.mkdir(exist_ok=False)
+    # for stl_path in pathlib.Path("jrl/urdfs/rizon4/meshes/collision").glob("*.stl"):
+    #     stl_to_capsule(stl_path, outdir, vis)
+
+    outdir = pathlib.Path("jrl/urdfs/ur5/capsules")
+    outdir.mkdir(exist_ok=False)
+    for stl_path in pathlib.Path("jrl/urdfs/ur5/meshes/collision").glob("*.stl"):
         stl_to_capsule(stl_path, outdir, vis)
 
     # outdir = pathlib.Path("jrl/urdfs/fetch/capsules")
