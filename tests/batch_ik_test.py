@@ -129,16 +129,16 @@ class TestBatchIK(unittest.TestCase):
                 l2_err_diff_i,
                 0.0,
                 msg=(
-                    f"l2_err_diff = {l2_err_diff_i} should be < 0. This means the positional error increased"
-                    f" ({test_description})"
+                    f"(position) error_final - error_initial should be < 0, is {l2_err_diff_i}. This means the"
+                    f" positional error increased ({test_description})"
                 ),
             )
             self.assertLess(
                 angular_errs_diff_i,
                 0.0,
                 msg=(
-                    f"angular_errs_diff_i = {angular_errs_diff_i} should be < 0. This means the angular error increased"
-                    f" ({test_description})"
+                    f"(rotational) error_final - error_initial should be < 0, is {angular_errs_diff_i}. This means the"
+                    f" angular error increased ({test_description})"
                 ),
             )
 
@@ -175,7 +175,7 @@ class TestBatchIK(unittest.TestCase):
     def test_batch_ik_step_functions(self):
         """Test that ik steps made with inverse_kinematics_single_step_batch_pt()  makes progress"""
 
-        alpha = 0.1
+        alpha = 0.05
 
         for robot in self.robots:
             print()

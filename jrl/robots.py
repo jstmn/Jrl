@@ -75,16 +75,14 @@ RIZON4_NEVER_COLLIDING_LINKS = [
 ]
 
 UR5_NEVER_COLLIDING_LINKS = [
-    ('base_link_inertia', 'upper_arm_link'),
-    ('upper_arm_link', 'forearm_link'),
-    ('upper_arm_link', 'wrist_2_link'),
-    ('upper_arm_link', 'wrist_3_link'),
-    ('wrist_1_link', 'wrist_3_link'),
+    ("base_link_inertia", "upper_arm_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
+    ("wrist_1_link", "wrist_3_link"),
 ]
 
-UR5_ALWAYS_COLLIDING_LINKS = [
-  ('base_link_inertia', 'shoulder_link')
-]
+UR5_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
 
 def _load_capsule(path: str):
@@ -423,7 +421,8 @@ class Ur5(Robot):
             "wrist_3_joint",
         ]
         urdf_filepath = get_filepath("urdfs/ur5/ur5_formatted.urdf")
-        base_link = "base_link_inertia"
+        base_link = "base_link"
+        # base_link = "base_link_inertia"
         end_effector_link_name = "wrist_3_link"
 
         # Must match the total number of joints (including fixed) in the robot.
@@ -454,7 +453,7 @@ class Ur5(Robot):
 
 
 ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5]
-# ALL_CLCS = [Panda]
+# ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
 
