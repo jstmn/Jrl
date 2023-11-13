@@ -25,8 +25,8 @@ def decimal_range(start, stop, inc):
 def get_gt_samples_and_endpoints(robot_name: str) -> Tuple[np.ndarray, np.ndarray]:
     """Get ground truth samples and endpoints from a file."""
 
-    return np.load(f"data/ground_truth_fk_data/{robot_name}__joint_angles.npy"), np.load(
-        f"data/ground_truth_fk_data/{robot_name}__poses.npy"
+    return np.load(f"tests/ground_truth_fk_data/{robot_name}__joint_angles.npy"), np.load(
+        f"tests/ground_truth_fk_data/{robot_name}__poses.npy"
     )
 
 

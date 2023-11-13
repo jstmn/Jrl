@@ -54,5 +54,5 @@ if __name__ == "__main__":
         ), f"Error, max(rotational_errors_kinpy_batchfk) > 9e-4 ({max(rotational_errors_kinpy_batchfk)})"
         np.testing.assert_allclose(poses_kinpy[:, 0:3], poses_batchfk[:, 0:3], atol=5e-4)
 
-    np.save(f"data/ground_truth_fk_data/{robot.name}__joint_angles.npy", joint_angles)
-    np.save(f"data/ground_truth_fk_data/{robot.name}__poses.npy", poses_klampt)
+    np.save(f"tests/ground_truth_fk_data/{robot.name}__joint_angles.npy", joint_angles)
+    np.save(f"tests/ground_truth_fk_data/{robot.name}__poses.npy", poses_klampt)

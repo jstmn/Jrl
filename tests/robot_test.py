@@ -113,21 +113,21 @@ class RobotTest(unittest.TestCase):
         torch.testing.assert_close(expected_revolute, revolute)
 
     def test_sample_joint_angles(self):
-        """_summary_"""
+        """python tests/robot_test.py RobotTest.test_sample_joint_angles"""
         for robot in self.robots:
-            joint_angles = robot.sample_joint_angles(1000)
-            self.assertEqual(joint_angles.shape, (1000, robot.ndof))
+            joint_angles = robot.sample_joint_angles(2000)
+            self.assertEqual(joint_angles.shape, (2000, robot.ndof))
             # Check joint angles are within joint limits
             self._assert_joint_angles_within_limits(joint_angles, robot)
             self._assert_joint_angles_uniform(joint_angles, robot)
 
     def test_sample_joint_angles_and_poses(self):
-        """_summary_"""
+        """python tests/robot_test.py RobotTest.test_sample_joint_angles_and_poses"""
         for robot in self.robots:
             print(robot)
-            joint_angles, poses = robot.sample_joint_angles_and_poses(1000, tqdm_enabled=True)
-            self.assertEqual(joint_angles.shape, (1000, robot.ndof))
-            self.assertEqual(poses.shape, (1000, 7))
+            joint_angles, poses = robot.sample_joint_angles_and_poses(2000, only_non_self_colliding=False)
+            self.assertEqual(joint_angles.shape, (2000, robot.ndof))
+            self.assertEqual(poses.shape, (2000, 7))
 
             # Check joint angles are within joint limits and uniform
             self._assert_joint_angles_within_limits(joint_angles, robot)
@@ -258,6 +258,7 @@ class RobotTest(unittest.TestCase):
             "fetch_arm": 7,
             "iiwa7": 7,
             "rizon4": 7,
+            "ur5": 6,
         }
         for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
@@ -318,6 +319,15 @@ class RobotTest(unittest.TestCase):
                 (-2.9671, 2.9671),
                 (-1.3963, 4.5379),
                 (-2.9671, 2.9671),
+            ],
+            "ur5": [
+                (-6.283185307179586, 6.283185307179586),
+                (-6.283185307179586, 6.283185307179586),
+                (-3.141592653589793, 3.141592653589793),
+                (-6.283185307179586, 6.283185307179586),
+                (-6.283185307179586, 6.283185307179586),
+                (-6.283185307179586, 6.283185307179586),
+                (-6.283185307179586, 6.283185307179586),
             ],
         }
         for robot in self.robots:
@@ -384,6 +394,14 @@ class RobotTest(unittest.TestCase):
                 "joint6",
                 "joint7",
             ],
+            "ur5": [
+                "shoulder_pan_joint",
+                "shoulder_lift_joint",
+                "elbow_joint",
+                "wrist_1_joint",
+                "wrist_2_joint",
+                "wrist_3_joint",
+            ],
         }
         for robot in self.robots:
             self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
@@ -410,6 +428,7 @@ class RobotTest(unittest.TestCase):
             "panda": 8,  # panda has 1 non user specified actuated joint
             "iiwa7": 7,  #
             "rizon4": 7,  #
+            "ur5": 6,  #
         }
 
         for robot in self.robots:
