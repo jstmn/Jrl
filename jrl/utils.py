@@ -6,8 +6,7 @@ import pkg_resources
 import torch
 import numpy as np
 
-from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.config import PT_NP_TYPE
+from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE, PT_NP_TYPE
 from jrl.conversions import geodesic_distance_between_quaternions
 
 

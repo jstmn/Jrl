@@ -7,39 +7,9 @@ from klampt.model import coordinates, trajectory
 from klampt.math import so3
 import numpy as np
 
+from visualization_utils import _init_klampt_vis
 from jrl.robot import Robot
 from jrl.robots import get_robot
-
-
-def _init_vis(robot: Robot, window_title: str, show_collision_capsules: bool = True):
-    vis.init()
-
-    background_color = (1, 1, 1, 0.7)
-    vis.setBackgroundColor(background_color[0], background_color[1], background_color[2], background_color[3])
-    size = 5
-    for x0 in range(-size, size + 1):
-        for y0 in range(-size, size + 1):
-            vis.add(
-                f"floor_{x0}_{y0}",
-                trajectory.Trajectory([1, 0], [(-size, y0, 0), (size, y0, 0)]),
-                color=(0.75, 0.75, 0.75, 1.0),
-                width=2.0,
-                hide_label=True,
-                pointSize=0,
-            )
-            vis.add(
-                f"floor_{x0}_{y0}2",
-                trajectory.Trajectory([1, 0], [(x0, -size, 0), (x0, size, 0)]),
-                color=(0.75, 0.75, 0.75, 1.0),
-                width=2.0,
-                hide_label=True,
-                pointSize=0,
-            )
-
-    vis.add("world", robot.klampt_world_model)
-    vis.add("coordinates", coordinates.manager())
-    vis.setWindowTitle(window_title)
-    vis.show()
 
 
 # TODO: Make this less creepy
@@ -49,7 +19,7 @@ def oscillate_joints(robot: Robot, show_collision_capsules: bool = True):
     inc = 0.0025
     time_p_loop = 1 / 60  # 60Hz, in theory
 
-    _init_vis(robot, "oscillate joints", show_collision_capsules=show_collision_capsules)
+    _init_klampt_vis(robot, "oscillate joints", show_collision_capsules=show_collision_capsules)
 
     x = np.array([(u + l) / 2.0 for (l, u) in robot.actuated_joints_limits])
 
@@ -83,7 +53,7 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 
     time_p_loop = 0.005
     ratio_inc = 0.0025
-    _init_vis(robot, "transition between target configs", show_collision_capsules=show_collision_capsules)
+    _init_klampt_vis(robot, "transition between target configs", show_collision_capsules=show_collision_capsules)
 
     target_xs = [np.array(config) for config in configs]
     target_xs_poses = robot.forward_kinematics(np.array(target_xs))
