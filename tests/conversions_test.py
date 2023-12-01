@@ -3,7 +3,7 @@ import unittest
 import torch
 import numpy as np
 
-from jrl.conversions import (
+from jrl.math_utils import (
     quaternion_inverse,
     quaternion_to_rotation_matrix,
     geodesic_distance_between_rotation_matrices,
@@ -257,31 +257,25 @@ class TestConversions(unittest.TestCase):
             quaternion_inverse(quats)
 
         # Test 2: Catches three arguments
-        quats = torch.tensor(
-            [
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-            ]
-        )
+        quats = torch.tensor([
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+        ])
         with self.assertRaises(AssertionError):
             quaternion_inverse(quats, quats, quats)
 
         # Test 3: Checks that both inputs are the same type
-        quats_pt = torch.tensor(
-            [
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-            ]
-        )
-        quats_np = np.array(
-            [
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-            ]
-        )
+        quats_pt = torch.tensor([
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+        ])
+        quats_np = np.array([
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+        ])
         with self.assertRaises(AssertionError):
             quaternion_inverse(quats_pt, quats_np)
 
@@ -329,33 +323,27 @@ class TestConversions(unittest.TestCase):
 
     def test_quaternion_product(self):
         """Test that quaternion_product() and quatmul() are correct"""
-        q1 = np.array(
-            [
-                [1, 0, 0, 0],
-                [1, 0, 0, 0],
-                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-                [0, 0.7071068, 0, 0.7071068],  # 90 deg rotation about +y
-            ]
-        )
+        q1 = np.array([
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+            [0, 0.7071068, 0, 0.7071068],  # 90 deg rotation about +y
+        ])
 
-        q2 = np.array(
-            [
-                [1, 0, 0, 0],
-                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-            ]
-        )
+        q2 = np.array([
+            [1, 0, 0, 0],
+            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+        ])
 
         # ground truth from https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
-        product_expected = np.array(
-            [
-                [1, 0, 0, 0],
-                [0.7071068, 0, 0, 0.7071068],
-                [0, 0, 0, 1],
-                [-0.5, 0.5, -0.5, 0.5],
-            ]
-        )
+        product_expected = np.array([
+            [1, 0, 0, 0],
+            [0.7071068, 0, 0, 0.7071068],
+            [0, 0, 0, 1],
+            [-0.5, 0.5, -0.5, 0.5],
+        ])
 
         product_returned_1 = quaternion_product(q1, q2)
         np.testing.assert_allclose(product_expected, product_returned_1)

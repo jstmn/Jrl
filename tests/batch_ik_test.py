@@ -7,7 +7,7 @@ import torch
 from jrl.robot import Robot
 from jrl.robots import get_all_robots
 from jrl.utils import set_seed
-from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.math_utils import geodesic_distance_between_quaternions
 from jrl.config import DEVICE, PT_NP_TYPE
 
 

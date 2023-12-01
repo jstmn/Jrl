@@ -1,21 +1,41 @@
 # Jrl
 
-Jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, and robot-robot + robot-environment collision checking. Robot models include (run with `scripts/visualize_robot.py` to view):
+Jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, and robot-robot + robot-environment collision checking. 
 
-1. Franka Panda
-2. Iiwa 7dof manipulator
-3. Fetch 8dof mobile manipulator
+
+**Robots**
+
+Robot models include (run with `scripts/visualize_robot.py` to view):
+
+| jrl name | full name                   |
+|----------|-----------------------------|
+| Panda    | Franka Panda                |
+| Fetch    | Fetch                       |
+| FetchArm | Fetch - Arm (no lift joint) |
+| Iiwa7    | Kuka LBR IIWA7              |
+| Rizon4   | Flexiv Rizon 4              |
+| Ur5      | Ur5                         |
+
+
+**Functions**
 
 Available operations include (all part of the `Robot` class):
 
-1. `forward_kinematics_batch()`: batched forward kinematics
-1. `jacobian_batch_pt()`: batched manipulator jacobian calculation (change of the end effector's pose w.r.t. each joint angle) 
-1. `inverse_kinematics_single_step_levenburg_marquardt()`: computes a single batched inverse kinematics step using Levenburg-Marquardt optimization
-1. `inverse_kinematics_single_step_batch_pt()`: computes a single batched inverse kinematics step using the traditional jacobian pseudo-inverse method
-1. `self_collision_distances_batch()`: batched self-collision distance calculation
-2. `self_collision_distances_jacobian_batch()`: batched calculation of the jacobian of the pair-wise self-collision distances w.r.t. joint angles
-3. `env_collision_distances_batch()`: batched self-environment distance calculation
-4. `env_collision_distances_jacobian_batch()`: batched calculation of the jacobian of the self-environment distances w.r.t. joint angles
+| function                           | description                                                                  |
+|--------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `forward_kinematics_batch()`                           | (batched) forward kinematics                                                                  |
+| `jacobian_batch_pt()`                                  | (batched) Jacobian of the manipulators forward kinematics map (w.r.t. joint angles)           |
+| `inverse_kinematics_single_step_levenburg_marquardt()` | (batched) Inverse kinematics step using Levenburg-Marquardt                                   |
+| `inverse_kinematics_single_step_batch_pt()`            | (batched) Inverse kinematics step using the jacobian pseudo-inverse method                    |
+| `self_collision_distances_batch()`                     | (batched) Pairwise distance between each link of the robot                                    |
+| `self_collision_distances_jacobian_batch()`            | (batched) Jacobian of `self_collision_distances_batch()` w.r.t. joint angles                  |
+| `env_collision_distances_batch()`                      | (batched) Pairwise distance between each link of the robot and each cuboid in the environment |
+| `env_collision_distances_jacobian_batch()`             | (batched) Jacobian of `env_collision_distances_batch()` w.r.t. joint angles                   |
+
+
+
+
+
 
 **Quickstart code.** This script will load a Panda robot model and then run forward and inverse kinematics on randomly sampled configs. See demo.py for the complete script, which includes robot-robot and robot-environment collision checking.
 
@@ -47,15 +67,10 @@ Note: This project uses the `w,x,y,z` format for quaternions.
 
 ## Installation
 
-Recommended: clone the repo and install with pip
+Clone the repo and install with poetry. Don't use the version on pypi - it will remain out of date until this project hardens
 ```
 git clone https://github.com/jstmn/jrl.git && cd jrl/
-pip install -e .
+poetry install --without dev
 # or:
-pip install -e ".[dev]"
-```
-
-Second option: Install from pypi (not recomended - the pypi version will likely be out of date until this project hardens)
-``` bash
-pip install jrl
+poetry install # includes dev dependencies, like the linter
 ```

@@ -7,7 +7,7 @@ import numpy as np
 from jrl import config
 from jrl.robots import get_all_robots, Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
-from jrl.conversions import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
+from jrl.math_utils import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
 from jrl.utils import set_seed, assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 torch.manual_seed(0)

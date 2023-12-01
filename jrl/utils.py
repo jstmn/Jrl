@@ -7,7 +7,7 @@ import torch
 import numpy as np
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE, PT_NP_TYPE
-from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.math_utils import geodesic_distance_between_quaternions
 
 
 def safe_mkdir(dir_name: str):
@@ -80,6 +80,25 @@ def assert_pose_rotations_almost_equal(
             f"Rotation of poses '{source_1}({endpoints1[i, :]})', '{source_2} ({endpoints2[i, :]})' are not equal"
             f" (error={errors[i]})"
         )
+
+class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    GREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+
+def make_text_green_or_red(text: str, print_green: bool) -> str:
+    if print_green:
+        s = bcolors.GREEN
+    else:
+        s = bcolors.FAIL
+    return s + str(text) + bcolors.ENDC
 
 
 # Borrowed from https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/transforms/rotation_conversions.html#random_quaternions

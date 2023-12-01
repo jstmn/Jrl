@@ -13,7 +13,7 @@ from klampt import robotsim
 from klampt.model.collide import WorldCollider
 import tqdm
 
-from jrl.conversions import (
+from jrl.math_utils import (
     rpy_tuple_to_rotation_matrix,
     single_axis_angle_to_rotation_matrix,
     quaternion_inverse,
@@ -227,9 +227,9 @@ class Robot:
                 self._end_effector_kinematic_chain,
                 ignored_collision_pairs,
                 additional_link=self._additional_link_name,
-                additional_link_lca_joint=self._additional_link_lca_joint
-                if self._additional_link_name is not None
-                else None,
+                additional_link_lca_joint=(
+                    self._additional_link_lca_joint if self._additional_link_name is not None else None
+                ),
             )
 
         # Create and fill cache of fixed rotations between links.

@@ -5,7 +5,7 @@ import torch
 
 from jrl.robots import get_robot
 from jrl.robot import forward_kinematics_kinpy
-from jrl.conversions import geodesic_distance_between_quaternions
+from jrl.math_utils import geodesic_distance_between_quaternions
 from jrl.utils import set_seed
 
 set_seed()

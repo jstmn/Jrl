@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from klampt.math import so3
 
-from jrl.conversions import rpy_tuple_to_rotation_matrix
+from jrl.math_utils import rpy_tuple_to_rotation_matrix
 from jrl.config import URDF_DOWNLOAD_DIR
 from jrl.utils import get_filepath, safe_mkdir
 
@@ -336,8 +336,7 @@ def merge_fixed_joints_to_one(joints: List[Joint]) -> Joint:
 def get_lowest_common_ancestor_link(
     urdf_filepath: str, joint_chain: List[Joint], active_joints: List[str], link: str
 ) -> str:
-    """Find the first link in the path from 'link' to 'base_link' that is in the link chain defined by the joint chain.
-    """
+    """Find the first link in the path from 'link' to 'base_link' that is in the link chain defined by the joint chain."""
     all_joints, _ = parse_urdf(urdf_filepath)  # Dicts
     links_in_joint_chain = set([joint.parent for joint in joint_chain] + [joint.child for joint in joint_chain])
 

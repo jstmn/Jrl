@@ -5,7 +5,7 @@ import numpy as np
 
 from jrl.utils import set_seed
 from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
-from jrl.conversions import quaternion_to_rotation_matrix
+from jrl.math_utils import quaternion_to_rotation_matrix
 from jrl.config import DEVICE
 
 import fcl

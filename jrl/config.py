@@ -1,4 +1,5 @@
 """Global configuration"""
+
 from typing import Union
 import os
 from time import sleep
