@@ -12,7 +12,6 @@ from typing import Tuple, Callable, Optional
 
 import torch
 import numpy as np
-import roma.mappings
 
 from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE, PT_NP_TYPE
 
@@ -142,6 +141,67 @@ def angular_subtraction(angles_1: torch.Tensor, angles_2: torch.Tensor) -> torch
 #
 
 
+# Borrowed from RoMa library (https://github.com/naver/roma/tree/master)
+def rotmat_to_unitquat(R):
+    """
+    Converts rotation matrix to unit quaternion representation.
+
+    Args:
+        R (...x3x3 tensor): batch of rotation matrices.
+    Returns:
+        batch of unit quaternions (...x4 tensor, XYZW convention).
+    """
+    def unflatten_batch_dims(tensor, batch_shape):
+        """
+        :meta private:
+        Revert flattening of a tensor.
+        """
+        # Note: alternative to tensor.unflatten(dim=0, sizes=batch_shape) that was not supported by PyTorch 1.6.0.
+        return tensor.reshape(batch_shape + tensor.shape[1:]) if len(batch_shape) > 0 else tensor.squeeze(0)
+
+    def flatten_batch_dims(tensor, end_dim):
+        """
+        :meta private:
+        Utility function: flatten multiple batch dimensions into a single one, or add a batch dimension if there is none.
+        """
+        batch_shape = tensor.shape[:end_dim+1]
+        flattened = tensor.flatten(end_dim=end_dim) if len(batch_shape) > 0 else tensor.unsqueeze(0)
+        return flattened, batch_shape
+
+    matrix, batch_shape = flatten_batch_dims(R, end_dim=-3)
+    num_rotations, D1, D2 = matrix.shape
+    assert((D1, D2) == (3,3)), "Input should be a Bx3x3 tensor."
+
+    # Adapted from SciPy:
+    # https://github.com/scipy/scipy/blob/7cb3d751756907238996502b92709dc45e1c6596/scipy/spatial/transform/rotation.py#L480
+
+    decision_matrix = torch.empty((num_rotations, 4), dtype=matrix.dtype, device=matrix.device)
+    decision_matrix[:, :3] = matrix.diagonal(dim1=1, dim2=2)
+    decision_matrix[:, -1] = decision_matrix[:, :3].sum(axis=1)
+    choices = decision_matrix.argmax(axis=1)
+
+    quat = torch.empty((num_rotations, 4), dtype=matrix.dtype, device=matrix.device)
+
+    ind = torch.nonzero(choices != 3, as_tuple=True)[0]
+    i = choices[ind]
+    j = (i + 1) % 3
+    k = (j + 1) % 3
+
+    quat[ind, i] = 1 - decision_matrix[ind, -1] + 2 * matrix[ind, i, i]
+    quat[ind, j] = matrix[ind, j, i] + matrix[ind, i, j]
+    quat[ind, k] = matrix[ind, k, i] + matrix[ind, i, k]
+    quat[ind, 3] = matrix[ind, k, j] - matrix[ind, j, k]
+
+    ind = torch.nonzero(choices == 3, as_tuple=True)[0]
+    quat[ind, 0] = matrix[ind, 2, 1] - matrix[ind, 1, 2]
+    quat[ind, 1] = matrix[ind, 0, 2] - matrix[ind, 2, 0]
+    quat[ind, 2] = matrix[ind, 1, 0] - matrix[ind, 0, 1]
+    quat[ind, 3] = 1 + decision_matrix[ind, -1]
+
+    quat = quat / torch.norm(quat, dim=1)[:, None]
+    return unflatten_batch_dims(quat, batch_shape)
+
+
 @enforce_pt_np_input
 def rotation_matrix_to_quaternion(m: PT_NP_TYPE) -> PT_NP_TYPE:
     """Converts a batch of rotation matrices to quaternions
@@ -157,7 +217,7 @@ def rotation_matrix_to_quaternion(m: PT_NP_TYPE) -> PT_NP_TYPE:
         m = torch.tensor(m, dtype=DEFAULT_TORCH_DTYPE, device=DEVICE)
         is_np = True
 
-    quat = roma.mappings.rotmat_to_unitquat(m)
+    quat = rotmat_to_unitquat(m)
     quat = quaternion_xyzw_to_wxyz(quat)
 
     if is_np:
