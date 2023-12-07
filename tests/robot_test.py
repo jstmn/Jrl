@@ -7,8 +7,7 @@ from jrl.urdf_utils import _len3_tuple_from_str
 from jrl.utils import set_seed
 from jrl.robot import Robot
 from jrl.robots import get_all_robots, Panda, Fetch, Iiwa7, FetchArm
-from jrl.math_utils import PT_NP_TYPE
-from jrl.config import DEVICE
+from jrl.config import DEVICE, PT_NP_TYPE
 
 set_seed(0)
 

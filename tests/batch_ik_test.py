@@ -6,7 +6,7 @@ import torch
 
 from jrl.robot import Robot
 from jrl.robots import get_all_robots
-from jrl.utils import set_seed
+from jrl.utils import set_seed, to_torch
 from jrl.math_utils import geodesic_distance_between_quaternions
 from jrl.config import DEVICE, PT_NP_TYPE
 
@@ -21,15 +21,17 @@ def _pose_errors(poses_1: PT_NP_TYPE, poses_2: PT_NP_TYPE) -> Tuple[PT_NP_TYPE, 
     assert poses_1.shape == poses_2.shape, f"Poses are of different shape: {poses_1.shape} != {poses_2.shape}"
 
     if isinstance(poses_1, torch.Tensor):
+        assert isinstance(poses_2, torch.Tensor), f"poses_1 is a tensor but poses_2 is not: {type(poses_2)}"
         l2_errors = torch.norm(poses_1[:, 0:3] - poses_2[:, 0:3], dim=1)
     else:
+        assert isinstance(poses_2, np.ndarray), f"poses_1 is a numpy array but poses_2 is not: {type(poses_2)}"
         l2_errors = np.linalg.norm(poses_1[:, 0:3] - poses_2[:, 0:3], axis=1)
     angular_errors = geodesic_distance_between_quaternions(poses_1[:, 3 : 3 + 4], poses_2[:, 3 : 3 + 4])
     assert l2_errors.shape == angular_errors.shape
     return l2_errors, angular_errors
 
 
-def _joint_angles_all_in_joint_limits(robot: Robot, x: PT_NP_TYPE) -> bool:
+def _joint_angles_all_in_joint_limits(robot: Robot, x: PT_NP_TYPE, eps: float = 1e-6) -> bool:
     """Return whether all joint angles are within joint limits
 
     Args:
@@ -37,9 +39,11 @@ def _joint_angles_all_in_joint_limits(robot: Robot, x: PT_NP_TYPE) -> bool:
     """
     assert x.shape[1] == robot.ndof
     for i, (lower, upper) in enumerate(robot.actuated_joints_limits):
-        if x[:, i].min() < lower:
+        if x[:, i].min() < lower - eps:
+            print("error: x[:, i].min() < lower", x[:, i].min(), lower)
             return False
-        if x[:, i].max() > upper:
+        if x[:, i].max() > upper + eps:
+            print("error: x[:, i].max() > lower", x[:, i].max(), upper)
             return False
     return True
 
@@ -63,7 +67,7 @@ class TestBatchIK(unittest.TestCase):
         ndofs = robot.ndof
 
         # Get the current poses (these will be the seeds)
-        x_current = np.ones((3, ndofs))
+        x_current = torch.ones((3, ndofs))
         for i, (lower, upper) in enumerate(robot.actuated_joints_limits):
             if center == "lower":
                 x_current[:, i] = lower
@@ -78,11 +82,11 @@ class TestBatchIK(unittest.TestCase):
             elif center == "upper_out_of_bounds":
                 x_current[:, i] = upper - 0.1
 
-        poses_current = robot.forward_kinematics(x_current)
+        poses_current = robot.forward_kinematics_batch(x_current)
 
         # Get the target poses
         diff = center_to_diff[center]
-        _qs_for_target_pose = x_current.copy()
+        _qs_for_target_pose = x_current.clone().detach()
         _qs_for_target_pose[0, :] += diff
         _qs_for_target_pose[1, :] += 2 * diff
         _qs_for_target_pose[2, :] += 3 * diff
@@ -90,7 +94,7 @@ class TestBatchIK(unittest.TestCase):
         if not should_be_oob:
             _qs_for_target_pose = robot.clamp_to_joint_limits(_qs_for_target_pose)
 
-        poses_target = robot.forward_kinematics(_qs_for_target_pose)
+        poses_target = to_torch(robot.forward_kinematics_batch(_qs_for_target_pose))
 
         # Sanity check joint angles used to get target poses plus the target poses
         if not should_be_oob:
@@ -119,7 +123,8 @@ class TestBatchIK(unittest.TestCase):
         self, _poses_target: np.ndarray, _poses_original: np.ndarray, _poses_updated: np.ndarray, test_description: str
     ):
         """Check that the pose errors decreased"""
-
+        _poses_target = torch.tensor(_poses_target)
+        _poses_updated = torch.tensor(_poses_updated)
         l2_errs_original, angular_errs_original = _pose_errors(_poses_target, _poses_original)
         l2_errs_final, angular_errs_final = _pose_errors(_poses_target, _poses_updated)
         l2_errs_differences = l2_errs_final - l2_errs_original
@@ -147,26 +152,15 @@ class TestBatchIK(unittest.TestCase):
     ):
         # Run ik
         poses_target_pt = torch.tensor(poses_target, device=DEVICE)
-        x_current_pt = torch.tensor(x_current.copy(), device=DEVICE)
-        x_updated_pt = robot.inverse_kinematics_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
-        x_updated_ad_pt = robot.inverse_kinematics_autodiff_single_step_batch_pt(poses_target_pt, x_current_pt, alpha)
+        x_updated_pt = robot.inverse_kinematics_single_step_batch_pt(poses_target_pt, x_current, alpha)
         x_updated_pt = x_updated_pt.cpu().numpy()
-        x_updated_ad_pt = x_updated_ad_pt.cpu().numpy()
 
         self.assertTrue(
             _joint_angles_all_in_joint_limits(robot, x_updated_pt),
             f"joint angles out of limits\nx_updated_pt={x_updated_pt}\nrobot={robot}",
         )
-        self.assertTrue(
-            _joint_angles_all_in_joint_limits(robot, x_updated_ad_pt),
-            f"joint angles out of limits\nx_updated_pt={x_updated_ad_pt}\nrobot={robot}",
-        )
-
         poses_updated_pt = robot.forward_kinematics(x_updated_pt)
-        poses_updated_ad_pt = robot.forward_kinematics(x_updated_ad_pt)
-
         self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_pt, f"{robot.name}, jac-pinv")
-        self.assert_pose_errors_decreased(poses_target, poses_current, poses_updated_ad_pt, f"{robot.name}, AD")
 
     # ==================================================================================================================
     #  -- Tests

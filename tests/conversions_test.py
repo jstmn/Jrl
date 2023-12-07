@@ -4,7 +4,6 @@ import torch
 import numpy as np
 
 from jrl.math_utils import (
-    quaternion_inverse,
     quaternion_to_rotation_matrix,
     geodesic_distance_between_rotation_matrices,
     quaternion_conjugate,
@@ -175,16 +174,16 @@ class TestConversions(unittest.TestCase):
 
     def test_geodesic_distance_between_quaternions_np(self):
         """Test geodesic_distance_between_quaternions with numpy inputs"""
-        q1_pt = np.array([[1.0, 0.0, 0.0, 0.0]])
+        q1_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
         # Rotation about +x axis by .25 radians
-        q2_pt = np.array([[0.9921977, 0.1246747, 0, 0]])
+        q2_pt = torch.tensor([[0.9921977, 0.1246747, 0, 0]], dtype=torch.float32)
         distance_expected = 0.25
         distance_returned = float(geodesic_distance_between_quaternions(q1_pt, q2_pt)[0])
         self.assertAlmostEqual(distance_expected, distance_returned, places=4)
 
         # Test 2
-        q_target_pt = np.array([[1.0, 0.0, 0.0, 0.0]])
-        q_current_pt = np.array([[0.0, 0.92387953, 0.38268343, 0.0]])
+        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
+        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32)
         distance_returned = float(geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0])
         distance_expected = 3.1415927
         # TODO: AssertionError: 3.1415927 != 3.1411044597625732 within 7 places (0.00048824023742666256 difference). It
@@ -192,8 +191,8 @@ class TestConversions(unittest.TestCase):
         self.assertAlmostEqual(distance_expected, distance_returned, places=3)
 
         # Test 3:
-        q_target_pt = np.array([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]])
-        q_current_pt = np.array([[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]])
+        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
+        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32)
         distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
         print("distances_returned:", distances_returned.shape)
 
@@ -244,41 +243,6 @@ class TestConversions(unittest.TestCase):
         distance_expected = 3.1415927
         self.assertAlmostEqual(distance_returned[0].item(), distance_expected, delta=5e-4)
 
-    def test_enforce_pt_np_input_decorator(self):
-        """Test that the enforce_pt_np_input() decorator works as expected."""
-
-        # Test 1: Catches non-tensor, non-numpy input
-        quats = [
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-        ]
-        with self.assertRaises(AssertionError):
-            quaternion_inverse(quats)
-
-        # Test 2: Catches three arguments
-        quats = torch.tensor([
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-        ])
-        with self.assertRaises(AssertionError):
-            quaternion_inverse(quats, quats, quats)
-
-        # Test 3: Checks that both inputs are the same type
-        quats_pt = torch.tensor([
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-        ])
-        quats_np = np.array([
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-        ])
-        with self.assertRaises(AssertionError):
-            quaternion_inverse(quats_pt, quats_np)
-
     def test_geodesic_distance_between_rotation_matrices(self):
         """Test geodesic_distance_between_rotation_matrices()"""
         q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], requires_grad=True, device="cpu")
@@ -300,56 +264,56 @@ class TestConversions(unittest.TestCase):
 
     def test_quaternion_conjugate(self):
         # w, x, y, z
-        q0 = np.array([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068]])  # 90 deg rotation about +z
-        q0_conjugate_expected = np.array([[1, 0, 0, 0], [0.7071068, 0, 0, -0.7071068]])  # 90 deg rotation about +z
+        q0 = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068]], dtype=torch.float32)  # 90 deg rotation about +z
+        q0_conjugate_expected = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, -0.7071068]], dtype=torch.float32)  # 90 deg rotation about +z
 
         # Test 1: quaternion_conjugate() is correct
         q0_conjugate_returned_1 = quaternion_conjugate(q0)
         self.assertEqual(q0_conjugate_returned_1.shape, (2, 4))
-        np.testing.assert_almost_equal(q0_conjugate_returned_1, q0_conjugate_expected)
+        torch.testing.assert_close(q0_conjugate_returned_1, q0_conjugate_expected)
 
         # Test 2:  quatconj() is correct
         q0_conjugate_returned_2 = quatconj(q0)
         self.assertEqual(q0_conjugate_returned_2.shape, (2, 4))
-        np.testing.assert_almost_equal(q0_conjugate_returned_2, q0_conjugate_expected)
+        torch.testing.assert_close(q0_conjugate_returned_2, q0_conjugate_expected)
 
     def test_quaternion_norm(self):
         # w, x, y, z
-        qs = np.array([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068], [1.0, 1.0, 0, 0.0]])  # 90 deg rotation about +z
-        norms_expected = np.array([1, 1, 1.414213562])
+        qs = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068], [1.0, 1.0, 0, 0.0]], dtype=torch.float32)  # 90 deg rotation about +z
+        norms_expected = torch.tensor([1, 1, 1.414213562], dtype=torch.float32)
         norms_returned = quaternion_norm(qs)
         self.assertEqual(norms_returned.shape, (3,))
-        np.testing.assert_almost_equal(norms_returned, norms_expected)
+        torch.testing.assert_close(norms_returned, norms_expected)
 
     def test_quaternion_product(self):
         """Test that quaternion_product() and quatmul() are correct"""
-        q1 = np.array([
+        q1 = torch.tensor([
             [1, 0, 0, 0],
             [1, 0, 0, 0],
             [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
             [0, 0.7071068, 0, 0.7071068],  # 90 deg rotation about +y
-        ])
+        ], dtype=torch.float32)
 
-        q2 = np.array([
+        q2 = torch.tensor([
             [1, 0, 0, 0],
             [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
             [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
             [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-        ])
+        ], dtype=torch.float32)
 
         # ground truth from https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
-        product_expected = np.array([
+        product_expected = torch.tensor([
             [1, 0, 0, 0],
             [0.7071068, 0, 0, 0.7071068],
             [0, 0, 0, 1],
             [-0.5, 0.5, -0.5, 0.5],
-        ])
+        ], dtype=torch.float32)
 
         product_returned_1 = quaternion_product(q1, q2)
-        np.testing.assert_allclose(product_expected, product_returned_1)
+        torch.testing.assert_allclose(product_expected, product_returned_1)
 
         product_returned_2 = quatmul(q1, q2)
-        np.testing.assert_allclose(product_expected, product_returned_2)
+        torch.testing.assert_allclose(product_expected, product_returned_2)
         print(f"test_quaternion_product() passed")
 
 

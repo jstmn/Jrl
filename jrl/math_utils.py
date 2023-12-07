@@ -8,12 +8,13 @@ A couple notes:
         tensors
 """
 
-from typing import Tuple, Callable, Optional
+from typing import Tuple, Optional
 
 import torch
 import numpy as np
 
-from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE, PT_NP_TYPE
+from jrl.utils import to_numpy, to_torch
+from jrl.config import DEFAULT_TORCH_DTYPE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
 _TORCH_EPS_CUDA = torch.tensor(
@@ -21,43 +22,6 @@ _TORCH_EPS_CUDA = torch.tensor(
     dtype=DEFAULT_TORCH_DTYPE,
     device="mps" if torch.backends.mps.is_available() else "cuda",
 )
-
-
-def enforce_pt_np_input(func: Callable):
-    """Performs the following checks:
-    1. The function recieves either 1 or 2 arguments
-    2. Each argument is either a np.ndarray or a torch.Tensor
-    3. If there are two arguments, both must be of the same type
-    """
-
-    def wrapper(*args, **kwargs):
-        are_2_args = len(args) == 2
-        assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
-        for arg in args:
-            assert isinstance(arg, (np.ndarray, torch.Tensor)), f"Expected np.ndarray or torch.Tensor, got {type(arg)}"
-        if are_2_args and isinstance(args[0], torch.Tensor):
-            assert type(args[0]) is type(
-                args[1]
-            ), f"Expected both arguments to be of the same type, got {type(args[0])} and {type(args[1])}"
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
-def enforce_pt_input(func: Callable):
-    """Performs the following checks:
-    1. The function recieves either 1 or 2 arguments
-    2. Each argument is a torch.Tensor
-    """
-
-    def wrapper(*args, **kwargs):
-        are_2_args = len(args) == 2
-        assert len(args) == 1 or are_2_args, f"Expected 1 or 2 arguments, got {len(args)}"
-        for arg in args:
-            assert isinstance(arg, torch.Tensor), f"Expected a torch.Tensor, got {type(arg)}"
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 # batch*n
@@ -119,7 +83,6 @@ def calculate_points_in_world_frame_from_local_frame_batch(
     return torch.cat(points_in_world_frame, dim=1)
 
 
-@enforce_pt_input
 def angular_subtraction(angles_1: torch.Tensor, angles_2: torch.Tensor) -> torch.Tensor:
     """Subtraction of elements on a circle. Specifically, implementation of the subtraction operator for elements in the
     '1-sphere' (see https://en.wikipedia.org/wiki/N-sphere).
@@ -151,6 +114,7 @@ def rotmat_to_unitquat(R):
     Returns:
         batch of unit quaternions (...x4 tensor, XYZW convention).
     """
+
     def unflatten_batch_dims(tensor, batch_shape):
         """
         :meta private:
@@ -164,13 +128,13 @@ def rotmat_to_unitquat(R):
         :meta private:
         Utility function: flatten multiple batch dimensions into a single one, or add a batch dimension if there is none.
         """
-        batch_shape = tensor.shape[:end_dim+1]
+        batch_shape = tensor.shape[: end_dim + 1]
         flattened = tensor.flatten(end_dim=end_dim) if len(batch_shape) > 0 else tensor.unsqueeze(0)
         return flattened, batch_shape
 
     matrix, batch_shape = flatten_batch_dims(R, end_dim=-3)
     num_rotations, D1, D2 = matrix.shape
-    assert((D1, D2) == (3,3)), "Input should be a Bx3x3 tensor."
+    assert (D1, D2) == (3, 3), "Input should be a Bx3x3 tensor."
 
     # Adapted from SciPy:
     # https://github.com/scipy/scipy/blob/7cb3d751756907238996502b92709dc45e1c6596/scipy/spatial/transform/rotation.py#L480
@@ -202,30 +166,19 @@ def rotmat_to_unitquat(R):
     return unflatten_batch_dims(quat, batch_shape)
 
 
-@enforce_pt_np_input
-def rotation_matrix_to_quaternion(m: PT_NP_TYPE) -> PT_NP_TYPE:
+def rotation_matrix_to_quaternion(m: torch.Tensor) -> torch.Tensor:
     """Converts a batch of rotation matrices to quaternions
 
     Args:
-        m (PT_NP_TYPE): [batch x 3 x 3] tensor of rotation matrices
+        m (torch.Tensor): [batch x 3 x 3] tensor of rotation matrices
 
     Returns:
-        PT_NP_TYPE: [batch x 4] tensor of quaternions
+        torch.Tensor: [batch x 4] tensor of quaternions
     """
-    is_np = False
-    if isinstance(m, np.ndarray):
-        m = torch.tensor(m, dtype=DEFAULT_TORCH_DTYPE, device=DEVICE)
-        is_np = True
-
     quat = rotmat_to_unitquat(m)
-    quat = quaternion_xyzw_to_wxyz(quat)
-
-    if is_np:
-        return quat.cpu().numpy()
-    return quat
+    return quaternion_xyzw_to_wxyz(quat)
 
 
-@enforce_pt_np_input
 def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tensor):
     """Computes the minimum angular distance between the two rotation matrices. In other terms, what's the minimum
     amount of rotation that must be performed to align the two orientations.
@@ -251,22 +204,15 @@ def geodesic_distance_between_rotation_matrices(m1: torch.Tensor, m2: torch.Tens
 #
 
 
-@enforce_pt_np_input
-def quaternion_xyzw_to_wxyz(quaternion: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_xyzw_to_wxyz(quaternion: torch.Tensor) -> torch.Tensor:
     """Convert a batch of quaternions from xyzw to wxyz format
 
     Args:
-        quaternion (PT_NP_TYPE): A [batch x 4] tensor or numpy array of quaternions
+        quaternion (torch.Tensor): A [batch x 4] tensor or numpy array of quaternions
     """
-    if isinstance(quaternion, np.ndarray):
-        return np.concatenate([quaternion[:, 3:4], quaternion[:, 0:3]], axis=1)
-    if isinstance(quaternion, torch.Tensor):
-        return torch.cat([quaternion[:, 3:4], quaternion[:, 0:3]], dim=1)
-
-    raise ValueError(f"quaternion must be a torch.Tensor or np.ndarray (got {type(quaternion)})")
+    return torch.cat([quaternion[:, 3:4], quaternion[:, 0:3]], dim=1)
 
 
-@enforce_pt_np_input
 def quaternion_to_rotation_matrix(quaternion: torch.Tensor):
     """_summary_
 
@@ -306,8 +252,7 @@ def quaternion_to_rotation_matrix(quaternion: torch.Tensor):
     return matrix
 
 
-@enforce_pt_np_input
-def quaternion_to_rpy(q: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_to_rpy(q: torch.Tensor) -> torch.Tensor:
     """Convert a batch of quaternions to roll-pitch-yaw angles"""
     assert len(q.shape) == 2
     assert q.shape[1] == 4
@@ -318,16 +263,9 @@ def quaternion_to_rpy(q: PT_NP_TYPE) -> PT_NP_TYPE:
     q2 = q[:, 2]
     q3 = q[:, 3]
 
-    if isinstance(q, np.ndarray):
-        rpy = np.zeros((n, 3))
-        p = np.arcsin(2 * (q0 * q2 - q3 * q1))
-        atan2 = np.arctan2
-    elif isinstance(q, torch.Tensor):
-        rpy = torch.zeros((n, 3), device=q.device, dtype=DEFAULT_TORCH_DTYPE)
-        p = torch.arcsin(2 * (q0 * q2 - q3 * q1))
-        atan2 = torch.arctan2
-    else:
-        raise ValueError(f"q must be a numpy array or a torch tensor (got {type(q)})")
+    rpy = torch.zeros((n, 3), device=q.device, dtype=DEFAULT_TORCH_DTYPE)
+    p = torch.arcsin(2 * (q0 * q2 - q3 * q1))
+    atan2 = torch.arctan2
 
     # handle singularity
     rpy[:, 0] = atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1**2 + q2**2))
@@ -336,19 +274,12 @@ def quaternion_to_rpy(q: PT_NP_TYPE) -> PT_NP_TYPE:
     return rpy
 
 
-@enforce_pt_np_input
-def quaternion_conjugate(qs: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_conjugate(qs: torch.Tensor) -> torch.Tensor:
     """TODO: document"""
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
 
-    if isinstance(qs, np.ndarray):
-        q_conj = np.zeros(qs.shape)
-    elif isinstance(qs, torch.Tensor):
-        q_conj = torch.zeros(qs.shape, device=qs.device, dtype=DEFAULT_TORCH_DTYPE)
-    else:
-        raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
-
+    q_conj = torch.zeros(qs.shape, device=qs.device, dtype=DEFAULT_TORCH_DTYPE)
     q_conj[:, 0] = qs[:, 0]
     q_conj[:, 1] = -qs[:, 1]
     q_conj[:, 2] = -qs[:, 2]
@@ -356,36 +287,24 @@ def quaternion_conjugate(qs: PT_NP_TYPE) -> PT_NP_TYPE:
     return q_conj
 
 
-@enforce_pt_np_input
-def quatconj(q: PT_NP_TYPE) -> PT_NP_TYPE:
+def quatconj(q: torch.Tensor) -> torch.Tensor:
     """
     Given rows of quaternions q, compute quaternion conjugate
 
     Author: dmillard
     """
-    if isinstance(q, torch.Tensor):
-        stacker = torch.vstack
-    if isinstance(q, np.ndarray):
-        stacker = np.vstack
-
     w, x, y, z = tuple(q[:, i] for i in range(4))
-    return stacker((w, -x, -y, -z)).T
+    return torch.vstack((w, -x, -y, -z)).T
 
 
-@enforce_pt_np_input
-def quaternion_norm(qs: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_norm(qs: torch.Tensor) -> torch.Tensor:
     """TODO: document"""
     assert len(qs.shape) == 2
     assert qs.shape[1] == 4
-    if isinstance(qs, np.ndarray):
-        return np.linalg.norm(qs, axis=1)
-    if isinstance(qs, torch.Tensor):
-        return torch.norm(qs, dim=1)
-    raise ValueError(f"qs must be a numpy array or a torch tensor (got {type(qs)})")
+    return torch.norm(qs, dim=1)
 
 
-@enforce_pt_np_input
-def quaternion_inverse(qs: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_inverse(qs: torch.Tensor) -> torch.Tensor:
     """Per "CS184: Using Quaternions to Represent Rotation": The inverse of a unit quaternion is its conjugate, q-1=q'
     (https://personal.utdallas.edu/~sxb027100/dock/quaternion.html#)
 
@@ -402,8 +321,7 @@ def quaternion_inverse(qs: PT_NP_TYPE) -> PT_NP_TYPE:
     return quaternion_conjugate(qs)
 
 
-@enforce_pt_np_input
-def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
+def quaternion_product(qs_1: torch.Tensor, qs_2: torch.Tensor) -> torch.Tensor:
     """TODO: document"""
     assert (len(qs_1.shape) == 2) and (len(qs_2.shape) == 2)
     assert (qs_1.shape[1] == 4) and (qs_2.shape[1] == 4)
@@ -417,13 +335,7 @@ def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
     y2 = qs_2[:, 2]
     z2 = qs_2[:, 3]
 
-    if isinstance(qs_1, np.ndarray):
-        q = np.zeros(qs_1.shape)
-    elif isinstance(qs_1, torch.Tensor):
-        q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=DEFAULT_TORCH_DTYPE)
-    else:
-        raise ValueError(f"qs_1 must be a numpy array or a torch tensor (got {type(qs_1)})")
-
+    q = torch.zeros(qs_1.shape, device=qs_1.device, dtype=DEFAULT_TORCH_DTYPE)
     q[:, 0] = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
     q[:, 1] = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
     q[:, 2] = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
@@ -431,22 +343,17 @@ def quaternion_product(qs_1: PT_NP_TYPE, qs_2: PT_NP_TYPE) -> PT_NP_TYPE:
     return q
 
 
-@enforce_pt_np_input
-def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
+def quatmul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     """
     Given rows of quaternions q1 and q2, compute the Hamilton product q1 * q2
     """
     assert q1.shape[1] == 4, f"q1.shape[1] is {q1.shape[1]}, should be 4"
     assert q1.shape == q2.shape
-    if isinstance(q1, torch.Tensor) and isinstance(q2, torch.Tensor):
-        stacker = torch.vstack
-    if isinstance(q1, np.ndarray) and isinstance(q2, np.ndarray):
-        stacker = np.vstack
 
     w1, x1, y1, z1 = tuple(q1[:, i] for i in range(4))
     w2, x2, y2, z2 = tuple(q2[:, i] for i in range(4))
 
-    return stacker(
+    return torch.vstack(
         (
             w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
             w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
@@ -459,10 +366,13 @@ def quatmul(q1: PT_NP_TYPE, q2: PT_NP_TYPE) -> PT_NP_TYPE:
 # TODO: Benchmark speed when running this with numpy. Does it matter if its slow?
 
 
-@enforce_pt_np_input
+def geodesic_distance_between_quaternions_np(q1: np.ndarray, q2: np.ndarray, acos_epsilon: Optional[float] = None) -> torch.Tensor:
+    return to_numpy(geodesic_distance_between_quaternions(to_torch(q1, device="cpu"), to_torch(q2, device="cpu"), acos_epsilon))
+
+
 def geodesic_distance_between_quaternions(
-    q1: PT_NP_TYPE, q2: PT_NP_TYPE, acos_epsilon: Optional[float] = None
-) -> PT_NP_TYPE:
+    q1: torch.Tensor, q2: torch.Tensor, acos_epsilon: Optional[float] = None
+) -> torch.Tensor:
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
@@ -474,29 +384,16 @@ def geodesic_distance_between_quaternions(
     if acos_epsilon is not None:
         acos_clamp_epsilon = acos_epsilon
 
-    if isinstance(q1, np.ndarray):
-        dot = np.clip(np.sum(q1 * q2, axis=1), -1, 1)
-        # Note: Updated by @jstmn on Feb24 2023
-        distance = 2 * np.arccos(np.clip(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
-        # distance = 2 * np.arccos(dot)
-        distance = np.abs(np.remainder(distance + np.pi, 2 * np.pi) - np.pi)
-        assert distance.size == q1.shape[0], (
-            f"Error, {distance.size} distance values calculated (np)- should be {q1.shape[0]} (distance.shape ="
-            f" {distance.shape})"
-        )
-        return distance
-
-    if isinstance(q1, torch.Tensor):
-        dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
-        # Note: Updated by @jstmn on Feb24 2023
-        distance = 2 * torch.acos(torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
-        # distance = 2 * torch.acos(dot)
-        distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
-        assert distance.numel() == q1.shape[0], (
-            f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="
-            f" {distance.shape})"
-        )
-        return distance
+    dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
+    # Note: Updated by @jstmn on Feb24 2023
+    distance = 2 * torch.acos(torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
+    # distance = 2 * torch.acos(dot)
+    distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
+    assert distance.numel() == q1.shape[0], (
+        f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="
+        f" {distance.shape})"
+    )
+    return distance
 
 
 # ======================================================================================================================
@@ -506,7 +403,6 @@ def geodesic_distance_between_quaternions(
 # TODO: Consider reimplmenting
 
 
-@enforce_pt_np_input
 def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
     """Convert 3d vector of axis-angle rotation to 3x3 rotation matrix
 
@@ -517,11 +413,8 @@ def angle_axis_to_rotation_matrix(angle_axis: torch.Tensor) -> torch.Tensor:
         torch.Tensor: [N x 3 x 3] tensor of 3x3 rotation matrices.
     """
 
-    if not isinstance(angle_axis, torch.Tensor):
-        raise TypeError(f"Input type is not a torch.Tensor. Got {type(angle_axis)}")
-
-    if not angle_axis.shape[-1] == 3:
-        raise ValueError(f"Input size must be a (*, 3) tensor. Got {angle_axis.shape}")
+    assert isinstance(angle_axis, torch.Tensor), f"Input type is not a torch.Tensor. Got {type(angle_axis)}"
+    assert angle_axis.shape[-1] == 3, f"Input size must be a (*, 3) tensor. Got {angle_axis.shape}"
 
     def _compute_rotation_matrix(angle_axis, theta2, eps=1e-6):
         """A simple fix is to add the already previously defined eps to theta2 instead of to theta. Although that could

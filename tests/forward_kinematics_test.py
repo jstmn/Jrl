@@ -8,9 +8,11 @@ from jrl import config
 from jrl.robots import get_all_robots, Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
 from jrl.math_utils import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
-from jrl.utils import set_seed, assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from jrl.utils import set_seed, to_torch
+from jrl.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
-torch.manual_seed(0)
+set_seed()
+
 np.set_printoptions(suppress=True, linewidth=200)
 torch.set_printoptions(linewidth=200, precision=5, sci_mode=False)
 DEVICE = config.DEVICE
@@ -196,7 +198,7 @@ class TestForwardKinematics(unittest.TestCase):
 
                         positional_diff = np.linalg.norm(fk_i[0, 0:3] - samples_fks[sample_i, 0:3])
                         angular_diff = geodesic_distance_between_quaternions(
-                            fk_i[0, 3:].reshape((1, 4)), samples_fks[sample_i, 3:].reshape((1, 4))
+                            to_torch(fk_i[0, 3:].reshape((1, 4))), to_torch(samples_fks[sample_i, 3:].reshape((1, 4)))
                         )[0]
 
                         self.assertTrue(

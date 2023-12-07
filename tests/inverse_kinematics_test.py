@@ -5,7 +5,8 @@ import numpy as np
 
 from jrl.robot import Robot
 from jrl.robots import get_all_robots, Panda
-from jrl.utils import set_seed, assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from jrl.utils import set_seed, to_torch
+from jrl.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 # Set seed to ensure reproducibility
 set_seed()
@@ -32,8 +33,8 @@ class TestInverseKinematics(unittest.TestCase):
             print(" -> Error too large, failing")
             return False, l2_err
         pose_gt = pose_gt.reshape(1, 7)
-        assert_pose_positions_almost_equal(pose_gt, poses_ik, threshold=1.5 * positional_tol)
-        assert_pose_rotations_almost_equal(pose_gt, poses_ik, threshold=0.0025)
+        assert_pose_positions_almost_equal(to_torch(pose_gt), to_torch(poses_ik), threshold=1.5 * positional_tol)
+        assert_pose_rotations_almost_equal(to_torch(pose_gt), to_torch(poses_ik), threshold=0.0025)
         return True, l2_err
 
     # --- Tests

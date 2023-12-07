@@ -23,9 +23,8 @@ from jrl.math_utils import (
     quaternion_norm,
     geodesic_distance_between_quaternions,
     DEFAULT_TORCH_DTYPE,
-    PT_NP_TYPE,
 )
-from jrl.config import DEVICE
+from jrl.config import DEVICE, PT_NP_TYPE
 from jrl.urdf_utils import (
     Joint,
     get_kinematic_chain,
@@ -819,7 +818,7 @@ class Robot:
 
         # Format output and return
         if self.additional_link is not None:
-            assert addl_link_lca_index >= 0, f"LCA link not found"
+            assert addl_link_lca_index >= 0, "LCA link not found"
             # Note: the joint angles x[:, 0] will not be read, just need this to get the batch_size
             lca_link_T_addl_link = self._batch_fk_iteration(
                 self._additional_link_lca_joint, x[:, 0], base_T_links[addl_link_lca_index + 1], out_device
@@ -1134,7 +1133,7 @@ class Robot:
             verbosity (int): Set the verbosity of the function. 0: only fatal errors are printed. Defaults to 0.
         """
         assert len(pose.shape) == 1
-        assert pose.size == 7
+        assert pose.size == 7, f"Error, pose is {pose.shape}, should be [{7}]"
         if seed is not None:
             _assert_is_np(seed, variable_name="seed")
             assert len(seed.shape) == 1, f"Seed must be a 1D array (currently: {seed.shape})"
