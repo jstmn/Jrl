@@ -1,5 +1,4 @@
 import torch
-import qpth
 
 from jrl.utils import QP
 
@@ -147,6 +146,7 @@ def capsule_cuboid_distance_batch(
 
     # Solve the QP
     if use_qpth:
+        import qpth
         e = torch.Tensor()  # Dummy equality constraint
         sol = qpth.qp.QPFunction(verbose=False)(2 * Q, p_, G, h, e, e)
         sol = sol.unsqueeze(2)
