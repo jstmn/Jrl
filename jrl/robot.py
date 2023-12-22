@@ -968,6 +968,7 @@ class Robot:
         rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
         pose_errors[:, 0:3, 0] = rotation_error_rpy  #
 
+        # TODO: use batched jacobian here instead
         J_batch = torch.tensor(
             self.jacobian_batch_np(np.array(xs_current.detach().cpu())),
             device=xs_current.device,
