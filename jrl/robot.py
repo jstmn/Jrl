@@ -735,6 +735,10 @@ class Robot:
             joint_fixed_T_joint[:, 0:3, 3] = translations
             return base_T_joint.bmm(joint_fixed_T_joint)
 
+        if joint.joint_type == "floating":
+            # todo
+            raise NotImplementedError("Floating joint not implemented")
+
         if joint.joint_type == "fixed":
             return base_T_joint
 
@@ -924,6 +928,7 @@ class Robot:
         x_i = 0
         for joint in self._end_effector_kinematic_chain:
             assert joint.joint_type not in UNHANDLED_JOINT_TYPES, f"Joint type '{joint.joint_type}' is not implemented"
+            assert joint.joint_type != 'floating', "Floating joints are currently not supported"
             if joint.joint_type in ("revolute", "continuous"):
                 axis = (
                     torch.tensor(joint.axis_xyz, device=out_device, dtype=dtype).unsqueeze(1).expand(batch_size, 3, 1)
@@ -981,7 +986,7 @@ class Robot:
         delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
         return xs_current + torch.squeeze(delta_x)
 
-    # TODO: Enforce joint limits
+
     def inverse_kinematics_single_step_batch_pt(
         self,
         target_poses: torch.Tensor,

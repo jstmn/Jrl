@@ -14,7 +14,7 @@ from jrl.utils import get_filepath, safe_mkdir
 
 # See http://wiki.ros.org/urdf/XML/joint
 # All types: 'revolute', 'continuous', 'prismatic', 'fixed', 'floating', 'planar'
-UNHANDLED_JOINT_TYPES = ["floating", "planar"]
+UNHANDLED_JOINT_TYPES = {"planar"}
 
 
 # TODO: Consider using an existing urdf parser (like https://github.com/ros/urdf_parser_py/tree/melodic-devel/src)
