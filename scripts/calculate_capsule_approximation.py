@@ -100,12 +100,10 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     p2.expand(vertices.shape[0], -1),
                     r.expand(vertices.shape[0]),
                 )
-                return torch.cat(
-                    (
-                        capsule_volume_batch(p1, p2, r),
-                        torch.clamp(mu * dists, min=0),
-                    )
-                )
+                return torch.cat((
+                    capsule_volume_batch(p1, p2, r),
+                    torch.clamp(mu * dists, min=0),
+                ))
 
             Jfn = torch.func.jacfwd(fg, argnums=0)
 

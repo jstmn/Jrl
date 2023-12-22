@@ -192,7 +192,9 @@ class TestConversions(unittest.TestCase):
 
         # Test 3:
         q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
-        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32)
+        q_current_pt = torch.tensor(
+            [[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32
+        )
         distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
         print("distances_returned:", distances_returned.shape)
 
@@ -265,7 +267,9 @@ class TestConversions(unittest.TestCase):
     def test_quaternion_conjugate(self):
         # w, x, y, z
         q0 = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068]], dtype=torch.float32)  # 90 deg rotation about +z
-        q0_conjugate_expected = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, -0.7071068]], dtype=torch.float32)  # 90 deg rotation about +z
+        q0_conjugate_expected = torch.tensor(
+            [[1, 0, 0, 0], [0.7071068, 0, 0, -0.7071068]], dtype=torch.float32
+        )  # 90 deg rotation about +z
 
         # Test 1: quaternion_conjugate() is correct
         q0_conjugate_returned_1 = quaternion_conjugate(q0)
@@ -279,7 +283,9 @@ class TestConversions(unittest.TestCase):
 
     def test_quaternion_norm(self):
         # w, x, y, z
-        qs = torch.tensor([[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068], [1.0, 1.0, 0, 0.0]], dtype=torch.float32)  # 90 deg rotation about +z
+        qs = torch.tensor(
+            [[1, 0, 0, 0], [0.7071068, 0, 0, 0.7071068], [1.0, 1.0, 0, 0.0]], dtype=torch.float32
+        )  # 90 deg rotation about +z
         norms_expected = torch.tensor([1, 1, 1.414213562], dtype=torch.float32)
         norms_returned = quaternion_norm(qs)
         self.assertEqual(norms_returned.shape, (3,))
@@ -287,33 +293,42 @@ class TestConversions(unittest.TestCase):
 
     def test_quaternion_product(self):
         """Test that quaternion_product() and quatmul() are correct"""
-        q1 = torch.tensor([
-            [1, 0, 0, 0],
-            [1, 0, 0, 0],
-            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-            [0, 0.7071068, 0, 0.7071068],  # 90 deg rotation about +y
-        ], dtype=torch.float32)
+        q1 = torch.tensor(
+            [
+                [1, 0, 0, 0],
+                [1, 0, 0, 0],
+                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+                [0, 0.7071068, 0, 0.7071068],  # 90 deg rotation about +y
+            ],
+            dtype=torch.float32,
+        )
 
-        q2 = torch.tensor([
-            [1, 0, 0, 0],
-            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-            [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
-        ], dtype=torch.float32)
+        q2 = torch.tensor(
+            [
+                [1, 0, 0, 0],
+                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+                [0.7071068, 0, 0, 0.7071068],  # 90 deg rotation about +z
+            ],
+            dtype=torch.float32,
+        )
 
         # ground truth from https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/arithmetic/index.htm
-        product_expected = torch.tensor([
-            [1, 0, 0, 0],
-            [0.7071068, 0, 0, 0.7071068],
-            [0, 0, 0, 1],
-            [-0.5, 0.5, -0.5, 0.5],
-        ], dtype=torch.float32)
+        product_expected = torch.tensor(
+            [
+                [1, 0, 0, 0],
+                [0.7071068, 0, 0, 0.7071068],
+                [0, 0, 0, 1],
+                [-0.5, 0.5, -0.5, 0.5],
+            ],
+            dtype=torch.float32,
+        )
 
         product_returned_1 = quaternion_product(q1, q2)
-        torch.testing.assert_allclose(product_expected, product_returned_1)
+        torch.testing.assert_close(product_expected, product_returned_1)
 
         product_returned_2 = quatmul(q1, q2)
-        torch.testing.assert_allclose(product_expected, product_returned_2)
+        torch.testing.assert_close(product_expected, product_returned_2)
         print(f"test_quaternion_product() passed")
 
 

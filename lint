@@ -4,7 +4,6 @@
 
 echo "_____________"
 echo "Running black"
-python -m black *.py --line-length=120 --target-version=py38 --preview
 python -m black **/*.py --line-length=120 --target-version=py38 --preview
 
 echo "______________"

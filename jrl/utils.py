@@ -2,6 +2,7 @@ import os
 import random
 import pathlib
 
+# TODO: pkg_resources is deprecated. Use importlib.resources instead.
 import pkg_resources
 import torch
 import numpy as np
@@ -41,7 +42,6 @@ def to_numpy(x: PT_NP_TYPE) -> np.ndarray:
     if isinstance(x, torch.Tensor):
         return x.detach().cpu().numpy()
     return x
-
 
 
 class bcolors:
