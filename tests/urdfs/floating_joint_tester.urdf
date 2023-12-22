@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<!-- https://github.com/unitreerobotics/unitree_ros/blob/master/robots/aliengo_description/urdf/aliengo.urdf -->
+<robot name="tester">
+
+    <link name="fixed_origin">
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <box size="0.001 0.001 0.001" />
+            </geometry>
+        </visual>
+    </link>
+
+    <joint name="floating_base" type="floating">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="fixed_origin" />
+        <child link="base_link" />
+    </joint>
+
+    <link name="base_link">
+        <visual>
+          <origin rpy="0 0 0" xyz="0 0 0"/>
+          <geometry>
+            <box size="0.001 0.001 0.001" />
+          </geometry>
+        </visual>
+        <collision>
+          <origin rpy="0 0 0" xyz="0 0 0"/>
+          <geometry>
+            <box size="0.1 0.1 0.1"/>
+          </geometry>
+        </collision>
+      </link>
+
+
+</robot>
