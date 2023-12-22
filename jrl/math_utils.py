@@ -353,21 +353,23 @@ def quatmul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     w1, x1, y1, z1 = tuple(q1[:, i] for i in range(4))
     w2, x2, y2, z2 = tuple(q2[:, i] for i in range(4))
 
-    return torch.vstack(
-        (
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-        )
-    ).T
+    return torch.vstack((
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+    )).T
 
 
 # TODO: Benchmark speed when running this with numpy. Does it matter if its slow?
 
 
-def geodesic_distance_between_quaternions_np(q1: np.ndarray, q2: np.ndarray, acos_epsilon: Optional[float] = None) -> torch.Tensor:
-    return to_numpy(geodesic_distance_between_quaternions(to_torch(q1, device="cpu"), to_torch(q2, device="cpu"), acos_epsilon))
+def geodesic_distance_between_quaternions_np(
+    q1: np.ndarray, q2: np.ndarray, acos_epsilon: Optional[float] = None
+) -> torch.Tensor:
+    return to_numpy(
+        geodesic_distance_between_quaternions(to_torch(q1, device="cpu"), to_torch(q2, device="cpu"), acos_epsilon)
+    )
 
 
 def geodesic_distance_between_quaternions(

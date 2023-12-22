@@ -20,7 +20,7 @@ def _get_device() -> str:
         device = torch.cuda.device(device_idx)
         mems = []
         utils = []
-        for i in range(2):
+        for _ in range(2):
             mems.append(torch.cuda.memory_usage(device=device))
             utils.append(torch.cuda.utilization(device=device))
             sleep(0.5)

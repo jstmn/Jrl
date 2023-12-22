@@ -39,9 +39,9 @@ self_coll_distances = robot.self_collision_distances_batch(joint_angles)
 print(f"configs self-colliding:", torch.min(self_coll_distances, dim=1)[0] < 0.0)
 
 # Check for robot-environment collisions
-cuboid = torch.tensor([
-    -0.1, -0.5, -0.5, 0.1, 0.5, 0.5
-])  # [-size_x/2, -size_y/2, -size_z/2, size_x/2, size_y/2, size_z/2]
+cuboid = torch.tensor(
+    [-0.1, -0.5, -0.5, 0.1, 0.5, 0.5]
+)  # [-size_x/2, -size_y/2, -size_z/2, size_x/2, size_y/2, size_z/2]
 Tcuboid = torch.zeros((4, 4))
 Tcuboid[0, 3] = 0.25
 Tcuboid[1, 3] = 0.25
