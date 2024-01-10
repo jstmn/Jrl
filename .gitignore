@@ -12,3 +12,4 @@ scripts/*.pdf
 *.gv
 *.svg
 *.npy
+scripts/warp_test.py

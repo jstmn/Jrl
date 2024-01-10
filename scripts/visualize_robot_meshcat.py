@@ -136,7 +136,6 @@ def main(robot: Robot):
     vis, Tcube, cube_lengths = init_vis(links, vis_mesh_path)
     q = torch.zeros((1, robot.ndof))
 
-    # for t in range(500):
     for t in range(100):
         joint_idx = t % robot.ndof
         l, u = robot.actuated_joints_limits[joint_idx]
