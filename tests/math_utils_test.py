@@ -9,6 +9,7 @@ from jrl.math_utils import (
     quaternion_conjugate,
     quaternion_norm,
     geodesic_distance_between_quaternions,
+    geodesic_distance_between_quaternions_warp,
     quatconj,
     quaternion_product,
     quatmul,
@@ -147,56 +148,53 @@ class TestConversions(unittest.TestCase):
             self.assertFalse(torch.isnan(dist))
             self.assertFalse(torch.isnan(theta.grad).any())
 
-    def test_geodesic_distance_between_quaternions_pt(self):
+    def test_geodesic_distance_between_quaternions(self):
         """Test geodesic_distance_between_quaternions with torch tensor inputs"""
-        q1_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
         # Rotation about +x axis by .25 radians
-        q2_pt = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
-        distance_returned = geodesic_distance_between_quaternions(q1_pt, q2_pt)[0].item()
-        self.assertAlmostEqual(0.25, distance_returned, places=6)
+        q2 = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
+        returned = geodesic_distance_between_quaternions(q1, q2)[0].item()
+        self.assertAlmostEqual(0.25, returned, places=6)
 
         # Test 2
-        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
-        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
-        distance_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0].item()
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q2 = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
+        returned = geodesic_distance_between_quaternions(q1, q2)[0].item()
         # TODO: AssertionError: 3.1415927 != 3.1411044597625732 within 7 places (0.00048824023742666256 difference). It
         # seems like rotation matrices created by quaternions have lower precision
-        self.assertAlmostEqual(3.1415927, distance_returned, places=3)
+        self.assertAlmostEqual(3.1415927, returned, places=3)
 
         # Test 3
-        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
-        q_current_pt = torch.tensor(
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q2 = torch.tensor(
             [[0.0, 0.92387953, 0.38268343, 0.0], [0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32
         )
-        distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
-        self.assertAlmostEqual(3.1415927, distances_returned[0].item(), places=3)
-        self.assertAlmostEqual(0.25, distances_returned[1].item(), places=6)
+        returned = geodesic_distance_between_quaternions(q1, q2)
+        self.assertAlmostEqual(3.1415927, returned[0].item(), places=3)
+        self.assertAlmostEqual(0.25, returned[1].item(), places=6)
 
-    def test_geodesic_distance_between_quaternions_np(self):
-        """Test geodesic_distance_between_quaternions with numpy inputs"""
-        q1_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
+    def test_geodesic_distance_between_quaternions_warp(self):
+        """Test geodesic_distance_between_quaternions with torch tensor inputs"""
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
         # Rotation about +x axis by .25 radians
-        q2_pt = torch.tensor([[0.9921977, 0.1246747, 0, 0]], dtype=torch.float32)
-        distance_expected = 0.25
-        distance_returned = float(geodesic_distance_between_quaternions(q1_pt, q2_pt)[0])
-        self.assertAlmostEqual(distance_expected, distance_returned, places=4)
+        q2 = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
+        returned = geodesic_distance_between_quaternions_warp(q1, q2)[0].item()
+        self.assertAlmostEqual(0.25, returned, places=6)
 
         # Test 2
-        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
-        q_current_pt = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32)
-        distance_returned = float(geodesic_distance_between_quaternions(q_target_pt, q_current_pt)[0])
-        distance_expected = 3.1415927
-        # TODO: AssertionError: 3.1415927 != 3.1411044597625732 within 7 places (0.00048824023742666256 difference). It
-        # seems like rotation matrices created by quaternions have lower precision
-        self.assertAlmostEqual(distance_expected, distance_returned, places=3)
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q2 = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
+        returned = geodesic_distance_between_quaternions_warp(q1, q2)[0].item()
+        self.assertAlmostEqual(3.1415927, returned, places=3)
 
-        # Test 3:
-        q_target_pt = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
-        q_current_pt = torch.tensor(
-            [[0.0, 0.92387953, 0.38268343, 0.0], [0.0, 0.92387953, 0.38268343, 0.0]], dtype=torch.float32
+        # Test 3
+        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
+        q2 = torch.tensor(
+            [[0.0, 0.92387953, 0.38268343, 0.0], [0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32
         )
-        distances_returned = geodesic_distance_between_quaternions(q_target_pt, q_current_pt)
-        print("distances_returned:", distances_returned.shape)
+        returned = geodesic_distance_between_quaternions_warp(q1, q2)
+        self.assertAlmostEqual(3.1415927, returned[0].item(), places=3)
+        self.assertAlmostEqual(0.25, returned[1].item(), places=6)
 
     def test_quaternion_to_rotation_matrix(self):
         """Test quaternion_to_rotation_matrix()"""
@@ -231,8 +229,8 @@ class TestConversions(unittest.TestCase):
             dtype=torch.float32,
         )
         distance_expected = 1.0
-        distance_returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
-        self.assertAlmostEqual(distance_returned[0].item(), distance_expected, delta=5e-4)
+        returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
+        self.assertAlmostEqual(returned[0].item(), distance_expected, delta=5e-4)
 
         # Test 2: ___
         R1 = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], device="cpu", dtype=torch.float32)
@@ -241,9 +239,9 @@ class TestConversions(unittest.TestCase):
             device="cpu",
             dtype=torch.float32,
         )
-        distance_returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
+        returned = geodesic_distance_between_rotation_matrices(R1[None, :], R2[None, :])
         distance_expected = 3.1415927
-        self.assertAlmostEqual(distance_returned[0].item(), distance_expected, delta=5e-4)
+        self.assertAlmostEqual(returned[0].item(), distance_expected, delta=5e-4)
 
     def test_geodesic_distance_between_rotation_matrices(self):
         """Test geodesic_distance_between_rotation_matrices()"""

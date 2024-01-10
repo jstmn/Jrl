@@ -4,16 +4,14 @@ mathematical operations.
 A couple notes:
     1. Quaternions are assumed to be in w,x,y,z format
     2. RPY format is a rotation about x, y, z axes in that order
-    3. Functions that end with '_np' exclusively accept numpy arrays, those that end with '_pt' exclusively accept torch
-        tensors
 """
 
 from typing import Tuple, Optional
 
 import torch
 import numpy as np
+import warp as wp
 
-from jrl.utils import to_numpy, to_torch
 from jrl.config import DEFAULT_TORCH_DTYPE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
@@ -22,6 +20,7 @@ _TORCH_EPS_CUDA = torch.tensor(
     dtype=DEFAULT_TORCH_DTYPE,
     device="mps" if torch.backends.mps.is_available() else "cuda",
 )
+wp.init()
 
 
 # batch*n
@@ -40,7 +39,6 @@ def normalize_vector(v: torch.Tensor, return_mag: bool = False):
     return v
 
 
-# TODO: Remove asserts once this is working
 def calculate_points_in_world_frame_from_local_frame_batch(
     world__T__local_frame: torch.Tensor, points_in_local_frame: torch.Tensor
 ) -> torch.Tensor:
@@ -56,10 +54,6 @@ def calculate_points_in_world_frame_from_local_frame_batch(
     Returns:
         torch.Tensor: [n x m x 3] tensor of the positions represented in world frame
     """
-    assert world__T__local_frame.shape[0] == points_in_local_frame.shape[0], (
-        f"world__T__local_frame.shape[0] should match points_in_local_frame.shape[0] ({world__T__local_frame.shape} !="
-        f" {points_in_local_frame.shape})"
-    )
     n, m, _ = points_in_local_frame.shape
 
     # rotate then translate
@@ -72,7 +66,6 @@ def calculate_points_in_world_frame_from_local_frame_batch(
             ],
             dim=1,
         )
-        assert points_quat.shape == (n, 4)
         pts_rotated = quatmul(
             quatmul(world__T__local_frame[:, 3:7], points_quat),
             quatconj(world__T__local_frame[:, 3:7]),
@@ -361,15 +354,32 @@ def quatmul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     )).T
 
 
-# TODO: Benchmark speed when running this with numpy. Does it matter if its slow?
+@wp.kernel
+def _geodesic_distance_quaternions(
+    q1: wp.array(dtype=wp.quatf), q2: wp.array(dtype=wp.quatf), dist: wp.array(dtype=float)
+):
+
+    tid = wp.tid()
+    quat1 = q1[tid]
+    quat2 = q2[tid]
+
+    # dist = 2 * arccos( 2*<q1, q2> - 1 )
+    dot = wp.dot(quat1, quat2)
+    # Note: for wp.acos(...) "Inputs are automatically clamped to [-1.0, 1.0]. See https://nvidia.github.io/warp/_build/html/modules/functions.html#warp.acos
+    dist[tid] = 2.0 * wp.acos(dot)
 
 
-def geodesic_distance_between_quaternions_np(
-    q1: np.ndarray, q2: np.ndarray, acos_epsilon: Optional[float] = None
-) -> torch.Tensor:
-    return to_numpy(
-        geodesic_distance_between_quaternions(to_torch(q1, device="cpu"), to_torch(q2, device="cpu"), acos_epsilon)
-    )
+def geodesic_distance_between_quaternions_warp(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
+    """
+    Given rows of quaternions q1 and q2, compute the geodesic distance between each
+    """
+    # Note: Decreasing this value to 1e-8 greates NaN gradients for nearby quaternions.
+    assert not q1.requires_grad and not q2.requires_grad
+    q1_wp = wp.from_torch(q1, dtype=wp.quatf)
+    q2_wp = wp.from_torch(q2, dtype=wp.quatf)
+    dist_wp = wp.zeros(q1.shape[0], dtype=float, device=str(q1.device))
+    wp.launch(kernel=_geodesic_distance_quaternions, dim=len(q1), inputs=[q1_wp, q2_wp, dist_wp], device=str(q1.device))
+    return wp.to_torch(dist_wp).to(q1.device)
 
 
 def geodesic_distance_between_quaternions(
@@ -378,23 +388,14 @@ def geodesic_distance_between_quaternions(
     """
     Given rows of quaternions q1 and q2, compute the geodesic distance between each
     """
-    assert q1.shape[1] == 4, f"q1.shape[1] is {q1.shape[1]}, should be 4"
-    assert len(q1.shape) == 2
-    assert q1.shape == q2.shape
     # Note: Decreasing this value to 1e-8 greates NaN gradients for nearby quaternions.
     acos_clamp_epsilon = 1e-7
     if acos_epsilon is not None:
         acos_clamp_epsilon = acos_epsilon
 
     dot = torch.clip(torch.sum(q1 * q2, dim=1), -1, 1)
-    # Note: Updated by @jstmn on Feb24 2023
     distance = 2 * torch.acos(torch.clamp(dot, -1 + acos_clamp_epsilon, 1 - acos_clamp_epsilon))
-    # distance = 2 * torch.acos(dot)
-    distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)
-    assert distance.numel() == q1.shape[0], (
-        f"Error, {distance.numel()} distance values calculated - should be {q1.shape[0]} (distance.shape ="
-        f" {distance.shape})"
-    )
+    distance = torch.abs(torch.remainder(distance + torch.pi, 2 * torch.pi) - torch.pi)  # TODO: do we need this?
     return distance
 
 

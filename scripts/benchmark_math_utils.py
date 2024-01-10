@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from jrl.utils import random_quaternions
-from jrl.math_utils import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_old
+from jrl.math_utils import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_warp
 
 
 def fn_mean_std(fn: Callable, k: int):
@@ -22,45 +22,38 @@ def fn_mean_std(fn: Callable, k: int):
 
 """ Example 
 
-python scripts/benchmark_conversions.py
+python scripts/benchmark_math_utils.py
 
 
 """
 
 
 if __name__ == "__main__":
-    assert torch.cuda.is_available()
 
-    k = 5
+    k = 10
     df = pd.DataFrame(
         columns=["method", "number of solutions", "total runtime (ms)", "runtime std", "runtime per solution (ms)"]
     )
     method_names = [
-        "updated - pytorch (cuda)",
-        "updated - pytorch (cpu)",
-        "updated - numpy",
-        "old - pytorch (cuda)",
-        "old - pytorch (cpu)",
-        "old - numpy",
+        "pytorch (cuda)",
+        "pytorch (cpu)",
+        "warp (cuda)",
+        "warp (cpu)",
     ]
 
     for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000, 10000]:
         print(f"Batch size: {batch_size}")
 
-        qs1_cuda = random_quaternions(batch_size, device="cuda")
-        qs1_cpu = qs1_cuda.clone().cpu()
-        qs1_numpy = qs1_cpu.clone().numpy()
-        qs2_cuda = random_quaternions(batch_size, device="cuda")
-        qs2_cpu = qs2_cuda.clone().cpu()
-        qs2_numpy = qs2_cpu.clone().numpy()
+        qs1_gpu = random_quaternions(batch_size, device="cuda")
+        qs1_cpu = qs1_gpu.clone().cpu()
+        qs2_gpu = random_quaternions(batch_size, device="cuda")
+        qs2_cpu = qs2_gpu.clone().cpu()
 
         lambdas = [
-            lambda: geodesic_distance_between_quaternions(qs1_cuda, qs2_cuda),
+            lambda: geodesic_distance_between_quaternions(qs1_gpu, qs2_gpu),
             lambda: geodesic_distance_between_quaternions(qs1_cpu, qs2_cpu),
-            lambda: geodesic_distance_between_quaternions(qs1_numpy, qs2_numpy),
-            lambda: geodesic_distance_between_quaternions_old(qs1_cuda, qs2_cuda),
-            lambda: geodesic_distance_between_quaternions_old(qs1_cpu, qs2_cpu),
-            lambda: geodesic_distance_between_quaternions_old(qs1_numpy, qs2_numpy),
+            lambda: geodesic_distance_between_quaternions_warp(qs1_gpu, qs2_gpu),
+            lambda: geodesic_distance_between_quaternions_warp(qs1_cpu, qs2_cpu),
         ]
         for lambda_, method_name in zip(lambdas, method_names):
             mean_runtime_ms, std_runtime = fn_mean_std(lambda_, k)
@@ -71,17 +64,10 @@ if __name__ == "__main__":
 
     print(df)
 
-    with open("benchmarking/rotational_distance_runtime_comparison.md", "w") as f:
-        f.write("## Rotational distance runtime comparison\n")
-        f.write("- updated: `geodesic_distance_between_quaternions()`\n")
-        f.write("- old:     `geodesic_distance_between_quaternions_old()`\n")
-        cli_input = " ".join(sys.argv)
-        f.write(f"\nResults generated with `{cli_input}`\n\n")
-        f.write(df.to_markdown())
-
     # Plot
     max_runtime = -1
     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    ax.grid(alpha=0.2)
     for method_name in method_names:
         df_method = df[df["method"] == method_name]
         n_solutions = df_method["number of solutions"]
@@ -96,5 +82,5 @@ if __name__ == "__main__":
     ax.set_xlabel("Number of solutions")
     ax.set_ylabel("Total runtime (ms)")
     ax.legend()
-    fig.savefig("benchmarking/rotational_distance_runtime_comparison.pdf", bbox_inches="tight")
+    fig.savefig("rotational_distance_runtime_comparison.pdf", bbox_inches="tight")
     plt.show()
