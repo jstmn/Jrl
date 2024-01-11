@@ -37,9 +37,6 @@ def capsule_capsule_distance_batch(
 
     # Local points are at the origin and top of capsule along the +z axis.
     r1 = caps1[:, 6]
-    T1[:, :3, :3]
-    # caps1[:, 0:3].unsqueeze(2)
-    T1[:, :3, 3]
     c1_world1 = T1[:, :3, :3].bmm(caps1[:, 0:3].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
     c1_world2 = T1[:, :3, :3].bmm(caps1[:, 3:6].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
 
@@ -87,7 +84,6 @@ def capsule_cuboid_distance_batch(
     cuboids: torch.Tensor,
     Tcuboids: torch.Tensor,
     use_qpth=False,
-    use_osqp=False,
 ) -> torch.Tensor:
     """
     Returns the minimum distance between any two points on the given batches of

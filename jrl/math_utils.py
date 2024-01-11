@@ -245,6 +245,18 @@ def quaternion_to_rotation_matrix(quaternion: torch.Tensor):
     return matrix
 
 
+# TODO: implement, test, compare runtime for quaternion_difference_to_rpy()
+def quaternion_difference_to_rpy(q_target: torch.Tensor, q_current: torch.Tensor) -> torch.Tensor:
+    del q_target, q_current
+    raise NotImplementedError()
+    # Default implementation
+    # current_inv = quaternion_inverse(q_current)
+    # rotation_error_quat = quaternion_product(q_target, current_inv)
+    # rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
+    # return rotation_error_rpy
+    return
+
+
 def quaternion_to_rpy(q: torch.Tensor) -> torch.Tensor:
     """Convert a batch of quaternions to roll-pitch-yaw angles"""
     assert len(q.shape) == 2

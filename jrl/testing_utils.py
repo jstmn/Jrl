@@ -3,7 +3,7 @@ import numpy as np
 
 from jrl.utils import to_torch
 from jrl.math_utils import geodesic_distance_between_quaternions
-from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE, PT_NP_TYPE
+from jrl.config import PT_NP_TYPE
 
 _DEFAULT_MAX_ALLOWABLE_L2_ERR = 5e-4
 _DEFAULT_MAX_ALLOWABLE_ANG_ERR = 3.141592 / 180 * 0.06

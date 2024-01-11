@@ -1,5 +1,4 @@
 from typing import List, Tuple, Optional, Union, Dict
-from time import time
 from functools import cached_property
 
 from more_itertools import locate
@@ -947,6 +946,8 @@ class Robot:
         target_poses: torch.Tensor,
         xs_current: torch.Tensor,
         lambd: float = 0.0001,
+        alpha: float = 1.0,
+        alphas: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Perform a levenburg-marquardt optimization step."""
         n = xs_current.shape[0]
@@ -958,6 +959,9 @@ class Robot:
         pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=xs_current.dtype)  # [n 6 1]
         for i in range(3):
             pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
+
+        # TODO: implement, test, compare runtime for quaternion_difference_to_rpy()
+        # rotation_error_rpy = quaternion_difference_to_rpy(target_poses[:, 3:], current_poses[:, 3:])
         current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
         rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
         rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
@@ -979,7 +983,12 @@ class Robot:
         lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
         rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
         delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
-        return xs_current + torch.squeeze(delta_x)
+
+        if alphas is not None:
+            assert alphas.shape == (n, 1)
+            return xs_current + alphas * torch.squeeze(delta_x)
+
+        return xs_current + alpha * torch.squeeze(delta_x)
 
     # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
