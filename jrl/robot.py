@@ -948,6 +948,7 @@ class Robot:
         lambd: float = 0.0001,
         alpha: float = 1.0,
         alphas: Optional[torch.Tensor] = None,
+        clamp_to_joint_limits: bool = True,
     ) -> torch.Tensor:
         """Perform a levenburg-marquardt optimization step."""
         n = xs_current.shape[0]
@@ -986,9 +987,14 @@ class Robot:
 
         if alphas is not None:
             assert alphas.shape == (n, 1)
-            return xs_current + alphas * torch.squeeze(delta_x)
+            xs_updated = xs_current + alphas * torch.squeeze(delta_x)
+        else:
+            xs_updated = xs_current + alpha * torch.squeeze(delta_x)
 
-        return xs_current + alpha * torch.squeeze(delta_x)
+        if clamp_to_joint_limits:
+            return self.clamp_to_joint_limits(xs_updated)
+        return xs_updated
+
 
     # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
