@@ -1,6 +1,7 @@
 import os
 import random
 import pathlib
+import colorsys
 
 # TODO: pkg_resources is deprecated. Use importlib.resources instead.
 import pkg_resources
@@ -62,6 +63,16 @@ def make_text_green_or_red(text: str, print_green: bool) -> str:
     else:
         s = bcolors.FAIL
     return s + str(text) + bcolors.ENDC
+
+
+def evenly_spaced_colors(n: int):
+    base_color = 100  # Base color in HSL (green)
+    colors = []
+    for i in range(n):
+        hue = (base_color + (i * (360 / n))) % 360  # Adjust the step size (30 degrees in this case)
+        rgb = colorsys.hsv_to_rgb(hue / 360, 1.0, 1.0)
+        colors.append(rgb)
+    return colors
 
 
 # Borrowed from https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/transforms/rotation_conversions.html#random_quaternions
