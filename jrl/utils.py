@@ -11,6 +11,13 @@ import numpy as np
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE, PT_NP_TYPE
 
 
+def cm_to_m(x: float):
+    return x / 100.0
+
+def mm_to_m(x: float):
+    return x / 1000.0
+
+
 def safe_mkdir(dir_name: str):
     """Create a directory `dir_name`. May include multiple levels of new directories"""
     pathlib.Path(dir_name).mkdir(exist_ok=True, parents=True)
