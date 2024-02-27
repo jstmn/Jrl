@@ -8,7 +8,7 @@ import torch
 import numpy as np
 
 
-def _get_device() -> str:
+def _get_device() -> tuple[str, int]:
     if not torch.cuda.is_available():
         return "mps" if torch.backends.mps.is_available() else "cpu", -1
 
