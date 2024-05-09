@@ -6,7 +6,7 @@ authors = ["Jeremy Morgan <jsmorgan6@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8.0,<=3.8.19"
 klampt = "0.9.1.post5"
 numpy = "1.24.4"
 torch = "2.3.0"
