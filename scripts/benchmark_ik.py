@@ -1,6 +1,5 @@
 from time import time
 from typing import Callable
-from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -8,10 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from jrl.utils import to_torch, set_seed
-from jrl.robot import Robot
 from jrl.robots import Panda
-from jrl.math_utils import geodesic_distance_between_quaternions
-from jrl.evaluation import solution_pose_errors
 
 
 def fn_mean_std(fn: Callable, k: int):
