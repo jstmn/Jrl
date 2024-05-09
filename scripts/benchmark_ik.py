@@ -55,8 +55,8 @@ if __name__ == "__main__":
         x_pt_cuda = to_torch(x.copy()).cuda()
 
         methods = {
-            # "Klampt invJac cpu": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cpu, x_pt_cpu),
-            "Klampt invJac cuda": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
+            # "Klampt invJac cpu": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cpu, x_pt_cpu),
+            "Klampt invJac cuda": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cuda, x_pt_cuda),
             "AutoDiff cuda": lambda: robot.inverse_kinematics_autodiff_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
         }
         for name, method in methods.items():

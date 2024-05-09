@@ -214,7 +214,7 @@ class RobotTest(unittest.TestCase):
                 batch_size = 1
                 x = robot.sample_joint_angles(batch_size)
                 Jklampt = robot.jacobian_batch_np(x)
-                Jpt = robot.jacobian_batch_pt(torch.tensor(x)).cpu().numpy()
+                Jpt = robot.jacobian(torch.tensor(x)).cpu().numpy()
                 self.assertEqual(Jklampt.shape, (batch_size, 6, robot.ndof))
                 self.assertEqual(Jpt.shape, (batch_size, 6, robot.ndof))
                 if not np.allclose(Jklampt, Jpt, atol=atol):
@@ -443,7 +443,7 @@ class RobotTest(unittest.TestCase):
             np.testing.assert_allclose(x_original, x_returned)
 
     def test_robot_self_collision_distances(self):
-        """Test that self_collision_distances_batch() returns the expected distances"""
+        """Test that self_collision_distances() returns the expected distances"""
         atol = 1e-5
         for robot in [Panda()]:
             for _ in range(10):
@@ -451,14 +451,14 @@ class RobotTest(unittest.TestCase):
                 batch_size = 1
                 x = robot.sample_joint_angles(batch_size)
                 x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
-                dists = robot.self_collision_distances_batch(x)
+                dists = robot.self_collision_distances(x)
                 # Check that the distances are correct by comparing to the qpth
                 # implementation
-                dists_qpth = robot.self_collision_distances_batch(x, use_qpth=True)
+                dists_qpth = robot.self_collision_distances(x, use_qpth=True)
                 np.testing.assert_allclose(dists.cpu().numpy(), dists_qpth.cpu().numpy(), atol=atol)
 
     def test_robot_self_collision_distances_jacobian(self):
-        """Test that the jacobian of self_collision_distances_batch() is correct"""
+        """Test that the jacobian of self_collision_distances() is correct"""
         atol = 1e-3
         set_seed(54321)
         for robot in [Panda()]:
@@ -466,9 +466,9 @@ class RobotTest(unittest.TestCase):
                 batch_size = 5
                 x = robot.sample_joint_angles(batch_size)
                 x = torch.tensor(x, device=DEVICE, dtype=torch.float32)
-                dists = robot.self_collision_distances_batch(x)
+                dists = robot.self_collision_distances(x)
                 ndists = dists.shape[1]
-                J = robot.self_collision_distances_jacobian_batch(x)
+                J = robot.self_collision_distances_jacobian(x)
                 self.assertEqual(J.shape, (batch_size, ndists, robot.ndof))
                 # Check that the jacobian is correct by comparing to finite
                 # differences
@@ -480,8 +480,8 @@ class RobotTest(unittest.TestCase):
                         x_plus[i, j] += eps
                         x_minus = x.clone()
                         x_minus[i, j] -= eps
-                        dists_plus = robot.self_collision_distances_batch(x_plus)
-                        dists_minus = robot.self_collision_distances_batch(x_minus)
+                        dists_plus = robot.self_collision_distances(x_plus)
+                        dists_minus = robot.self_collision_distances(x_minus)
                         J_fd[i, :, j] = (dists_plus[i] - dists_minus[i]) / (2 * eps)
 
                 num_larger = torch.sum(torch.abs(J) > 100 * atol)

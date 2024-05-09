@@ -13,3 +13,5 @@ scripts/*.pdf
 *.svg
 *.npy
 scripts/warp_test.py
+.pytest_cache/
+venv-test/

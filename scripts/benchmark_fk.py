@@ -47,8 +47,8 @@ if __name__ == "__main__":
         x_pt_cuda = to_torch(x.copy()).cuda()
 
         lambdas = [
-            lambda: robot.forward_kinematics_batch(x_pt_cpu, out_device="cpu"),
-            lambda: robot.forward_kinematics_batch(x_pt_cuda, out_device="cuda"),
+            lambda: robot.forward_kinematics(x_pt_cpu, out_device="cpu"),
+            lambda: robot.forward_kinematics(x_pt_cuda, out_device="cuda"),
             lambda: robot.forward_kinematics_klampt(x),
         ]
         for lambda_, method_name in zip(lambdas, method_names):

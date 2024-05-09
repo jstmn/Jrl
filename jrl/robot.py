@@ -158,7 +158,7 @@ class Robot:
             base_link (str): _description_
             end_effector_link_name (str): _description_
             additional_link_name (Optional[str]): Optionally provide the name of an additional link whose pose will be
-                                                    returned by forward_kinematics_batch when 'return_full_link_fk' is
+                                                    returned by forward_kinematics when 'return_full_link_fk' is
                                                     True
             ignored_collision_pairs (List[Tuple[str, str]]): _description_
             collision_capsules_by_link (Optional[Dict[str, torch.Tensor]], optional): _description_. Defaults to None.
@@ -233,7 +233,7 @@ class Robot:
         # Create and fill cache of fixed rotations between links.
         self._parent_T_joint_cache = {}
         if self._batch_fk_enabled:
-            self.forward_kinematics_batch(
+            self.forward_kinematics(
                 torch.tensor(
                     self.sample_joint_angles(1050),
                     device=DEVICE,
@@ -633,22 +633,6 @@ class Robot:
     # ---                                             Forward Kinematics                                             ---
     # ---                                                                                                            ---
 
-    def forward_kinematics(self, x: PT_NP_TYPE, solver="klampt") -> PT_NP_TYPE:
-        """Interface for running forward kinematics.
-
-        Args:
-            x (PT_NP_TYPE): joint angles
-            solver (str, optional): Solver to use. Options are "klampt" and "batchfk". The solver must be 'batchfk' if x
-                                        is a torch.Tensor. Defaults to "klampt".
-        """
-        if isinstance(x, torch.Tensor):
-            assert solver == "batchfk", "Only batchfk is supported for torch tensors"
-        if solver == "klampt":
-            return self.forward_kinematics_klampt(x)
-        if solver == "batchfk":
-            return self.forward_kinematics_batch(x, return_quaternion=True)
-        raise ValueError(f"Solver '{solver}' not recognized")
-
     def forward_kinematics_klampt(self, x: np.array, link_name: Optional[str] = None) -> np.array:
         """Forward kinematics using the klampt library"""
         robot_configs = self._x_to_qs(x)
@@ -741,7 +725,7 @@ class Robot:
 
     # TODO: Do FK starting at specific joint (like 'base_link') instead of the first joint.
     # TODO: Consider removing all cpu code from this function
-    def forward_kinematics_batch(
+    def forward_kinematics(
         self,
         x: torch.Tensor,
         out_device: Optional[str] = None,
@@ -884,7 +868,7 @@ class Robot:
             Js[i] = self.jacobian_np(xs[i])
         return Js
 
-    def jacobian_batch_pt(
+    def jacobian(
         self,
         x: torch.Tensor,
         out_device: Optional[str] = None,
@@ -915,7 +899,7 @@ class Robot:
         self._ensure_forward_kinematics_cache(out_device, dtype=dtype)
 
         # Rotation from body/base link to joint along the joint chain
-        base_T_joints = self.forward_kinematics_batch(x, return_full_joint_fk=True, out_device=out_device, dtype=dtype)
+        base_T_joints = self.forward_kinematics(x, return_full_joint_fk=True, out_device=out_device, dtype=dtype)
         base_T_joints = base_T_joints[:, 1:, :, :]  # remove the base link
 
         # Compute jacobian
@@ -941,7 +925,7 @@ class Robot:
 
         return J
 
-    def inverse_kinematics_single_step_levenburg_marquardt(
+    def inverse_kinematics_step_levenburg_marquardt(
         self,
         target_poses: torch.Tensor,
         xs_current: torch.Tensor,
@@ -955,7 +939,7 @@ class Robot:
         eye = torch.eye(self.ndof, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
 
         # Get current error
-        current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
+        current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
         # TODO: Use cat instead of creating a new tensor
         pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=xs_current.dtype)  # [n 6 1]
         for i in range(3):
@@ -995,9 +979,8 @@ class Robot:
             return self.clamp_to_joint_limits(xs_updated)
         return xs_updated
 
-
     # TODO: Enforce joint limits
-    def inverse_kinematics_single_step_batch_pt(
+    def inverse_kinematics_step_jacobian_pinv(
         self,
         target_poses: torch.Tensor,
         xs_current: torch.Tensor,
@@ -1037,7 +1020,7 @@ class Robot:
         J_pinv = J_pinv.to(xs_current.device)
 
         # Run the xs_current through FK to get their realized poses
-        current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=dtype)
+        current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
         assert (
             current_poses.shape == target_poses.shape
         ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
@@ -1100,14 +1083,13 @@ class Robot:
         assert (
             xs_current.device == target_poses.device
         ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
-        n = target_poses.shape[0]
 
         # New graph
         xs_current = xs_current.detach()
         xs_current.requires_grad = True
 
         # Run the xs_current through FK to get their realized poses
-        current_poses = self.forward_kinematics_batch(xs_current, out_device=xs_current.device, dtype=dtype)
+        current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
         assert (
             current_poses.shape == target_poses.shape
         ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
@@ -1216,7 +1198,7 @@ class Robot:
     # ---                                            Collision Detection                                             ---
     # ---                                                                                                            ---
 
-    def self_collision_distances_batch(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
+    def self_collision_distances(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot
         for each joint angle vector in x
 
@@ -1229,7 +1211,7 @@ class Robot:
         # Capsule and joint indices are offset by 1 to make room for the base
         # link.
         batch_size = x.shape[0]
-        base_T_links = self.forward_kinematics_batch(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
+        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
         T1s = base_T_links[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
         T2s = base_T_links[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
         c1s = self._collision_capsules[self._collision_idx0, :].expand(batch_size, -1, -1).reshape(-1, 7)
@@ -1239,7 +1221,7 @@ class Robot:
 
         return dists
 
-    def self_collision_distances_jacobian_batch(self, x: torch.Tensor) -> torch.Tensor:
+    def self_collision_distances_jacobian(self, x: torch.Tensor) -> torch.Tensor:
         """Returns the jacobian of the self collision distance function with
         respect to the joint angles.
 
@@ -1257,16 +1239,14 @@ class Robot:
                 x.unsqueeze(1).expand(nbatch, ndofs, ndofs).reshape(nbatch * ndofs, ndofs).clone(),
                 torch.eye(ndofs, device=x.device).expand(nbatch, ndofs, ndofs).reshape(-1, ndofs).clone(),
             )
-            dual_output = self.self_collision_distances_batch(dual_input)
+            dual_output = self.self_collision_distances(dual_input)
             J = torch.autograd.forward_ad.unpack_dual(dual_output).tangent
             ndists = J.shape[1]
             J = J.reshape(nbatch, ndofs, ndists).permute(0, 2, 1)
 
             return J
 
-    def env_collision_distances_batch(
-        self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
-    ) -> torch.Tensor:
+    def env_collision_distances(self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor) -> torch.Tensor:
         """Returns the distance between the robot collision capsules and the
         environment cuboid obstacle for each joint angle vector in x.
 
@@ -1280,7 +1260,7 @@ class Robot:
         """
 
         batch_size = x.shape[0]
-        base_T_links = self.forward_kinematics_batch(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
+        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
         Tcapsules = base_T_links.reshape(-1, 4, 4)
         big_batch_size = Tcapsules.shape[0]
         capsules = self._collision_capsules.expand(batch_size, -1, -1).reshape(-1, 7)
@@ -1291,7 +1271,7 @@ class Robot:
 
         return dists
 
-    def env_collision_distances_jacobian_batch(
+    def env_collision_distances_jacobian(
         self, x: torch.Tensor, cuboid: torch.Tensor, Tcuboid: torch.Tensor
     ) -> torch.Tensor:
         nbatch = x.shape[0]
@@ -1302,7 +1282,7 @@ class Robot:
                 x.unsqueeze(1).expand(nbatch, ndofs, ndofs).reshape(nbatch * ndofs, ndofs).clone(),
                 torch.eye(ndofs, device=x.device).expand(nbatch, ndofs, ndofs).reshape(-1, ndofs).clone(),
             )
-            dual_output = self.env_collision_distances_batch(dual_input, cuboid, Tcuboid)
+            dual_output = self.env_collision_distances(dual_input, cuboid, Tcuboid)
             J = torch.autograd.forward_ad.unpack_dual(dual_output).tangent
             ndists = J.shape[1]
             J = J.reshape(nbatch, ndofs, ndists).permute(0, 2, 1)

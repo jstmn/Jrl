@@ -106,7 +106,7 @@ class TestConversions(unittest.TestCase):
         torch.testing.assert_close(result, expected)
 
     def test_geodesic_distance_between_quaternions_grad(self):
-        """Check whether backprop through forward_kinematics_batch() and geodesic_distance_between_quaternions() will
+        """Check whether backprop through forward_kinematics() and geodesic_distance_between_quaternions() will
         returns as nan for similar rotations
         """
         robot = FetchArm()
@@ -118,7 +118,7 @@ class TestConversions(unittest.TestCase):
                 dtype=torch.float32,
                 requires_grad=True,
             )
-            pose_fk = robot.forward_kinematics_batch(theta_vec, out_device=device)
+            pose_fk = robot.forward_kinematics(theta_vec, out_device=device)
             target_pose = torch.tensor(
                 [[0.95416701, 0.20000000, 0.56277800, 1.00000000, 0.00000000, 0.00000000, 0.00000000]],
                 device=device,
@@ -142,7 +142,7 @@ class TestConversions(unittest.TestCase):
             angle_offset = 0.00001 * i * torch.ones(joint_angle.shape, dtype=torch.float32, device=device)
             theta = joint_angle.clone() + angle_offset
             theta = theta.detach().clone().requires_grad_(True)
-            pose_fk = robot.forward_kinematics_batch(theta, out_device=device)
+            pose_fk = robot.forward_kinematics(theta, out_device=device)
             dist = geodesic_distance_between_quaternions(pose_fk[:, 3:], target_pose[:, 3:])[0]
             dist.backward()
             self.assertFalse(torch.isnan(dist))

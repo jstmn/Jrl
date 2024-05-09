@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     # batch_fk
     if robot._batch_fk_enabled:
-        poses_batchfk = robot.forward_kinematics_batch(
+        poses_batchfk = robot.forward_kinematics(
             torch.tensor(joint_angles, dtype=torch.float32, device="cuda"), return_quaternion=True
         )
         poses_batchfk = poses_batchfk.detach().cpu().numpy()

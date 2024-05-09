@@ -19,7 +19,7 @@ def main():
         for i in range(ntrials):
             x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32, device=DEVICE)
             t0 = time.time()
-            dists = robot.self_collision_distances_jacobian_batch(x)
+            dists = robot.self_collision_distances_jacobian(x)
             t1 = time.time()
             timing_self_df.loc[len(timing_self_df)] = [nbatch, ntrials, t1 - t0]
 
@@ -32,7 +32,7 @@ def main():
         for i in range(ntrials):
             x = torch.tensor(robot.sample_joint_angles(nbatch), dtype=torch.float32, device=DEVICE)
             t0 = time.time()
-            dists = robot.env_collision_distances_jacobian_batch(x, cuboid, Tcuboid)
+            dists = robot.env_collision_distances_jacobian(x, cuboid, Tcuboid)
             t1 = time.time()
             timing_env_df.loc[len(timing_env_df)] = [nbatch, ntrials, t1 - t0]
 

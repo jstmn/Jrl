@@ -1,6 +1,6 @@
 import torch
 
-from jrl.utils import QP
+from jrl.math_utils import QP
 
 
 def capsule_capsule_distance_batch(

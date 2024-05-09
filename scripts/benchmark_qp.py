@@ -6,7 +6,7 @@ from scipy import sparse
 import pandas as pd
 import time
 import tqdm
-from jrl.utils import QP
+from jrl.math_utils import QP
 import argparse
 
 argparser = argparse.ArgumentParser()

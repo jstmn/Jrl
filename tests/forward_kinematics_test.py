@@ -9,7 +9,7 @@ from jrl.robots import get_all_robots, Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
 from jrl.math_utils import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
 from jrl.utils import set_seed, to_torch
-from jrl.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
 set_seed()
 
@@ -47,7 +47,7 @@ class TestForwardKinematics(unittest.TestCase):
 
         if robot._batch_fk_enabled:
             batch_fk = (
-                robot.forward_kinematics_batch(
+                robot.forward_kinematics(
                     torch.tensor(samples, dtype=torch.float32, device=DEVICE),
                     out_device=DEVICE,
                     return_quaternion=True,
@@ -75,7 +75,7 @@ class TestForwardKinematics(unittest.TestCase):
             )
 
             # batch_fk
-            batch_fk_out = fetch.forward_kinematics_batch(torch.tensor(q), return_full_link_fk=True)[:, -1]
+            batch_fk_out = fetch.forward_kinematics(torch.tensor(q), return_full_link_fk=True)[:, -1]
             quaternions = rotation_matrix_to_quaternion(batch_fk_out[:, 0:3, 0:3])
             translations = batch_fk_out[:, 0:3, 3]
             link_pose_batchfk = torch.cat([translations, quaternions], dim=1)
@@ -84,20 +84,20 @@ class TestForwardKinematics(unittest.TestCase):
             torch.testing.assert_close(link_pose_klampt, link_pose_batchfk, rtol=1e-4, atol=1e-4)
 
     def test_forward_kinematics_batch_differentiability(self):
-        """Test that forward_kinematics_batch is differentiable"""
+        """Test that forward_kinematics is differentiable"""
 
         for robot in self.robots:
             if not robot._batch_fk_enabled:
                 continue
 
             samples = torch.tensor(robot.sample_joint_angles(5), requires_grad=True, dtype=torch.float32, device=DEVICE)
-            out = robot.forward_kinematics_batch(samples, out_device=DEVICE, return_quaternion=True)
+            out = robot.forward_kinematics(samples, out_device=DEVICE, return_quaternion=True)
 
-            # Should be able to propagate the gradient of the error (out.mean()) through forward_kinematics_batch()
+            # Should be able to propagate the gradient of the error (out.mean()) through forward_kinematics()
             out.mean().backward()
 
     def test_forward_kinematics_batch(self):
-        """Test that forward_kinematics_batch is well formatted when returning both quaternions and transformation
+        """Test that forward_kinematics is well formatted when returning both quaternions and transformation
         matrices"""
         for robot in self.robots:
             if not robot._batch_fk_enabled:
@@ -106,7 +106,7 @@ class TestForwardKinematics(unittest.TestCase):
             # Check 1: Return is correct for homogeneous transformation format
             samples = robot.sample_joint_angles(25)
             kinpy_fk = forward_kinematics_kinpy(robot, samples)
-            batch_fk_T = robot.forward_kinematics_batch(
+            batch_fk_T = robot.forward_kinematics(
                 torch.tensor(samples, dtype=torch.float32, device=DEVICE), out_device=DEVICE, return_quaternion=False
             )
             self.assertEqual(batch_fk_T.shape, (25, 4, 4))
@@ -123,7 +123,7 @@ class TestForwardKinematics(unittest.TestCase):
 
             # Second - check batch_fk
             batch_fk = (
-                robot.forward_kinematics_batch(
+                robot.forward_kinematics(
                     torch.tensor(samples, dtype=torch.float32, device=DEVICE), out_device=DEVICE, return_quaternion=True
                 )
                 .cpu()
