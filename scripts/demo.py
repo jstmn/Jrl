@@ -25,17 +25,17 @@ joint_angles, poses = robot.sample_joint_angles_and_poses(
 )  # sample 5 random joint angles and matching poses
 
 # Run forward-kinematics
-poses_fk = robot.forward_kinematics_batch(joint_angles)
+poses_fk = robot.forward_kinematics(joint_angles)
 assert_poses_almost_equal(poses, poses_fk)
 
 # Run inverse-kinematics
 ik_sols = joint_angles + 0.1 * torch.randn_like(joint_angles)
 for i in range(5):
-    ik_sols = robot.inverse_kinematics_single_step_levenburg_marquardt(poses, ik_sols)
-assert_poses_almost_equal(poses, robot.forward_kinematics_batch(ik_sols))
+    ik_sols = robot.inverse_kinematics_step_levenburg_marquardt(poses, ik_sols)
+assert_poses_almost_equal(poses, robot.forward_kinematics(ik_sols))
 
 # Check for robot-robot collisions
-self_coll_distances = robot.self_collision_distances_batch(joint_angles)
+self_coll_distances = robot.self_collision_distances(joint_angles)
 print(f"configs self-colliding:", torch.min(self_coll_distances, dim=1)[0] < 0.0)
 
 # Check for robot-environment collisions
@@ -47,5 +47,5 @@ Tcuboid[0, 3] = 0.25
 Tcuboid[1, 3] = 0.25
 Tcuboid[2, 3] = 0.25  # cuboid is centered at x=y=z=0.25
 Tcuboid[:3, :3] = rpy_tuple_to_rotation_matrix((0.0, 0.0, 0.0))
-cuboid_to_link_dists = robot.env_collision_distances_batch(joint_angles, cuboid, Tcuboid)
+cuboid_to_link_dists = robot.env_collision_distances(joint_angles, cuboid, Tcuboid)
 print(f"configs env-colliding:", torch.min(cuboid_to_link_dists, dim=1)[0] < 0.0)

@@ -82,7 +82,7 @@ class TestBatchIK(unittest.TestCase):
             elif center == "upper_out_of_bounds":
                 x_current[:, i] = upper - 0.1
 
-        poses_current = robot.forward_kinematics_batch(x_current)
+        poses_current = robot.forward_kinematics(x_current)
 
         # Get the target poses
         diff = center_to_diff[center]
@@ -94,7 +94,7 @@ class TestBatchIK(unittest.TestCase):
         if not should_be_oob:
             _qs_for_target_pose = robot.clamp_to_joint_limits(_qs_for_target_pose)
 
-        poses_target = to_torch(robot.forward_kinematics_batch(_qs_for_target_pose))
+        poses_target = to_torch(robot.forward_kinematics(_qs_for_target_pose))
 
         # Sanity check joint angles used to get target poses plus the target poses
         if not should_be_oob:
@@ -152,8 +152,7 @@ class TestBatchIK(unittest.TestCase):
     ):
         # Run ik
         poses_target_pt = torch.tensor(poses_target, device=DEVICE)
-        x_updated_pt = robot.inverse_kinematics_single_step_batch_pt(poses_target_pt, x_current, alpha)
-        x_updated_pt = x_updated_pt.cpu().numpy()
+        x_updated_pt = robot.inverse_kinematics_step_jacobian_pinv(poses_target_pt, x_current, alpha)
 
         self.assertTrue(
             _joint_angles_all_in_joint_limits(robot, x_updated_pt),
@@ -167,7 +166,7 @@ class TestBatchIK(unittest.TestCase):
     #
 
     def test_batch_ik_step_functions(self):
-        """Test that ik steps made with inverse_kinematics_single_step_batch_pt()  makes progress"""
+        """Test that ik steps made with inverse_kinematics_step_jacobian_pinv()  makes progress"""
 
         alpha = 0.05
 

@@ -1,6 +1,5 @@
 from time import time
 from typing import Callable
-from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -8,10 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from jrl.utils import to_torch, set_seed
-from jrl.robot import Robot
 from jrl.robots import Panda
-from jrl.math_utils import geodesic_distance_between_quaternions
-from jrl.evaluation import solution_pose_errors
 
 
 def fn_mean_std(fn: Callable, k: int):
@@ -55,8 +51,8 @@ if __name__ == "__main__":
         x_pt_cuda = to_torch(x.copy()).cuda()
 
         methods = {
-            # "Klampt invJac cpu": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cpu, x_pt_cpu),
-            "Klampt invJac cuda": lambda: robot.inverse_kinematics_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
+            # "Klampt invJac cpu": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cpu, x_pt_cpu),
+            "Klampt invJac cuda": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cuda, x_pt_cuda),
             "AutoDiff cuda": lambda: robot.inverse_kinematics_autodiff_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
         }
         for name, method in methods.items():

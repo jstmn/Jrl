@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     n = 100000
     configs_random = torch.tensor(robot.sample_joint_angles(n, joint_limit_eps=0.0), dtype=DEFAULT_TORCH_DTYPE)
-    collisions = robot.self_collision_distances_batch(configs_random)
+    collisions = robot.self_collision_distances(configs_random)
     colliding = collisions < 0
 
     collision_counter = {

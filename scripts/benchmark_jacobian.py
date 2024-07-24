@@ -47,11 +47,11 @@ if __name__ == "__main__":
         x_pt_cuda = to_torch(x.copy()).cuda()
 
         def jacobian_batch_pt_jitted(robot, x):
-            return robot.jacobian_batch_pt(x)
+            return robot.jacobian(x)
 
         lambdas = [
             lambda: robot.jacobian_batch_np(x),
-            lambda: robot.jacobian_batch_pt(x_pt_cuda),
+            lambda: robot.jacobian(x_pt_cuda),
         ]
         for lambda_, method_name in zip(lambdas, method_names):
             mean_runtime_ms, std_runtime = fn_mean_std(lambda_, k)

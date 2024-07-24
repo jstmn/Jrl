@@ -347,7 +347,7 @@ def get_lowest_common_ancestor_link(
         raise RuntimeError(f"Could not find parent link for link {link_name}")
 
     while True:
-        parent_link, joint = _get_parent_link(link)
+        parent_link, _ = _get_parent_link(link)
         if parent_link in links_in_joint_chain:
             return parent_link
         link = parent_link

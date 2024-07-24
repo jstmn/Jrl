@@ -88,7 +88,7 @@ def set_config(
     Tcube: np.ndarray,
 ):
     n = robot._capsule_idx_to_link_idx.shape[0]
-    base_T_links = robot.forward_kinematics_batch(q, return_full_link_fk=True, out_device=q.device, dtype=q.dtype)
+    base_T_links = robot.forward_kinematics(q, return_full_link_fk=True, out_device=q.device, dtype=q.dtype)
     T1s = base_T_links[:, robot._collision_idx0, :, :].reshape(-1, 4, 4)
     T2s = base_T_links[:, robot._collision_idx1, :, :].reshape(-1, 4, 4)
     c1s = robot._collision_capsules[robot._collision_idx0, :].expand(1, -1, -1).reshape(-1, 7)

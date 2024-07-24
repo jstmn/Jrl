@@ -1,6 +1,6 @@
-# Jrl
+# jrl
 
-Jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, and robot-robot + robot-environment collision checking. 
+jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, end effector jacobian, and robot-robot + robot-environment collision checking. 
 
 
 **Robots**
@@ -23,14 +23,14 @@ Available operations include (all part of the `Robot` class):
 
 | function                           | description                                                                  |
 |--------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `forward_kinematics_batch()`                           | (batched) forward kinematics                                                                  |
-| `jacobian_batch_pt()`                                  | (batched) Jacobian of the manipulators forward kinematics map (w.r.t. joint angles)           |
-| `inverse_kinematics_single_step_levenburg_marquardt()` | (batched) Inverse kinematics step using Levenburg-Marquardt                                   |
-| `inverse_kinematics_single_step_batch_pt()`            | (batched) Inverse kinematics step using the jacobian pseudo-inverse method                    |
-| `self_collision_distances_batch()`                     | (batched) Pairwise distance between each link of the robot                                    |
-| `self_collision_distances_jacobian_batch()`            | (batched) Jacobian of `self_collision_distances_batch()` w.r.t. joint angles                  |
-| `env_collision_distances_batch()`                      | (batched) Pairwise distance between each link of the robot and each cuboid in the environment |
-| `env_collision_distances_jacobian_batch()`             | (batched) Jacobian of `env_collision_distances_batch()` w.r.t. joint angles                   |
+| `forward_kinematics()`                           | (batched) forward kinematics                                                                  |
+| `jacobian()`                                  | (batched) Jacobian of the manipulators forward kinematics map (w.r.t. joint angles)           |
+| `inverse_kinematics_step_levenburg_marquardt()` | (batched) Inverse kinematics step using Levenburg-Marquardt                                   |
+| `inverse_kinematics_step_jacobian_pinv()`            | (batched) Inverse kinematics step using the jacobian pseudo-inverse method                    |
+| `self_collision_distances()`                     | (batched) Pairwise distance between each link of the robot                                    |
+| `self_collision_distances_jacobian()`            | (batched) Jacobian of `self_collision_distances()` w.r.t. joint angles                  |
+| `env_collision_distances()`                      | (batched) Pairwise distance between each link of the robot and each cuboid in the environment |
+| `env_collision_distances_jacobian()`             | (batched) Jacobian of `env_collision_distances()` w.r.t. joint angles                   |
 
 
 
@@ -52,14 +52,14 @@ robot = Panda()
 joint_angles, poses = robot.sample_joint_angles_and_poses(n=5, return_torch=True) # sample 5 random joint angles and matching poses
 
 # Run forward-kinematics
-poses_fk = robot.forward_kinematics_batch(joint_angles) 
+poses_fk = robot.forward_kinematics(joint_angles) 
 assert_poses_almost_equal(poses, poses_fk)
 
 # Run inverse-kinematics
 ik_sols = joint_angles + 0.1 * torch.randn_like(joint_angles) 
 for i in range(5):
-    ik_sols = robot.inverse_kinematics_single_step_levenburg_marquardt(poses, ik_sols)
-assert_poses_almost_equal(poses, robot.forward_kinematics_batch(ik_sols))
+    ik_sols = robot.inverse_kinematics_step_levenburg_marquardt(poses, ik_sols)
+assert_poses_almost_equal(poses, robot.forward_kinematics(ik_sols))
 ```
 
 
