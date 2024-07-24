@@ -38,7 +38,8 @@ class Capsule:
         self.T[:3, 2] = t2
 
 
-def init_vis(links: List[str], vis_mesh_path: str):
+def init_vis(links: List[str], vis_mesh_path: str, mesh_format: str):
+    assert mesh_format in {"dae", "stl"}
     vis = meshcat.Visualizer()
     Tcube = meshcat.transformations.translation_matrix([0.4, 0.1, 0.5]) @ meshcat.transformations.rotation_matrix(
         0.7, [1, 2, 3]
@@ -58,10 +59,18 @@ def init_vis(links: List[str], vis_mesh_path: str):
         vis[f"{robot.name}/{link}/capsule/p1"].set_transform(meshcat.transformations.translation_matrix(p1))
         vis[f"{robot.name}/{link}/capsule/p2"].set_transform(meshcat.transformations.translation_matrix(p2))
         vis[f"{robot.name}/{link}/capsule/cyl"].set_transform(capsule_geom.T)
-        vis[f"{robot.name}/{link}/mesh"].set_object(
-            meshcat.geometry.DaeMeshGeometry.from_file(f"{vis_mesh_path}/{link}.dae"),
-            meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
-        )
+
+        if mesh_format == "dae":
+            vis[f"{robot.name}/{link}/mesh"].set_object(
+                meshcat.geometry.DaeMeshGeometry.from_file(f"{vis_mesh_path}/{link}.dae"),
+                meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
+            )
+        elif mesh_format == "stl":
+            vis[f"{robot.name}/{link}/mesh"].set_object(
+                meshcat.geometry.StlMeshGeometry.from_file(f"{vis_mesh_path}/{link}.stl"),
+                meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
+            )
+
         vis[f"{robot.name}/{link}/capsule/p1"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
         vis[f"{robot.name}/{link}/capsule/p2"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
         cyl_geom = meshcat.geometry.Cylinder(capsule_geom.length, capsule_radius)
@@ -122,6 +131,8 @@ def set_config(
 
 def main(robot: Robot):
     links = list(k for k, v in robot._collision_capsules_by_link.items() if v is not None)
+
+    mesh_format = "dae"
     if "fetch" in robot.name:
         vis_mesh_path = "jrl/urdfs/fetch/meshes"
     elif "rizon" in robot.name:
@@ -132,8 +143,16 @@ def main(robot: Robot):
         vis_mesh_path = "jrl/urdfs/panda/meshes/visual"
         links = [link.replace("panda_", "") for link in links]
         links.remove("link8")
+    elif "iiwa14" in robot.name:
+        vis_mesh_path = "jrl/urdfs/iiwa14/meshes/visual"
+        mesh_format = "stl"
+        links.remove("world")
+        links.remove("link_ee")
+        links.remove("link_ee_kuka")
+        links.remove("link_ee_kuka_mft_pneum")
+        assert False, "stls have +y and +z flipped for iiwa14, need to fix that"
 
-    vis, Tcube, cube_lengths = init_vis(links, vis_mesh_path)
+    vis, Tcube, cube_lengths = init_vis(links, vis_mesh_path, mesh_format)
     q = torch.zeros((1, robot.ndof))
 
     for t in range(100):
@@ -153,6 +172,7 @@ def main(robot: Robot):
 python scripts/visualize_robot_meshcat.py --robot_name panda
 python scripts/visualize_robot_meshcat.py --robot_name fetch
 python scripts/visualize_robot_meshcat.py --robot_name rizon4
+python scripts/visualize_robot_meshcat.py --robot_name iiwa14
 
 """
 

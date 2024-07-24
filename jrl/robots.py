@@ -334,12 +334,64 @@ class Iiwa7(Robot):
         urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
         base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
-        collision_capsules_by_link = {}  # TODO
+        collision_capsules_by_link = None  # TODO
 
         ignored_collision_pairs = []
         Robot.__init__(
             self,
             Iiwa7.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Iiwa14(Robot):
+    name = "iiwa14"
+    formal_robot_name = "Kuka LBR IIWA14"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint_0",
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
+        ]
+        urdf_filepath = get_filepath("urdfs/iiwa14/iiwa14_formatted.urdf")
+        base_link = "world"
+        end_effector_link_name = "link_ee_kuka"
+        collision_capsules_by_link = {
+            "world": None,
+            "link_0": _load_capsule("urdfs/iiwa14/capsules/link_0_s.txt"),
+            "link_1": _load_capsule("urdfs/iiwa14/capsules/link_1_s.txt"),
+            "link_2": _load_capsule("urdfs/iiwa14/capsules/link_2_s.txt"),
+            "link_3": _load_capsule("urdfs/iiwa14/capsules/link_3_s.txt"),
+            "link_4": _load_capsule("urdfs/iiwa14/capsules/link_4_s.txt"),
+            "link_5": _load_capsule("urdfs/iiwa14/capsules/link_5_s.txt"),
+            "link_6": _load_capsule("urdfs/iiwa14/capsules/link_6_s.txt"),
+            "link_7": _load_capsule("urdfs/iiwa14/capsules/link_7-MF-Touch-pneumatisch_s.txt"),
+            "link_ee": None,
+            "link_ee_kuka": None,
+            "link_ee_kuka_mft_pneum": None,
+        }
+
+        ignored_collision_pairs = []
+        Robot.__init__(
+            self,
+            Iiwa14.name,
             urdf_filepath,
             active_joints,
             base_link,
@@ -452,10 +504,11 @@ class Ur5(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5]
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
+ALL_ROBOT_NAMES = [clc.name for clc in ALL_CLCS]
 
 
 def get_all_robots() -> List[Robot]:

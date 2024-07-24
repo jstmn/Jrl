@@ -91,6 +91,7 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 python scripts/visualize_robot.py --robot_name=panda
 python scripts/visualize_robot.py --robot_name=baxter
 python scripts/visualize_robot.py --robot_name=iiwa7
+python scripts/visualize_robot.py --robot_name=iiwa14
 python scripts/visualize_robot.py --robot_name=fetch
 python scripts/visualize_robot.py --robot_name=rizon4
 python scripts/visualize_robot.py --robot_name=ur5
@@ -100,6 +101,11 @@ python scripts/visualize_robot.py \
     --robot_name=panda \
     --start_config 0   1.5707 0 0 0 3.141592 0 \
     --end_config   1.0 1.5707 0 0 0 3.141592 0
+
+python scripts/visualize_robot.py \
+    --robot_name=iiwa7 \
+    --start_config 0.0 -0.7 0.0 -1.4 0.0 0.6 2.1 \
+    --end_config   0.0  0.0 0.0  0.0 0.0 0.0 0.0
 """
 
 if __name__ == "__main__":

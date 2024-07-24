@@ -14,6 +14,7 @@ from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE, PT_NP_TYPE
 def cm_to_m(x: float):
     return x / 100.0
 
+
 def mm_to_m(x: float):
     return x / 1000.0
 

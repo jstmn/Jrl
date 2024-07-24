@@ -4,14 +4,11 @@ import stl
 import pathlib
 import meshcat
 import argparse
-import time
 
 from mpl_toolkits import mplot3d
 from matplotlib import pyplot as plt
 
-argparser = argparse.ArgumentParser()
-argparser.add_argument("--visualize", action="store_true")
-args = argparser.parse_args()
+from jrl.robots import ALL_ROBOT_NAMES
 
 
 def capsule_volume_batch(c1: torch.Tensor, c2: torch.Tensor, r: torch.Tensor):
@@ -192,8 +189,15 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
     return best_p1, best_p2, best_r + margin
 
 
-def stl_to_capsule(stl_path: str, outdir, vis=None):
-    print(f"Approximating {stl_path}")
+def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
+
+    linkname = stl_path.stem
+    txt_path = outdir / f"{linkname}.txt"
+    if txt_path.exists():
+        print(f"\nStl '{stl_path}' has been converted already - skipping")
+        return
+
+    print(f"\nstl_to_capsule() | Approximating {stl_path}")
     stl_mesh_geom = meshcat.geometry.StlMeshGeometry.from_file(stl_path)
     vis["mesh"].set_object(stl_mesh_geom)
     mesh = stl.mesh.Mesh.from_file(stl_path)
@@ -214,44 +218,36 @@ def stl_to_capsule(stl_path: str, outdir, vis=None):
     scale = mesh.points.flatten()
     axes.auto_scale_xyz(scale, scale, scale)
 
-    linkname = stl_path.stem
     img_path = outdir / f"{linkname}.png"
     print(f"Rendering to {img_path}")
     plt.savefig(img_path)
 
-    txt_path = outdir / f"{linkname}.txt"
     print(f"Saving capsule to {txt_path}")
     with open(txt_path, "w") as f:
         f.write(f"{p1[0]}, {p1[1]}, {p1[2]}, {p2[0]}, {p2[1]}, {p2[2]}, {r}\n")
 
+    print(f"Done with '{stl_path}'")
+
 
 """
-python scripts/calculate_capsule_approximation.py --visualize
+python scripts/calculate_capsule_approximation.py --visualize --robot_name=iiwa14
 """
 
 
-def main():
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--visualize", action="store_true")
+    argparser.add_argument("--robot_name", type=str, required=True)
+    args = argparser.parse_args()
+
+    assert args.robot_name in ALL_ROBOT_NAMES
+
     vis = None
     if args.visualize:
         vis = meshcat.Visualizer()
         vis.open()
 
-    # outdir = pathlib.Path("jrl/urdfs/rizon4/capsules")
-    # # outdir.mkdir(exist_ok=False)
-    # for stl_path in pathlib.Path("jrl/urdfs/rizon4/meshes/collision").glob("*.stl"):
-    #     stl_to_capsule(stl_path, outdir, vis)
-
-    outdir = pathlib.Path("jrl/urdfs/ur5/capsules")
-    outdir.mkdir(exist_ok=False)
-    for stl_path in pathlib.Path("jrl/urdfs/ur5/meshes/collision").glob("*.stl"):
+    outdir = pathlib.Path(f"jrl/urdfs/{args.robot_name}/capsules")
+    outdir.mkdir(exist_ok=True)
+    for stl_path in pathlib.Path(f"jrl/urdfs/{args.robot_name}/meshes/collision").glob("*.stl"):
         stl_to_capsule(stl_path, outdir, vis)
-
-    # outdir = pathlib.Path("jrl/urdfs/fetch/capsules")
-    # outdir.mkdir(exist_ok=False)
-    # for stl_path in list(pathlib.Path("jrl/urdfs/fetch/meshes").glob("*_collision.STL")):
-    #     stl_to_capsule(stl_path, outdir, vis)
-    # stl_to_capsule(pathlib.Path("jrl/urdfs/fetch/meshes/gripper_link_collision.STL"), outdir, vis)
-
-
-if __name__ == "__main__":
-    main()

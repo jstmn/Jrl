@@ -995,7 +995,6 @@ class Robot:
             return self.clamp_to_joint_limits(xs_updated)
         return xs_updated
 
-
     # TODO: Enforce joint limits
     def inverse_kinematics_single_step_batch_pt(
         self,

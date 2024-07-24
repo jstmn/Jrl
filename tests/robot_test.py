@@ -6,7 +6,7 @@ import numpy as np
 from jrl.urdf_utils import _len3_tuple_from_str
 from jrl.utils import set_seed
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, Panda, Fetch, Iiwa7, FetchArm
+from jrl.robots import get_all_robots, Panda, Fetch, FetchArm
 from jrl.config import DEVICE, PT_NP_TYPE
 
 set_seed(0)
@@ -254,6 +254,7 @@ class RobotTest(unittest.TestCase):
             "iiwa7": 7,
             "rizon4": 7,
             "ur5": 6,
+            "iiwa14": 7,
         }
         for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
@@ -323,6 +324,15 @@ class RobotTest(unittest.TestCase):
                 (-6.283185307179586, 6.283185307179586),
                 (-6.283185307179586, 6.283185307179586),
                 (-6.283185307179586, 6.283185307179586),
+            ],
+            "iiwa14": [
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-2.9670597283903604, 2.9670597283903604),
+                (-2.0943951023931953, 2.0943951023931953),
+                (-3.0543261909900763, 3.0543261909900763),
             ],
         }
         for robot in self.robots:
@@ -397,6 +407,15 @@ class RobotTest(unittest.TestCase):
                 "wrist_2_joint",
                 "wrist_3_joint",
             ],
+            "iiwa14": [
+                "joint_0",
+                "joint_1",
+                "joint_2",
+                "joint_3",
+                "joint_4",
+                "joint_5",
+                "joint_6",
+            ],
         }
         for robot in self.robots:
             self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
@@ -422,6 +441,7 @@ class RobotTest(unittest.TestCase):
             "iiwa7": 7,  #
             "rizon4": 7,  #
             "ur5": 6,  #
+            "iiwa14": 7,  #
         }
 
         for robot in self.robots:
