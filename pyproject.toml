@@ -14,6 +14,7 @@ more-itertools = "^9.0.0"
 tqdm = "^4.64.1"
 warp-lang = "0.10.1"
 meshcat = "0.3.2"
+rerun-sdk = "^0.18.2"
 
 [tool.poetry.group.dev.dependencies]
 qpth = {git = "https://github.com/locuslab/qpth"}
