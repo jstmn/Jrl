@@ -3,13 +3,15 @@ import argparse
 from time import sleep
 
 from klampt import vis
-from klampt.model import coordinates, trajectory
 from klampt.math import so3
 import numpy as np
+import torch
 
 from visualization_utils import _init_klampt_vis
 from jrl.robot import Robot
-from jrl.robots import get_robot
+from jrl.robots import get_robot, Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14
+
+PI = np.pi
 
 
 # TODO: Make this less creepy
@@ -21,7 +23,17 @@ def oscillate_joints(robot: Robot, show_collision_capsules: bool = True):
 
     _init_klampt_vis(robot, "oscillate joints", show_collision_capsules=show_collision_capsules)
 
+    initial_offsets = {
+        Iiwa7.name: np.array([0, PI / 4, 0, -PI / 2, 0, PI / 4, 0]),
+        Iiwa14.name: np.array([0, PI / 4, 0, -PI / 2, 0, PI / 4, 0]),
+        Fetch.name: np.array([0, 0, PI / 4, 0, -PI / 2, 0, PI / 4, 0]),
+        Rizon4.name: np.array([0, -PI / 4, 0, PI / 2, 0, -PI / 8, 0]),
+        Ur5.name: np.array([PI / 4, -PI / 2, -PI / 4, 0, 0, 0]),
+    }
+
     x = np.array([(u + l) / 2.0 for (l, u) in robot.actuated_joints_limits])
+    if robot.name in initial_offsets:
+        x += initial_offsets[robot.name]
 
     def update_robot(_x):
         vis.lock()
@@ -55,8 +67,8 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
     ratio_inc = 0.0025
     _init_klampt_vis(robot, "transition between target configs", show_collision_capsules=show_collision_capsules)
 
-    target_xs = [np.array(config) for config in configs]
-    target_xs_poses = robot.forward_kinematics(np.array(target_xs))
+    target_xs = torch.tensor([np.array(config) for config in configs])
+    target_xs_poses = robot.forward_kinematics(target_xs)
 
     for i, pose in enumerate(target_xs_poses):
         vis.add(f"ee_{i}", (so3.from_quaternion(pose[3:]), pose[0:3]), length=0.15, width=2)
@@ -66,7 +78,7 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
     def update_robot(_prev_x: np.ndarray, _next_x: np.ndarray, _ratio: float):
         x = _prev_x + _ratio * (_next_x - _prev_x)
         vis.lock()
-        robot.set_klampt_robot_config(x)
+        robot.set_klampt_robot_config(x.cpu().numpy())
         vis.unlock()
         sleep(time_p_loop)  # note: don't put sleep inside the lock()
 
@@ -89,7 +101,6 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 
 # Oscillate joints
 python scripts/visualize_robot.py --robot_name=panda
-python scripts/visualize_robot.py --robot_name=baxter
 python scripts/visualize_robot.py --robot_name=iiwa7
 python scripts/visualize_robot.py --robot_name=iiwa14
 python scripts/visualize_robot.py --robot_name=fetch

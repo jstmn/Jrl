@@ -1,6 +1,6 @@
-# jrl
+# Jrl
 
-jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, end effector jacobian, and robot-robot + robot-environment collision checking. 
+Jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, end effector jacobian, and robot-robot + robot-environment collision checking. 
 
 
 **Robots**
@@ -15,6 +15,19 @@ Robot models include (run with `scripts/visualize_robot.py` to view):
 | Iiwa7    | Kuka LBR IIWA7              |
 | Rizon4   | Flexiv Rizon 4              |
 | Ur5      | Ur5                         |
+
+<table>
+  <tr>
+    <td><img src="media/fetch.png"></td>
+    <td><img src="media/iiwa7.png"></td>
+    <td><img src="media/iiwa14.png"></td>
+  </tr>
+  <tr>
+    <td><img src="media/panda.png"></td>
+    <td><img src="media/rizon.png"></td>
+    <td><img src="media/ur5.png"></td>
+  </tr>
+</table>
 
 
 **Functions**
