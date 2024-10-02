@@ -3,7 +3,7 @@
 Jrl ('Jeremy's robotics library') is a robotics library containing robot models for popular robots as well as efficient, pytorch based *parallelized* implementations of forward kinematics, inverse kinematics, end effector jacobian, and robot-robot + robot-environment collision checking. This library is used as the backbone for the [IKFlow](https://github.com/jstmn/ikflow) and [CppFlow](https://github.com/jstmn/cppflow) codebases.
 
 
-**Robots**
+### Robots
 
 Robot models include the following:
 
@@ -33,7 +33,7 @@ Robots can easily be visualized with `python scripts/visualize_robot.py --robot_
 
 
 
-**Functions**
+### Functionality
 
 Available operations include (all part of the `Robot` class):
 
@@ -49,9 +49,9 @@ Available operations include (all part of the `Robot` class):
 | `env_collision_distances_jacobian()`             | (batched) Jacobian of `env_collision_distances()` w.r.t. joint angles                   |
 
 
+### Quickstart code
 
-
-**Quickstart code.** This script will load a Panda robot model and then run forward and inverse kinematics on randomly sampled configs. See demo.py for the complete script, which includes robot-robot and robot-environment collision checking.
+This code will load a Panda robot model and then run forward and inverse kinematics on randomly sampled configs. See demo.py for the complete script, which includes robot-robot and robot-environment collision checking.
 
 ```python
 from jrl.robots import Panda
