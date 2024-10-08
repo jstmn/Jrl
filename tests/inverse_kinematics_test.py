@@ -4,9 +4,9 @@ from time import time
 import torch
 import numpy as np
 
-from jrl.robot import Robot, IkLineSearchParameters
+from jrl.robot import Robot
 from jrl.robots import get_all_robots, Panda
-from jrl.utils import set_seed, to_torch
+from jrl.utils import set_seed, to_torch, evenly_spaced_colors
 from jrl.math_utils import geodesic_distance_between_quaternions
 from .testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
 
@@ -148,47 +148,81 @@ class TestInverseKinematics(unittest.TestCase):
         """Test the IK line search functionality"""
         print("\n\n-----------------------------------")
         print(" -- Test line search -- ")
-        n = 10
-        rand_scale = 0.5
-        qs_0, poses_0 = self.panda.sample_joint_angles_and_poses(n, return_torch=True)
-        qs_pert = qs_0 + rand_scale*(torch.rand_like(qs_0) - 0.5)
-        print("q difference:", torch.rad2deg(qs_pert - qs_0))
+        n = 50
 
         import matplotlib.pyplot as plt
-        fig, (axl, axr) = plt.subplots(1, 2, figsize=(14, 8))
-        fig.suptitle("alpha vs. end effector pose error convergence.\nLeft: LMA, Right: pinv(J). Number in legend: alpha")
-        axl.set_xlabel("")
-        axr.set_xlabel("")
-        axl.set_ylabel("Error [mm]")
-        axr.set_ylabel("Error [deg]")
-        axl.grid("both", alpha=0.2)
-        axr.grid("both", alpha=0.2)
+        noise_scales = [0.1, 0.5, 1.0, 3.1415]
+        fig, axs = plt.subplots(len(noise_scales), 3, figsize=(18, 20))
+        fig.suptitle("Step-size vs. end effector pose error convergence. Step direction calculated with Levenberg Marquardt")
+        # fig.tight_layout()
 
-        import matplotlib.colors
+        alphas = [0.0, 0.1, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5]
+        colors = evenly_spaced_colors(len(alphas))
 
-        # colors = matplotlib.colors.TABLEAU_COLORS
-        def plot_qs(qs_, label, large_dot = False, color = None, offset = False):
-            ee = self.panda.forward_kinematics(qs_)
-            pos_errors = torch.norm(ee[:, 0:3] - poses_0[:, 0:3], dim=1) * 1000
-            rot_errors = torch.rad2deg(geodesic_distance_between_quaternions(ee[:, 3 : 3 + 4], poses_0[:, 3 : 3 + 4]))
-            axl.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), pos_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
-            axr.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), rot_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
+        for row_idx, noise_scale in enumerate(noise_scales):
+
+            rand_scale = noise_scale
+            qs_0, poses_0 = self.panda.sample_joint_angles_and_poses(n, return_torch=True)
+            qs_pert = self.panda.clamp_to_joint_limits(qs_0 + rand_scale*(torch.rand_like(qs_0) - 0.5))
+
+            # get summary stats
+            ee = self.panda.forward_kinematics(qs_pert)
+            mean_pos_error = (torch.norm(ee[:, 0:3] - poses_0[:, 0:3], dim=1).mean() * 100).item()
+            mean_rot_error = torch.rad2deg(geodesic_distance_between_quaternions(ee[:, 3 : 3 + 4], poses_0[:, 3 : 3 + 4])).mean().item()
+            # print("q difference:", torch.rad2deg(qs_pert - qs_0))
+
+            axl = axs[row_idx, 0]
+            axr = axs[row_idx, 1]
+            axrr = axs[row_idx, 2]
+            axl.set_title(f"noise_scale: {noise_scale}, ave pos_error: {mean_pos_error:.3f} [cm], ave rot_error: {mean_rot_error:.3f} [deg]")
+            axl.set_xlabel("")
+            axl.set_xlabel("")
+            axr.set_xlabel("")
+            axrr.set_xlabel("Alpha")
+            axl.set_ylabel("Error [cm]")
+            axr.set_ylabel("Error [deg]")
+            axrr.set_ylabel("Error [cm]")
+            axl.grid("both", alpha=0.2)
+            axr.grid("both", alpha=0.2)
+            axrr.grid("both", alpha=0.2)
 
 
-        # TODO: get convergence for different alphas
-        plot_qs(qs_pert, "qs original", large_dot=True, color="black")
+            # colors = matplotlib.colors.TABLEAU_COLORS
+            def plot_qs(qs_, label, i, large_dot = False, color = None, offset = False):
+                color = colors[i] if color is None else color
+                ee = self.panda.forward_kinematics(qs_)
+                pos_errors = torch.norm(ee[:, 0:3] - poses_0[:, 0:3], dim=1) * 100
+                rot_errors = torch.rad2deg(geodesic_distance_between_quaternions(ee[:, 3 : 3 + 4], poses_0[:, 3 : 3 + 4]))
+                axl.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), pos_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
+                axr.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), rot_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
+                return pos_errors.mean().item(), pos_errors.std().item(), rot_errors.mean().item(), rot_errors.std().item()
 
-        # for alpha in [0.01, 0.25, 0.5, 0.75, 0.875, 1.0, 1.125, 1.25, 1.5]:
-        for alpha in [0.01, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5]:
-            plot_qs(self.panda.inverse_kinematics_step_levenburg_marquardt(poses_0, qs_pert, alpha=alpha), f"LM: {alpha}")
-            plot_qs(self.panda.inverse_kinematics_step_jacobian_pinv(poses_0, qs_pert, alpha=alpha), f"pinv(J): {alpha}", offset=True)
-            # delta_q = self.panda.inverse_kinematics_step_levenburg_marquardt(poses_0, qs_pert, alpha=1.0) - qs_pert
-            # params = IkLineSearchParameters()
-            # alphas = self.panda._perform_ik_line_search(poses_0, qs_pert, params)
+            plot_qs(qs_pert, "qs original", None, large_dot=True, color="black")
+
+            mean_pos_errors = []
+            std_pos_errors = []
+            for i, alpha in enumerate(alphas):
+                mean, std, _, _ = plot_qs(self.panda.inverse_kinematics_step_levenburg_marquardt(poses_0, qs_pert, alpha=alpha), f"LM: {alpha}", i)
+                mean_pos_errors.append(mean)
+                std_pos_errors.append(std)
+            self.assertAlmostEqual(mean_pos_error, mean_pos_errors[0], delta=1e-5)
+
+            axrr.fill_between(
+                alphas,
+                np.array(mean_pos_errors) - np.array(std_pos_errors),
+                np.array(mean_pos_errors) + np.array(std_pos_errors),
+                alpha=0.1,
+                label="std",
+                color="b"
+            )
+            axrr.plot(alphas, mean_pos_errors, color="b")
+            axrr.scatter(alphas, mean_pos_errors, color="b")
+            axrr.set_ylim(0, max(mean_pos_errors)*1.5)
+            axrr.plot([0, max(alphas)], [mean_pos_error, mean_pos_error], color="k", linestyle="dashed", alpha=0.5)
 
 
-        # axl.legend()
-        axr.legend()
+            # axl.legend()
+        axs[0, 0].legend()
         plt.show()
 
 
