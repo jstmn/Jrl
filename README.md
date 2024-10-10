@@ -35,18 +35,18 @@ Robots can easily be visualized with `python scripts/visualize_robot.py --robot_
 
 ### Functionality
 
-Available operations include (all part of the `Robot` class):
+Available operations include (all part of the `Robot` class) the following. Note that they are all parallelized implementations - specifically they accept batches of pytorch tensors.
 
-| function                           | description                                                                  |
-|--------------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `forward_kinematics()`                           | (batched) forward kinematics                                                                  |
-| `jacobian()`                                  | (batched) Jacobian of the manipulators forward kinematics map (w.r.t. joint angles)           |
-| `inverse_kinematics_step_levenburg_marquardt()` | (batched) Inverse kinematics step using Levenburg-Marquardt                                   |
-| `inverse_kinematics_step_jacobian_pinv()`            | (batched) Inverse kinematics step using the jacobian pseudo-inverse method                    |
-| `self_collision_distances()`                     | (batched) Pairwise distance between each link of the robot                                    |
-| `self_collision_distances_jacobian()`            | (batched) Jacobian of `self_collision_distances()` w.r.t. joint angles                  |
-| `env_collision_distances()`                      | (batched) Pairwise distance between each link of the robot and each cuboid in the environment |
-| `env_collision_distances_jacobian()`             | (batched) Jacobian of `env_collision_distances()` w.r.t. joint angles                   |
+| function                                        | description                                                                         |
+|-------------------------------------------------|-------------------------------------------------------------------------------------|
+| `forward_kinematics()`                          | Forward kinematics                                                                  |
+| `jacobian()`                                    | Jacobian of the manipulators forward kinematics map (w.r.t. joint angles)           |
+| `inverse_kinematics_step_levenburg_marquardt()` | Inverse kinematics step using Levenburg-Marquardt                                   |
+| `inverse_kinematics_step_jacobian_pinv()`       | Inverse kinematics step using the jacobian pseudo-inverse method                    |
+| `self_collision_distances()`                    | Pairwise distance between each link of the robot                                    |
+| `self_collision_distances_jacobian()`           | Jacobian of `self_collision_distances()` w.r.t. joint angles                        |
+| `env_collision_distances()`                     | Pairwise distance between each link of the robot and each cuboid in the environment |
+| `env_collision_distances_jacobian()`            | Jacobian of `env_collision_distances()` w.r.t. joint angles                         |
 
 
 ### Quickstart code
