@@ -40,6 +40,18 @@ class TestInverseKinematics(unittest.TestCase):
         return True, l2_err
 
     # --- Tests
+
+    # python -m unittest tests.inverse_kinematics_test.TestInverseKinematics.test_levenberg_marquardt_with_cholesky
+    def test_levenberg_marquardt_with_cholesky(self):
+        """Test that inverse_kinematics_klampt() generates a solution if the original seed fails"""
+        n = 10
+        alpha = 1.0
+        qs_0, poses = self.panda.sample_joint_angles_and_poses(n, return_torch=True)
+        qs = self.panda.clamp_to_joint_limits(qs_0 + 0.5 * (torch.rand_like(qs_0) - 0.5))
+        qs_vanilla = self.panda.inverse_kinematics_step_levenburg_marquardt(poses, qs, alpha=alpha)
+        qs_cholesky = self.panda.inverse_kinematics_step_levenburg_marquardt(poses, qs, alpha=alpha, use_cholesky=True)
+        torch.testing.assert_close(qs_vanilla, qs_cholesky, rtol=0.0, atol=0.001)
+
     def test_seed_failure_recovery_klampt(self):
         """Test that inverse_kinematics_klampt() generates a solution if the original seed fails"""
         pose = np.array([-0.45741714, -0.08548167, 0.87084611, 0.09305326, -0.49179573, -0.86208266, 0.07931919])
@@ -142,89 +154,6 @@ class TestInverseKinematics(unittest.TestCase):
                 f"  Total runtime: {round(1000*total_ik_runtime, 3)}ms for {n} solutions\t (avg:"
                 f" {round(1000*total_ik_runtime/n, 3)}ms/sol)"
             )
-
-    # python -m unittest tests.inverse_kinematics_test.TestInverseKinematics.test_line_search
-    def test_line_search(self):
-        """Test the IK line search functionality"""
-        print("\n\n-----------------------------------")
-        print(" -- Test line search -- ")
-        n = 50
-
-        import matplotlib.pyplot as plt
-        noise_scales = [0.1, 0.5, 1.0, 3.1415]
-        fig, axs = plt.subplots(len(noise_scales), 3, figsize=(18, 20))
-        fig.suptitle("Step-size vs. end effector pose error convergence. Step direction calculated with Levenberg Marquardt")
-        # fig.tight_layout()
-
-        alphas = [0.0, 0.1, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5]
-        colors = evenly_spaced_colors(len(alphas))
-
-        for row_idx, noise_scale in enumerate(noise_scales):
-
-            rand_scale = noise_scale
-            qs_0, poses_0 = self.panda.sample_joint_angles_and_poses(n, return_torch=True)
-            qs_pert = self.panda.clamp_to_joint_limits(qs_0 + rand_scale*(torch.rand_like(qs_0) - 0.5))
-
-            # get summary stats
-            ee = self.panda.forward_kinematics(qs_pert)
-            mean_pos_error = (torch.norm(ee[:, 0:3] - poses_0[:, 0:3], dim=1).mean() * 100).item()
-            mean_rot_error = torch.rad2deg(geodesic_distance_between_quaternions(ee[:, 3 : 3 + 4], poses_0[:, 3 : 3 + 4])).mean().item()
-            # print("q difference:", torch.rad2deg(qs_pert - qs_0))
-
-            axl = axs[row_idx, 0]
-            axr = axs[row_idx, 1]
-            axrr = axs[row_idx, 2]
-            axl.set_title(f"noise_scale: {noise_scale}, ave pos_error: {mean_pos_error:.3f} [cm], ave rot_error: {mean_rot_error:.3f} [deg]")
-            axl.set_xlabel("")
-            axl.set_xlabel("")
-            axr.set_xlabel("")
-            axrr.set_xlabel("Alpha")
-            axl.set_ylabel("Error [cm]")
-            axr.set_ylabel("Error [deg]")
-            axrr.set_ylabel("Error [cm]")
-            axl.grid("both", alpha=0.2)
-            axr.grid("both", alpha=0.2)
-            axrr.grid("both", alpha=0.2)
-
-
-            # colors = matplotlib.colors.TABLEAU_COLORS
-            def plot_qs(qs_, label, i, large_dot = False, color = None, offset = False):
-                color = colors[i] if color is None else color
-                ee = self.panda.forward_kinematics(qs_)
-                pos_errors = torch.norm(ee[:, 0:3] - poses_0[:, 0:3], dim=1) * 100
-                rot_errors = torch.rad2deg(geodesic_distance_between_quaternions(ee[:, 3 : 3 + 4], poses_0[:, 3 : 3 + 4]))
-                axl.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), pos_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
-                axr.scatter(np.array(list(range(n))) + (0.25 if offset else 0.0), rot_errors.cpu().numpy(), label=label, s=75.0 if large_dot else None, color=color)
-                return pos_errors.mean().item(), pos_errors.std().item(), rot_errors.mean().item(), rot_errors.std().item()
-
-            plot_qs(qs_pert, "qs original", None, large_dot=True, color="black")
-
-            mean_pos_errors = []
-            std_pos_errors = []
-            for i, alpha in enumerate(alphas):
-                mean, std, _, _ = plot_qs(self.panda.inverse_kinematics_step_levenburg_marquardt(poses_0, qs_pert, alpha=alpha), f"LM: {alpha}", i)
-                mean_pos_errors.append(mean)
-                std_pos_errors.append(std)
-            self.assertAlmostEqual(mean_pos_error, mean_pos_errors[0], delta=1e-5)
-
-            axrr.fill_between(
-                alphas,
-                np.array(mean_pos_errors) - np.array(std_pos_errors),
-                np.array(mean_pos_errors) + np.array(std_pos_errors),
-                alpha=0.1,
-                label="std",
-                color="b"
-            )
-            axrr.plot(alphas, mean_pos_errors, color="b")
-            axrr.scatter(alphas, mean_pos_errors, color="b")
-            axrr.set_ylim(0, max(mean_pos_errors)*1.5)
-            axrr.plot([0, max(alphas)], [mean_pos_error, mean_pos_error], color="k", linestyle="dashed", alpha=0.5)
-
-
-            # axl.legend()
-        axs[0, 0].legend()
-        plt.show()
-
 
 
 if __name__ == "__main__":

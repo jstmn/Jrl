@@ -51,9 +51,11 @@ if __name__ == "__main__":
         x_pt_cuda = to_torch(x.copy()).cuda()
 
         methods = {
-            # "Klampt invJac cpu": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cpu, x_pt_cpu),
-            "Klampt invJac cuda": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cuda, x_pt_cuda),
-            "AutoDiff cuda": lambda: robot.inverse_kinematics_autodiff_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
+            "J_pinv": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cuda, x_pt_cuda),
+            "Levenberg-Marquardt": lambda: robot.inverse_kinematics_step_levenburg_marquardt(goalposes_cuda, x_pt_cuda),
+            "Levenberg-Marquardt w/ cholesky decomposition": lambda: robot.inverse_kinematics_step_levenburg_marquardt(
+                goalposes_cuda, x_pt_cuda, use_cholesky=True
+            ),
         }
         for name, method in methods.items():
             mean_runtime_ms, std_runtime = fn_mean_std(method, k)
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     print(df)
 
     # Plot
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(15, 15))
     for method_name in methods.keys():
         df_method = df[df["method"] == method_name]
         n_solutions = df_method["number of solutions"]
@@ -75,7 +77,9 @@ if __name__ == "__main__":
         p = ax.plot(n_solutions, total_runtime_ms, label=label)
         ax.fill_between(n_solutions, total_runtime_ms - std, total_runtime_ms + std, alpha=0.2, color=p[0].get_color())
 
+    ax.set_title("Number of Solutions vs. Runtime for Different IK Methods")
     ax.set_xlabel("Number of solutions")
-    ax.set_ylabel("Total runtime (ms)")
+    ax.set_ylabel("Runtime [ms]")
     ax.legend()
-    fig.savefig("scripts/batch_ik_runtime.pdf", bbox_inches="tight")
+    ax.grid(which="both", alpha=0.2)
+    fig.savefig("scripts/batch_ik_runtime.png", bbox_inches="tight")

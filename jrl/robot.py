@@ -933,6 +933,7 @@ class Robot:
         alpha: float = 1.0,
         alphas: Optional[torch.Tensor] = None,
         clamp_to_joint_limits: bool = True,
+        use_cholesky: bool = True,
     ) -> torch.Tensor:
         """Perform a levenburg-marquardt optimization step."""
         n = xs_current.shape[0]
@@ -965,9 +966,22 @@ class Robot:
             6,
         ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.ndof, 6)}"
 
-        lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
-        rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
-        delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
+        A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
+        if not use_cholesky:
+            delta_x = torch.linalg.solve(A, B)  # [n ndof 1]
+        else:
+            # Solve (J^T*J + lambd*I)*delta_X = J^T*r
+            # From wikipedia (https://en.wikipedia.org/wiki/Cholesky_decomposition)
+            #  Problem: solve Ax=b
+            #  Solution:
+            #    1. find L s.t. A = L*L^T
+            #    2. solve L*y = b for y by forward substitution
+            #    3. solve L^T*x = y for y by backward substitution
+            # eye = torch.eye(n * ndof, dtype=opt_state.x.dtype, device=opt_state.x.device)
+            L = torch.linalg.cholesky(A, upper=False)
+            y = torch.linalg.solve_triangular(L, B, upper=False)
+            delta_x = torch.linalg.solve_triangular(L.mT, y, upper=True).reshape((n, self.ndof))
 
         if alphas is not None:
             assert alphas.shape == (n, 1)
@@ -1049,8 +1063,6 @@ class Robot:
         delta_x = J_pinv @ pose_errors
         xs_updated = xs_current + alpha * delta_x[:, :, 0]
         return self.clamp_to_joint_limits(xs_updated)
-
-
 
     def inverse_kinematics_klampt(
         self,
