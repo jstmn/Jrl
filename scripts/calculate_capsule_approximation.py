@@ -115,16 +115,18 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                 inner_step = 0
                 converged = False
                 while not converged:
-                    p1vis = np.array([x[0], x[1], x[2]], dtype=np.float64)
-                    p2vis = np.array([x[3], x[4], x[5]], dtype=np.float64)
-                    rvis = x[6].item()
+                    y = x.cpu()
+                    p1vis = np.array([y[0], y[1], y[2]], dtype=np.float64)
+                    p2vis = np.array([y[3], y[4], y[5]], dtype=np.float64)
+                    rvis = y[6].item()
                     h = np.linalg.norm(p2vis - p1vis)
                     capsule_material = meshcat.geometry.MeshToonMaterial(color=0x8888FF, opacity=0.4)
-                    vis["p1"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
-                    vis["p1"].set_transform(meshcat.transformations.translation_matrix(p1vis))
-                    vis["p2"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
-                    vis["p2"].set_transform(meshcat.transformations.translation_matrix(p2vis))
-                    vis["cyl"].set_object(meshcat.geometry.Cylinder(h, rvis), capsule_material)
+                    if vis is not None:
+                        vis["p1"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
+                        vis["p1"].set_transform(meshcat.transformations.translation_matrix(p1vis))
+                        vis["p2"].set_object(meshcat.geometry.Sphere(rvis), capsule_material)
+                        vis["p2"].set_transform(meshcat.transformations.translation_matrix(p2vis))
+                        vis["cyl"].set_object(meshcat.geometry.Cylinder(h, rvis), capsule_material)
                     T = np.eye(4)
                     T[:3, 3] = (p1vis + p2vis) / 2
                     v = p2vis - p1vis
@@ -141,7 +143,8 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     T[:3, 0] = t1
                     T[:3, 1] = v  # Meshcat uses y as axis of rotational symmetry
                     T[:3, 2] = t2
-                    vis["cyl"].set_transform(T)
+                    if vis is not None:
+                        vis["cyl"].set_transform(T)
 
                     J = Jfn(x, mu, vertices)
                     A = J.t() @ J
@@ -200,7 +203,8 @@ def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
 
     print(f"\nstl_to_capsule() | Approximating {stl_path}")
     stl_mesh_geom = meshcat.geometry.StlMeshGeometry.from_file(stl_path)
-    vis["mesh"].set_object(stl_mesh_geom)
+    if vis is not None:
+        vis["mesh"].set_object(stl_mesh_geom)
     mesh = stl.mesh.Mesh.from_file(stl_path)
     vertices = mesh.vectors.reshape(-1, 3)
     vertices = torch.tensor(vertices)
@@ -213,8 +217,8 @@ def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
     figure = plt.figure()
     axes = figure.add_subplot(projection="3d")
     axes.add_collection3d(mplot3d.art3d.Poly3DCollection(mesh.vectors))
-    plot_sphere(axes, p1, r)
-    plot_sphere(axes, p2, r)
+    plot_sphere(axes, p1.cpu().numpy(), r.cpu().numpy())
+    plot_sphere(axes, p2.cpu().numpy(), r.cpu().numpy())
 
     scale = mesh.points.flatten()
     axes.auto_scale_xyz(scale, scale, scale)
