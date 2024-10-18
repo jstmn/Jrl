@@ -728,7 +728,7 @@ class XArm6(Robot):
         }
 
         # ignored_collision_pairs = []
-        ignored_collision_pairs = [('ldink3', 'link5'), ('link3', 'link6')]
+        ignored_collision_pairs = [('link3', 'link5'), ('link3', 'link6')]
         Robot.__init__(
             self,
             XArm6.name,
@@ -742,7 +742,58 @@ class XArm6(Robot):
             additional_link_name=None,
         )
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Ur3, Iiwa7, Iiwa14, Fr3, XArm6]
+class Cr5(Robot):
+    name = "cr5"
+    formal_robot_name = "Cr5"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+        ]
+        urdf_filepath = get_filepath("urdfs/cr5/cr5_robot.urdf")
+        base_link = "base_link"
+        end_effector_link_name = "link6"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link": _load_capsule("urdfs/cr5/capsules/base_link.txt"),
+            "link1": _load_capsule("urdfs/cr5/capsules/link1.txt"),
+            "link2": _load_capsule("urdfs/cr5/capsules/link2.txt"),
+            "link3": _load_capsule("urdfs/cr5/capsules/link3.txt"),
+            "link4": _load_capsule("urdfs/cr5/capsules/link4.txt"),
+            "link5": _load_capsule("urdfs/cr5/capsules/link5.txt"),
+            "link6": _load_capsule("urdfs/cr5/capsules/link6.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = [('link1', 'link4'), ('link4', 'link6')]
+        Robot.__init__(
+            self,
+            Cr5.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Ur3, Iiwa7, Iiwa14, XArm6, Cr5, Fr3]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]

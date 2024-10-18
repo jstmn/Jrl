@@ -1,23 +1,31 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Ur3, Iiwa7, Fr3, XArm6
+# from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Fr3, Ur3, Iiwa7, XArm6
+from jrl.robots import ALL_ROBOT_NAMES, get_robot
 
 import torch
 
 torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
 torch.set_default_device(DEVICE)
 
-""" uv run python scripts/calculate_ignorable_link_collision_pairs.py
+""" uv run python scripts/calculate_ignorable_link_collision_pairs.py --robot_name panda
 """
 
 
 if __name__ == "__main__":
+    import argparse
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--robot_name", type=str, required=True)
+    args = argparser.parse_args()
+
+    assert args.robot_name in ALL_ROBOT_NAMES
+
     always_colliding_pct = 0.95  # value used in moveit
     never_colliding_pct = 0.001
 
     # Note: you need to manually comment out the collision pairs in 'ignored_collision_pairs' in __init__()
-    robot = XArm6()
+    robot = get_robot(args.robot_name)
     # robot = Iiwa14()
     # robot = Iiwa7()
     # robot = Ur5()
