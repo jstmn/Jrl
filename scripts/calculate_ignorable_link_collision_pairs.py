@@ -1,7 +1,7 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Ur3, Iiwa7, Fr3
+from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Ur3, Iiwa7, Fr3, XArm6
 
 import torch
 
@@ -17,7 +17,8 @@ if __name__ == "__main__":
     never_colliding_pct = 0.001
 
     # Note: you need to manually comment out the collision pairs in 'ignored_collision_pairs' in __init__()
-    robot = Iiwa14()
+    robot = XArm6()
+    # robot = Iiwa14()
     # robot = Iiwa7()
     # robot = Ur5()
     # robot = Ur3()
@@ -61,7 +62,7 @@ if __name__ == "__main__":
             if colliding[i, j]:
                 collision_counter[(link_names[robot._collision_idx0[j]], link_names[robot._collision_idx1[j]])] += 1
 
-        if i % 1000 == 0:
+        if (i+1) % 20000 == 0:
             print_collision_counter(i)
     print_collision_counter(i)
 
