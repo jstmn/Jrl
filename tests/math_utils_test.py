@@ -9,7 +9,6 @@ from jrl.math_utils import (
     quaternion_conjugate,
     quaternion_norm,
     geodesic_distance_between_quaternions,
-    geodesic_distance_between_quaternions_warp,
     quatconj,
     quaternion_product,
     quatmul,
@@ -109,6 +108,10 @@ class TestConversions(unittest.TestCase):
         """Check whether backprop through forward_kinematics() and geodesic_distance_between_quaternions() will
         returns as nan for similar rotations
         """
+        if not torch.cuda.is_available():
+            print("Skipped test_geodesic_distance_between_quaternions_grad because CUDA is not available.")
+            return
+
         robot = FetchArm()
 
         def get_distance(device):
@@ -170,29 +173,6 @@ class TestConversions(unittest.TestCase):
             [[0.0, 0.92387953, 0.38268343, 0.0], [0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32
         )
         returned = geodesic_distance_between_quaternions(q1, q2)
-        self.assertAlmostEqual(3.1415927, returned[0].item(), places=3)
-        self.assertAlmostEqual(0.25, returned[1].item(), places=6)
-
-    def test_geodesic_distance_between_quaternions_warp(self):
-        """Test geodesic_distance_between_quaternions with torch tensor inputs"""
-        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
-        # Rotation about +x axis by .25 radians
-        q2 = torch.tensor([[0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32)
-        returned = geodesic_distance_between_quaternions_warp(q1, q2)[0].item()
-        self.assertAlmostEqual(0.25, returned, places=6)
-
-        # Test 2
-        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
-        q2 = torch.tensor([[0.0, 0.92387953, 0.38268343, 0.0]], device="cpu", dtype=torch.float32)
-        returned = geodesic_distance_between_quaternions_warp(q1, q2)[0].item()
-        self.assertAlmostEqual(3.1415927, returned, places=3)
-
-        # Test 3
-        q1 = torch.tensor([[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]], device="cpu", dtype=torch.float32)
-        q2 = torch.tensor(
-            [[0.0, 0.92387953, 0.38268343, 0.0], [0.9921977, 0.1246747, 0, 0]], device="cpu", dtype=torch.float32
-        )
-        returned = geodesic_distance_between_quaternions_warp(q1, q2)
         self.assertAlmostEqual(3.1415927, returned[0].item(), places=3)
         self.assertAlmostEqual(0.25, returned[1].item(), places=6)
 

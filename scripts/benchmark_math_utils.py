@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from jrl.utils import random_quaternions
-from jrl.math_utils import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_warp
+from jrl.math_utils import geodesic_distance_between_quaternions
 
 
 def fn_mean_std(fn: Callable, k: int):
@@ -37,8 +37,6 @@ if __name__ == "__main__":
     method_names = [
         "pytorch (cuda)",
         "pytorch (cpu)",
-        "warp (cuda)",
-        "warp (cpu)",
     ]
 
     for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000, 10000]:
@@ -52,8 +50,6 @@ if __name__ == "__main__":
         lambdas = [
             lambda: geodesic_distance_between_quaternions(qs1_gpu, qs2_gpu),
             lambda: geodesic_distance_between_quaternions(qs1_cpu, qs2_cpu),
-            lambda: geodesic_distance_between_quaternions_warp(qs1_gpu, qs2_gpu),
-            lambda: geodesic_distance_between_quaternions_warp(qs1_cpu, qs2_cpu),
         ]
         for lambda_, method_name in zip(lambdas, method_names):
             mean_runtime_ms, std_runtime = fn_mean_std(lambda_, k)
