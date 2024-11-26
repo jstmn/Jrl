@@ -16,3 +16,4 @@ scripts/warp_test.py
 .pytest_cache/
 venv-test/
 thirdparty/rerun-loader-python-example-urdf/
+thirdparty/curobo/
