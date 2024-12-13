@@ -19,40 +19,51 @@ def _get_device() -> Tuple[str, int]:
     def _get_devices_usage():
         mems = [[] for _ in range(n_devices)]
         utils = [[] for _ in range(n_devices)]
-        
+
         devices = [torch.cuda.device(i) for i in range(n_devices)]
 
         for _ in range(10):
-            for i in range(n_devices): 
-                mems[i].append(torch.cuda.memory_usage(device=devices[i]))    
+            for i in range(n_devices):
+                mems[i].append(torch.cuda.memory_usage(device=devices[i]))
                 utils[i].append(torch.cuda.utilization(device=devices[i]))
             sleep(0.01)
-        return [sum(ms)/len(mems[0]) for ms in mems], [sum(usg)/len(utils[0]) for usg in utils] 
+        return [sum(ms) / len(mems[0]) for ms in mems], [sum(usg) / len(utils[0]) for usg in utils]
 
     ave_mems, ave_utils = _get_devices_usage()
     min_mem_idx = min(range(n_devices), key=lambda i: ave_mems[i])
     min_util_idx = min(range(n_devices), key=lambda i: ave_utils[i])
 
-    print("Jrl/config.py: _get_device()")
-    print(f"  Average memory usage, per device: {ave_mems}")
-    print(f"  Average utilization, per device:  {ave_utils}")
-    print(f"  Lowest memory device:             'cuda:{min_mem_idx}'")
-    print(f"  Lowest utilization device:        'cuda:{min_util_idx}'")
+    print("Jrl/config.py: _get_device()", flush=True)
+    print(f"  Average memory usage, per device: {ave_mems}", flush=True)
+    print(f"  Average utilization, per device:  {ave_utils}", flush=True)
+    print(f"  Lowest memory device:             'cuda:{min_mem_idx}'", flush=True)
+    print(f"  Lowest utilization device:        'cuda:{min_util_idx}'", flush=True)
 
     # If same device has lowest memory and utilization, return that one
     if min_mem_idx == min_util_idx:
-        print(f"  Using device 'cuda:{min_mem_idx}' - it has both the lowest memory and utilization percent")
+        print(
+            f"  Using device 'cuda:{min_mem_idx}' - it has both the lowest memory and utilization percent", flush=True
+        )
         return f"cuda:{min_mem_idx}", min_mem_idx
-    
+
     device_pct_sums = [ave_mems[i] + ave_utils[i] for i in range(n_devices)]
     min_pct_sum_idx = min(range(n_devices), key=lambda i: device_pct_sums[i])
-    print(f"  Using device 'cuda:{min_pct_sum_idx}' - it has the lowest sum of memory and utilization percentages")
+    print(
+        f"  Using device 'cuda:{min_pct_sum_idx}' - it has the lowest sum of memory and utilization percentages",
+        flush=True,
+    )
 
     # Warn if chosen device has high memory or utilization
     if ave_mems[min_pct_sum_idx] > 20:
-        print(f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high memory usage: {ave_mems[min_pct_sum_idx]:.1f}%")
+        print(
+            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high memory usage: {ave_mems[min_pct_sum_idx]:.1f}%",
+            flush=True,
+        )
     if ave_utils[min_pct_sum_idx] > 20:
-        print(f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high utilization: {ave_utils[min_pct_sum_idx]:.1f}%")
+        print(
+            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high utilization: {ave_utils[min_pct_sum_idx]:.1f}%",
+            flush=True,
+        )
 
     return f"cuda:{min_pct_sum_idx}", min_pct_sum_idx
 
