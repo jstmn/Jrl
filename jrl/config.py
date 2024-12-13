@@ -16,25 +16,45 @@ def _get_device() -> Tuple[str, int]:
     if n_devices == 1:
         return "cuda:0", 0
 
-    def _mem_and_utilitization_ave_usage_pct(device_idx: int):
-        device = torch.cuda.device(device_idx)
-        mems = []
-        utils = []
-        for _ in range(2):
-            mems.append(torch.cuda.memory_usage(device=device))
-            utils.append(torch.cuda.utilization(device=device))
-            sleep(0.5)
-        return sum(mems) / len(mems), sum(utils) / len(utils)
+    def _get_devices_usage():
+        mems = [[] for _ in range(n_devices)]
+        utils = [[] for _ in range(n_devices)]
+        
+        devices = [torch.cuda.device(i) for i in range(n_devices)]
 
-    min_mem = 100
-    min_util = 100
-    for i in range(n_devices):
-        mem_pct, util_pct = _mem_and_utilitization_ave_usage_pct(i)
-        min_mem = min(min_mem, mem_pct)
-        min_util = min(min_util, util_pct)
-        if mem_pct < 5.0 and util_pct < 9:
-            return f"cuda:{i}", i
-    raise EnvironmentError(f"No unused GPU's available. Minimum memory, utilization: {min_mem, min_util}%")
+        for _ in range(10):
+            for i in range(n_devices): 
+                mems[i].append(torch.cuda.memory_usage(device=devices[i]))    
+                utils[i].append(torch.cuda.utilization(device=devices[i]))
+            sleep(0.01)
+        return [sum(ms)/len(mems[0]) for ms in mems], [sum(usg)/len(utils[0]) for usg in utils] 
+
+    ave_mems, ave_utils = _get_devices_usage()
+    min_mem_idx = min(range(n_devices), key=lambda i: ave_mems[i])
+    min_util_idx = min(range(n_devices), key=lambda i: ave_utils[i])
+
+    print("Jrl/config.py: _get_device()")
+    print(f"  Average memory usage, per device: {ave_mems}")
+    print(f"  Average utilization, per device:  {ave_utils}")
+    print(f"  Lowest memory device:             'cuda:{min_mem_idx}'")
+    print(f"  Lowest utilization device:        'cuda:{min_util_idx}'")
+
+    # If same device has lowest memory and utilization, return that one
+    if min_mem_idx == min_util_idx:
+        print(f"  Using device 'cuda:{min_mem_idx}' - it has both the lowest memory and utilization percent")
+        return f"cuda:{min_mem_idx}", min_mem_idx
+    
+    device_pct_sums = [ave_mems[i] + ave_utils[i] for i in range(n_devices)]
+    min_pct_sum_idx = min(range(n_devices), key=lambda i: device_pct_sums[i])
+    print(f"  Using device 'cuda:{min_pct_sum_idx}' - it has the lowest sum of memory and utilization percentages")
+
+    # Warn if chosen device has high memory or utilization
+    if ave_mems[min_pct_sum_idx] > 20:
+        print(f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high memory usage: {ave_mems[min_pct_sum_idx]:.1f}%")
+    if ave_utils[min_pct_sum_idx] > 20:
+        print(f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high utilization: {ave_utils[min_pct_sum_idx]:.1f}%")
+
+    return f"cuda:{min_pct_sum_idx}", min_pct_sum_idx
 
 
 DEVICE, GPU_IDX = _get_device()
@@ -43,7 +63,7 @@ DEFAULT_TORCH_DTYPE = torch.float32
 
 PT_NP_TYPE = Union[np.ndarray, torch.Tensor]
 
-URDF_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".cache/jrl/temp_urdfs")
+URDF_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), ".cache/jrl/urdfs")
 
 torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
 torch.set_default_device(DEVICE)
