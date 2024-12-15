@@ -6,7 +6,7 @@
 | `panda`  | https://github.com/ARISE-Initiative/robosuite/blob/92abf5595eddb3a845cd1093703e5a3ccd01e77e/robosuite/models/assets/bullet_data/panda_description/urdf/panda.urdf  |  |
 | `fetch` | https://github.com/openai/roboschool/tree/master/roboschool/models_robot/fetch_description/robots  |  |
 | `iiwa7` | https://github.com/IFL-CAMP/iiwa_stack/blob/master/iiwa_description/urdf/iiwa7.xacro  |  |
-| `ur5` | https://github.com/ros-industrial/universal_robot/tree/melodic-devel  |  |
+| `ur3-ur16e` | https://github.com/ros-industrial/universal_robot/tree/melodic-devel  |  |
 
 
 ## Generate a .urdf from an .xacro file
