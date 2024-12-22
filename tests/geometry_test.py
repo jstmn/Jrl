@@ -4,7 +4,13 @@ import torch
 import numpy as np
 
 from jrl.utils import set_seed
-from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
+from jrl.geometry import (
+    capsule_capsule_distance_batch,
+    capsule_cuboid_distance_batch,
+    cuboid_sphere_distance_batch,
+    sphere_capsule_distance_batch,
+    CuboidUtils,
+)
 from jrl.math_utils import quaternion_to_rotation_matrix
 from jrl.config import DEVICE
 
@@ -140,6 +146,240 @@ class TestGeometry(unittest.TestCase):
 
         self.assertGreater(pos_dist_count, 0)
         print("pos_dist_count:", pos_dist_count)
+
+    # python -m unittest tests/geometry_test.py TestGeometry.test__cuboid_corners_in_world_frame
+    def test__cuboid_corners_in_world_frame(self):
+        # tf 0: identity
+        # tf 1: rotz(90 deg) + translation([1, 1, 1])
+        tfs = torch.cat(
+            [
+                torch.eye(4).view(1, 4, 4),
+                torch.tensor([
+                    [0.0000000, -1.0000000, 0.0000000, 5.0],
+                    [1.0000000, 0.0000000, 0.0000000, 5.0],
+                    [0.0000000, 0.0000000, 1.0000000, 5.0],
+                    [0, 0, 0, 1.0],
+                ]).view(1, 4, 4),
+            ],
+            dim=0,
+        )
+        assert tfs.shape == (2, 4, 4)
+        corners = torch.tensor([
+            [-1, -1, -1, 2, 3, 4],  # ( x1, y1, z1, x2, y2, z2)
+            [-2, -2, -2, 5.0, 1.0, 1.0],  # ( x1, y1, z1, x2, y2, z2)
+        ])
+        c0_expected = torch.tensor([[-1, -1, -1], [2 + 5.0, -2 + 5.0, -2 + 5.0]])
+        c6_expected = torch.tensor([[2, 3, 4], [-1 + 5.0, 5 + 5.0, 1 + 5.0]])
+
+        c0, c1, c2, c3, c4, c5, c6, c7 = CuboidUtils._cuboid_corners_in_world_frame(tfs, corners)
+
+        self.assertEqual(c0_expected.shape, c0.shape)
+        self.assertEqual(c6_expected.shape, c6.shape)
+        torch.testing.assert_close(c0_expected, c0, atol=1e-6, rtol=0.0)
+        torch.testing.assert_close(c6_expected, c6, atol=1e-6, rtol=0.0)
+
+    # python -m unittest tests.geometry_test.TestGeometry.test__get_cuboid_G_h
+    def test__get_cuboid_G_h(self):
+
+        # tf 0: identity
+        # tf 1: rotz(90 deg) + translation([1, 1, 1])
+        tfs = torch.cat(
+            [
+                torch.tensor([
+                    [1.0, 0.0, 0.0, 0.5],
+                    [0.0, 1.0, 0.0, 0.5],
+                    [0.0, 0.0, 1.0, 0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]).view(1, 4, 4),
+                torch.eye(4).view(1, 4, 4),
+                torch.tensor([
+                    [0.0000000, -1.0000000, 0.0000000, 3.0],
+                    [1.0000000, 0.0000000, 0.0000000, 3.0],
+                    [0.0000000, 0.0000000, 1.0000000, 2.0],
+                    [0, 0, 0, 1.0],
+                ]).view(1, 4, 4),
+                torch.tensor([
+                    [0.7071068, -0.5, 0.50, -1.0],
+                    [0.5, 0.8535534, 0.1464466, -1.0],
+                    [-0.5, 0.1464466, 0.8535534, 4.0],
+                    [0, 0, 0, 1.0],
+                ]).view(1, 4, 4),
+            ],
+            dim=0,
+        )
+
+        corners = torch.tensor([
+            [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
+            [-1, -1, -1, 1, 0.5, 0.5],  # ( x1, y1, z1, x2, y2, z2)
+            [-1, -1, -2, 0.5, 0.5, 1.0],
+            [-1, -1, -1, 1.0, 1.0, 1.0],
+        ])
+        c0, c1, c2, c3, c4, c5, c6, c7 = CuboidUtils._cuboid_corners_in_world_frame(tfs, corners)
+        G, h = CuboidUtils._get_cuboid_G_h(tfs, c0, c1, c2, c3, c4, c5, c6, c7, debug=False)
+        self.assertEqual(G.shape, (len(tfs), 6, 3))  # G is [ n x 6 x 3]
+
+        print()
+        print("G: ", G)
+        print("h: ", h)
+
+        # Gx <= h
+        # so should be that 'G*center <= h' / 'G*center - h <= 0'
+        #   G[:, 0, :] = plane . lower
+        #   G[:, 1, :] = plane . upper
+        #   G[:, 2, :] = plane . left
+        #   G[:, 3, :] = plane . right
+        #   G[:, 4, :] = plane . front
+        #   G[:, 5, :] = plane . back
+
+        #
+        #
+        centers = tfs[:, :3, 3].view(len(tfs), 3, 1)
+        res = G.bmm(centers) - h.view(len(tfs), 6, 1)
+        print()
+        print()
+        print("===== Testing cube centers against constraints\n")
+        print("centers:", centers)
+        print("res:    ", res)
+        self.assertLessEqual(res.max(), 0.0)
+        print("SUCCESS - constraints satisfied for all cube centers")
+
+        #
+        #
+        print()
+        print()
+        print("===== Testing point (0, 0, 0) against front plane constraint\n")
+        G_0_front = G[0, 4]
+        p_zero = torch.tensor([0.0, 0.0, 0.0])
+        res_p_zero = G_0_front.dot(p_zero) - h[0, 4]
+        assert res_p_zero.numel() == 1
+        print("res_p_zero:", res_p_zero)
+
+        # (0, 0., 0.0) is outside of the cube, so Gp - h should be positive
+        print()
+        print()
+        print("===== Testing point outside of cube\n")
+        G_0 = G[0]  # [ 6 x 3 ]
+        p = torch.tensor([[0.0, 0.0, 0.0]]).T  # [ 3 x 1 ]
+        res_2 = G_0.matmul(p.T.view(3, 1)).view(6) - h[0]
+        assert res_2.numel() == 6, f"res.shape: {res.shape}"
+        print("res_2:", res_2.view(6, 1))
+
+        for i in range(6):
+            constraint_names = ["lower", "upper", "left", "right", "front", "back"]
+            if res_2[i] > 0.0:
+                print(f"  {constraint_names[i]} constraint violated (res_2[{i}]: {res_2[i]})")
+
+        self.assertGreater(res_2.max(), 0.0, f"one value must be positive, meaning there is a unsatisfied constraint")
+        print("success - all constraints satisfied for point outside of cube")
+
+    # python -m unittest tests.geometry_test.TestGeometry.test_sphere_cuboid
+    def test_sphere_cuboid(self):
+        # tf 0, 1: identity
+        # tf 2: rotz(90 deg) + translation([1, 1, 1])
+        tfs = torch.cat(
+            [
+                torch.eye(4).view(1, 4, 4),
+                torch.eye(4).view(1, 4, 4),
+                torch.tensor([
+                    [0.0000000, -1.0000000, 0.0000000, 0.0],
+                    [1.0000000, 0.0000000, 0.0000000, 0.0],
+                    [0.0000000, 0.0000000, 1.0000000, 0.0],
+                    [0, 0, 0, 1.0],
+                ]).view(1, 4, 4),
+                torch.tensor([
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 1.5],
+                    [0, 0, 0, 1.0],
+                ]).view(1, 4, 4),
+                torch.tensor([
+                    [1.0000, 0.0000, 0.0000, 0.7874],
+                    [0.0000, 1.0000, 0.0000, 0.9345],
+                    [0.0000, 0.0000, 1.0000, 0.4503],
+                    [0.0000, 0.0000, 0.0000, 1.0000],
+                ]).view(1, 4, 4),
+            ],
+            dim=0,
+        )
+        corners = torch.tensor([
+            [-1, -1, -1, 1, 1, 1.0],
+            [-1, -1, -1, 1, 1, 1.0],
+            [-1, -1, -1, 1, 1, 1.0],
+            [-1, -1, -1, 1, 1, 1.0],
+            [-1, -1, -1, 1, 1, 1.0],
+        ])
+
+        sphere_centers = torch.tensor(
+            [[2.0, 2.0, 2.0], [2.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 0.0, 1.5], [0.7874 + 1.0, 0.9345, 0.4503]]
+        )
+        sphere_radii = torch.tensor([[1.732050808 / 2], [0.25], [0.25], [0.25], [0.1]])
+
+        # TODO: this is wrong i think, draw it out
+        distances_expected = torch.tensor([[1.732050808 / 2], [0.75], [0.75], [0.75], [0.9]])
+        distances_recv = cuboid_sphere_distance_batch(tfs, corners, sphere_centers, sphere_radii)
+        self.assertEqual(distances_recv.numel(), len(tfs))
+        print("distances_expected:", distances_expected)
+        print("distances_recv:    ", distances_recv)
+        torch.testing.assert_close(distances_expected, distances_recv, rtol=0.0, atol=0.001)
+
+    # python -m unittest tests.geometry_test.TestGeometry.test_sphere_cuboid_specific
+    def test_sphere_cuboid_specific(self):
+        tfs = torch.cat(
+            [
+                torch.tensor([
+                    # [0.2919266, 0.7080734, 0.6429704, 0.5],
+                    # [0.7080734, 0.2919266, -0.6429704, 0.5],
+                    # [-0.6429704, 0.6429704, -0.4161468, 0],
+                    [1.0, 0.0, 0.0, 0.5],
+                    [0.0, 1.0, 0.0, 0.5],
+                    [0.0, 0.0, 1.0, 0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]).view(1, 4, 4),
+            ],
+            dim=0,
+        )
+        corners = torch.tensor([
+            [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
+        ])
+        sphere_centers = torch.tensor([[0.0, 0.0, 0.0]])
+        sphere_radii = torch.tensor([[0.1]])
+        dist, sol, G, h = cuboid_sphere_distance_batch(tfs, corners, sphere_centers, sphere_radii, return_sol=True)
+
+        print("dist:", dist)
+        print("sol: ", sol)
+        print("G:   ", G)
+        print("h:   ", h)
+
+        for i in range(6):
+            constraint_names = ["lower", "upper", "left", "right", "front", "back"]
+            constraint_val = G[0, i].dot(sol[0, :, 0]) - h[0, i]
+            if constraint_val > 0.0:
+                print(f"  {constraint_names[i]} constraint violated (res{i}: {constraint_val})")
+
+    # python -m unittest tests.geometry_test.TestGeometry.test_sphere_capsule_distance_batch
+    def test_sphere_capsule_distance_batch(self):
+
+        # capsule center points are (0, 0, -1), (0, 0, 1)
+        capsules = torch.tensor([
+            [0, 0, -1, 0, 0, 1, 0.25],
+            # [0, 0, -1, 0, 0, 1, 0.25],
+            # [0, 0, -1, 0, 0, 1, 0.25],
+        ])
+        capsule_poses = torch.eye(4).expand(3, 4, 4)
+        spheres = torch.tensor([
+            [1.0, 0.0, 0.0, 0.1],
+            # [0.0, 0.0, 2.0, 0.1],
+            # [1.0, 1.0, 2.0, 0.1] # dist from (0, 0, 1) to (1, 1, 2) minus 0.1, minus 0.25
+        ])
+
+        distances_expected = torch.tensor([0.0])
+        # dist_gt_3 = math.sqrt(3) - 0.25 - 0.1
+        # distances_expected = torch.tensor([0.65, 0.65, dist_gt_3])
+        distances = sphere_capsule_distance_batch(capsules, capsule_poses, spheres)
+        print("distances:         ", distances)
+        print("\ndistances_expected:", distances_expected)
+        self.assertEqual(distances.numel(), 3)
+        torch.testing.assert_close(distances, distances_expected, atol=0.001, rtol=0.0)
 
 
 if __name__ == "__main__":
