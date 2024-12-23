@@ -53,6 +53,7 @@ def init_vis(links: List[str], vis_mesh_path: str, mesh_format: str):
     for link_i, link in enumerate(links):
         capsule = robot._collision_capsules[link_i, :].cpu().numpy().astype(np.float64)
         p1, p2, capsule_radius = capsule[0:3], capsule[3:6], capsule[6]
+        print(link_i, "\t", link, "\t", p1, p2)
         capsule_geom = Capsule(p1, p2, capsule_radius)
         capsule_material = meshcat.geometry.MeshToonMaterial(color=0x8888FF, opacity=0.4)
 
@@ -61,15 +62,17 @@ def init_vis(links: List[str], vis_mesh_path: str, mesh_format: str):
         vis[f"{robot.name}/{link}/capsule/cyl"].set_transform(capsule_geom.T)
 
         if mesh_format == "dae":
-            vis[f"{robot.name}/{link}/mesh"].set_object(
-                meshcat.geometry.DaeMeshGeometry.from_file(f"{vis_mesh_path}/{link}.dae"),
-                meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
-            )
+            fpath = f"{vis_mesh_path}/{link}.dae"
         elif mesh_format == "stl":
-            vis[f"{robot.name}/{link}/mesh"].set_object(
-                meshcat.geometry.StlMeshGeometry.from_file(f"{vis_mesh_path}/{link}.stl"),
-                meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
-            )
+            fpath = f"{vis_mesh_path}/{link}.stl"
+        else:
+            print(f"File extension '{mesh_format}' not recognized")
+
+        assert os.path.exists(fpath), f"File '{fpath}' does not exist"
+        vis[f"{robot.name}/{link}/mesh"].set_object(
+            meshcat.geometry.DaeMeshGeometry.from_file(fpath),
+            meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
+        )
 
         vis[f"{robot.name}/{link}/capsule/p1"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
         vis[f"{robot.name}/{link}/capsule/p2"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
@@ -132,6 +135,8 @@ def set_config(
 def main(robot: Robot):
     links = list(k for k, v in robot._collision_capsules_by_link.items() if v is not None)
 
+    print(links)
+
     mesh_format = "dae"
     if "fetch" in robot.name:
         vis_mesh_path = "jrl/urdfs/fetch/meshes"
@@ -143,6 +148,10 @@ def main(robot: Robot):
         vis_mesh_path = "jrl/urdfs/panda/meshes/visual"
         links = [link.replace("panda_", "") for link in links]
         links.remove("link8")
+        if "temp" in robot.name:
+            # links.remove("leftfinger")
+            # links.append("finger")
+            pass
     elif "iiwa14" in robot.name:
         vis_mesh_path = "jrl/urdfs/iiwa14/meshes/visual"
         mesh_format = "stl"
@@ -165,11 +174,12 @@ def main(robot: Robot):
 
         sleep(0.1)
         if is_self_collision or is_env_collision:
-            sleep(1.0)
+            sleep(150.0)
 
 
 """ 
 python scripts/visualize_robot_meshcat.py --robot_name panda
+python scripts/visualize_robot_meshcat.py --robot_name panda_temp
 python scripts/visualize_robot_meshcat.py --robot_name fetch
 python scripts/visualize_robot_meshcat.py --robot_name rizon4
 python scripts/visualize_robot_meshcat.py --robot_name iiwa14

@@ -312,6 +312,66 @@ class Panda(Robot):
         )
 
 
+class PandaTemp(Robot):
+    name = "panda_temp"
+    formal_robot_name = "Panda"
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "panda_joint1",  # (-2.8973, 2.8973)
+            "panda_joint2",  # (-1.7628, 1.7628)
+            "panda_joint3",  # (-2.8973, 2.8973)
+            "panda_joint4",  # (-3.0718, -0.0698)
+            "panda_joint5",  # (-2.8973, 2.8973)
+            "panda_joint6",  # (-0.0175, 3.7525)
+            "panda_joint7",  # (-2.8973, 2.8973)
+        ]
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        collision_capsules_by_link = {
+            "panda_link0": _load_capsule("urdfs/panda/capsules/link0.txt"),
+            "panda_link1": _load_capsule("urdfs/panda/capsules/link1.txt"),
+            "panda_link2": _load_capsule("urdfs/panda/capsules/link2.txt"),
+            "panda_link3": _load_capsule("urdfs/panda/capsules/link3.txt"),
+            "panda_link4": _load_capsule("urdfs/panda/capsules/link4.txt"),
+            "panda_link5": _load_capsule("urdfs/panda/capsules/link5.txt"),
+            "panda_link6": _load_capsule("urdfs/panda/capsules/link6.txt"),
+            "panda_link7": _load_capsule("urdfs/panda/capsules/link7.txt"),
+            "panda_link8": None,
+            "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
+            "finger_temp": _load_capsule("urdfs/panda/capsules/finger_temp.txt")
+        }
+
+        urdf_filepath = get_filepath("urdfs/panda/panda_temp_formatted.urdf")
+        base_link = "panda_link0"
+        end_effector_link_name = "panda_hand"
+        # with additional ignored pairs, goes from 20 collision pair checks to 9. This results in a ~2x speedup
+        ignored_collision_pairs = (
+            [
+                ("panda_hand", "panda_link7"),
+                ("panda_rightfinger", "panda_leftfinger"),
+                ("panda_link7", "panda_link5"),  # these two don't actually collide if joint limits are respected
+            ]
+            + PANDA_ALWAYS_COLLIDING_LINKS
+            + PANDA_NEVER_COLLIDING_LINKS
+        )
+        additional_link_name = "finger_temp"
+
+        Robot.__init__(
+            self,
+            Panda.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=additional_link_name,
+        )
+
+
 class Iiwa7(Robot):
     name = "iiwa7"
     formal_robot_name = "Kuka LBR IIWA7"
@@ -504,7 +564,7 @@ class Ur5(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14]
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14, PandaTemp]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]

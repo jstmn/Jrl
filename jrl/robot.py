@@ -107,6 +107,7 @@ def _generate_self_collision_pairs(
 
     # Add in the additional link
     if additional_link is not None:
+        print(f"adding capsule for '{additional_link}'")
         capsules.append(collision_capsules_by_link[additional_link])
         idx = capsule_idx_to_joint_idx[-1] + 1
         link_name_to_idx[additional_link] = idx

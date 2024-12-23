@@ -100,6 +100,7 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 """ Example usage
 
 # Oscillate joints
+python scripts/visualize_robot.py --robot_name=panda_temp
 python scripts/visualize_robot.py --robot_name=panda
 python scripts/visualize_robot.py --robot_name=iiwa7
 python scripts/visualize_robot.py --robot_name=iiwa14
