@@ -130,6 +130,7 @@ def _generate_self_collision_pairs(
         torch.tensor(capsule_idx_to_joint_idx, dtype=torch.long, device=DEVICE),
         torch.tensor(idx0, dtype=torch.long, device=DEVICE),
         torch.tensor(idx1, dtype=torch.long, device=DEVICE),
+        link_name_to_idx
     )
 
 
@@ -221,6 +222,7 @@ class Robot:
                 self._capsule_idx_to_link_idx,
                 self._collision_idx0,
                 self._collision_idx1,
+                self._link_name_to__collision_capsules_idx
             ) = _generate_self_collision_pairs(
                 self._collision_capsules_by_link,
                 self._end_effector_kinematic_chain,

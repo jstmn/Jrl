@@ -2,11 +2,9 @@ from typing import Optional, Tuple
 from time import time
 
 import torch
-
 import meshcat
 
 from jrl.math_utils import QP
-from jrl import meshcat_utils
 from jrl.utils import evenly_spaced_colors
 
 
@@ -311,6 +309,7 @@ class CuboidUtils:
                 print()
 
         if viz is not None:
+            from jrl import meshcat_utils
             cube_colors = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
             plane_colors = evenly_spaced_colors(6)
             for i in range(n):
@@ -577,4 +576,6 @@ class PlottingDemos:
 
 
 if __name__ == "__main__":
+    import meshcat
+    from jrl import meshcat_utils
     PlottingDemos.plot_sphere_cuboid()

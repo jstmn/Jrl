@@ -1,79 +1,41 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, Dict, List
 from time import sleep
+import os
 
+import meshcat
 import colorsys
 import uuid
 import meshcat as mc
 import numpy as np
 import torch
 
+from jrl.geometry import capsule_cuboid_distance_batch, capsule_capsule_distance_batch
+from jrl.robot import Robot
 
-"""
-A cylinder of the given height and radius. By Three.js convention, the axis of rotational symmetry is aligned with the 
-y-axis.
-
-Borrowed from the 'Cylinder' class in geometry.py from mc
-"""
-
-
-class OpenEndedCylinder(mc.geometry.Geometry):
-    field = "geometries"
-
-    def __init__(self, height, radius=1.0, radiusTop=None, radiusBottom=None):
-        super(mc.geometry.Geometry, self).__init__()
-        if radiusTop is not None and radiusBottom is not None:
-            self.radiusTop = radiusTop
-            self.radiusBottom = radiusBottom
-        else:
-            self.radiusTop = radius
-            self.radiusBottom = radius
-        self.height = height
-        self.radialSegments = 50
-        # self.radialSegments = 100
-        # self.radialSegments = 75
-
-    def lower(self, object_data):
-        return {
-            "uuid": self.uuid,
-            "type": "CylinderGeometry",
-            "radiusTop": self.radiusTop,
-            "radiusBottom": self.radiusBottom,
-            "height": self.height,
-            "radialSegments": self.radialSegments,
-            "openEnded": True,
-        }
-
-
-"""
-A cylinder of the given height and radius. By Three.js convention, the axis of
-rotational symmetry is aligned with the y-axis.
-"""
-
-
-class JmCapsule(mc.geometry.Geometry):
-    def __init__(self, length, radius):
-        super(JmCapsule, self).__init__()
-        self.length = length
-        self.radius = radius
-        self.capSegments = 4
-        self.radialSegments = 4
-
-    def lower(self, object_data):
-        return {
-            "uuid": self.uuid,
-            "radius": self.radius,  #  — Radius of the capsule. Optional; defaults to 1.
-            "length": self.length,  #  — Length of the middle section. Optional; defaults to 1.
-            "capSegments": (
-                self.capSegments
-            ),  #  — Number of curve segments used to build the caps. Optional; defaults to 4.
-            "radialSegments": self.radialSegments,
-            "type": "CapsuleGeometry",
-        }
+class Capsule:
+    def __init__(self, p1, p2, r):
+        super(Capsule, self).__init__()
+        self.length = np.linalg.norm(p2 - p1)
+        self.radius = r
+        self.T = np.eye(4)
+        self.T[:3, 3] = (p1 + p2) / 2
+        v = p2 - p1
+        v = v / np.linalg.norm(v)
+        x, y, z = v
+        sign = 1 if z > 0 else -1
+        a = -1 / (sign + z)
+        b = x * y * a
+        t1 = np.array([1 + sign * x * x * a, sign * b, -sign * x])
+        t2 = np.array([b, sign + y * y * a, -y])
+        self.T[:3, 0] = t1
+        self.T[:3, 1] = v  # Meshcat uses y as axis of rotational symmetry
+        self.T[:3, 2] = t2
 
 
 num_cuboids = 0
 num_capsules = 0
 num_pointclouds = 0
+num_robots = 0
 # DEFAULT_MATERIAL = mc.geometry.MeshToonMaterial(color=0xFF8800, wireframe=True)
 DEFAULT_MATERIAL = mc.geometry.MeshPhongMaterial(color=0xFF8800, wireframe=True)
 # DEFAULT_MATERIAL = mc.geometry.MeshLambertMaterial(color=0xFF8800, wireframe=True)
@@ -91,7 +53,7 @@ def k_evenly_spaced_colors(k: int) -> Tuple[float, float, float]:
     return colors
 
 
-def add_cuboid(vis: mc.Visualizer, world__T__cuboid: torch.Tensor, corners: torch.Tensor):
+def add_cuboid(vis: mc.Visualizer, world__T__cuboid: Union[torch.Tensor, np.ndarray], corners: torch.Tensor):
     """_summary_
 
     corners:
@@ -105,12 +67,16 @@ def add_cuboid(vis: mc.Visualizer, world__T__cuboid: torch.Tensor, corners: torc
         corners (torch.Tensor): _description_
     """
     assert corners.numel() == 6
-    assert world__T__cuboid.numel() == 16
     assert (corners.view(6)[0:3].abs() - corners.view(6)[3:].abs()).abs().max() < 1e-6, f"cuboid must be symmetrical"
     global num_cuboids
     corners = corners.view(6).cpu().numpy().astype(np.float64)
     side_lengths = np.array(corners[3:] - corners[0:3])
-    tf = world__T__cuboid.view(4, 4).cpu().numpy().astype(np.float64)  # note: needs to be np.float64
+    if isinstance(corners, torch.Tensor):
+        assert world__T__cuboid.numel() == 16
+        tf = world__T__cuboid.view(4, 4).cpu().numpy().astype(np.float64)  # note: needs to be np.float64
+    else:
+        assert world__T__cuboid.size == 16
+        tf = world__T__cuboid.astype(np.float64)  # note: needs to be np.float64
     box = mc.geometry.Box(side_lengths)
     vis[f"cuboid_{num_cuboids}"].set_object(box, DEFAULT_MATERIAL)
     vis[f"cuboid_{num_cuboids}"].set_transform(tf)
@@ -121,6 +87,81 @@ def add_cuboid(vis: mc.Visualizer, world__T__cuboid: torch.Tensor, corners: torc
     # vis[f"cuboid_{num_cuboids}_sph"].set_transform(tf)
     num_cuboids += 1
     return num_cuboids - 1
+
+
+def add_robot(vis: meshcat.Visualizer, robot: Robot, link_data: Dict[str, Tuple[str, str]], link_colors: Optional[Dict] = None):
+    """
+    link_data: {
+        link0: ['path/to/visual', 'path/to/collision'],
+        ...
+        link1: ['path/to/visual', 'path/to/collision'],
+    }
+    """
+    assert isinstance(link_data, dict) and len(link_data) > 6
+    global num_robots
+
+
+    for link_name, link_mesh_paths in link_data.items():
+
+        if "7" in link_name or "hand" in link_name:
+            continue
+
+        caps_idx = robot._link_name_to__collision_capsules_idx[link_name]
+        capsule = robot._collision_capsules[caps_idx, :].cpu().numpy().astype(np.float64)
+        p1, p2, capsule_radius = capsule[0:3], capsule[3:6], capsule[6]
+
+        print(link_name, "\t", p1, p2)
+
+        color = 0x8888FF
+        if link_colors is not None and link_name in link_colors:
+            color = link_colors[link_name]
+        capsule_geom = Capsule(p1, p2, capsule_radius)
+        capsule_material = meshcat.geometry.MeshToonMaterial(color=color, opacity=0.4)
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/p1"].set_transform(meshcat.transformations.translation_matrix(p1))
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/p2"].set_transform(meshcat.transformations.translation_matrix(p2))
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/cyl"].set_transform(capsule_geom.T)
+
+
+        mesh_visual_fpath, _ = link_mesh_paths
+        assert os.path.exists(mesh_visual_fpath), f"Mesh visual filepath '{mesh_visual_fpath}' does not exist"
+        print(f"adding '{mesh_visual_fpath}'")
+        vis[f"{robot.name}_{num_robots}/{link_name}/mesh"].set_object(
+            meshcat.geometry.DaeMeshGeometry.from_file(mesh_visual_fpath),
+            meshcat.geometry.MeshLambertMaterial(color=0xFFFFFF),
+        )
+
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/p1"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/p2"].set_object(meshcat.geometry.Sphere(capsule_radius), capsule_material)
+        cyl_geom = meshcat.geometry.Cylinder(capsule_geom.length, capsule_radius)
+        vis[f"{robot.name}_{num_robots}/{link_name}/capsule/cyl"].set_object(cyl_geom, capsule_material)
+
+    num_robots += 1
+    return num_robots - 1
+
+
+
+def set_robot_configuration(
+    vis: meshcat.Visualizer,
+    robot_id: int,
+    robot: Robot,
+    q: torch.Tensor,
+    link_data: Dict,
+):
+    """
+    link_data: {
+        link0: ['path/to/visual', 'path/to/collision'],
+        ...
+        link1: ['path/to/visual', 'path/to/collision'],
+    }
+    """
+    n = robot._capsule_idx_to_link_idx.shape[0]
+    base_T_links = robot.forward_kinematics(q, return_full_link_fk=True, out_device=q.device, dtype=q.dtype)
+
+    for link_name, _ in link_data.items():
+        link_idx = robot._link_name_to__collision_capsules_idx[link_name]
+        T = base_T_links[0, link_idx, :, :].cpu().numpy().astype(np.float64)
+        vis[f"{robot.name}_{robot_id}/{link_name}"].set_transform(T)
+
 
 
 def add_capsule(vis: mc.Visualizer, world__T__capsule: torch.Tensor, cap_pose: torch.Tensor):
@@ -330,7 +371,7 @@ def spin(vis: mc.Visualizer):
 
 def init_vis() -> mc.Visualizer:
     vis = mc.Visualizer()
-    # vis["/Background"].set_property("visible", False)
+    vis["/Background"].set_property("visible", False)
     # vis["/Background"].set_property("top_color", [1.0, 1.0, 1.0])
     # vis["/Background"].set_property("bottom_color", [0.9, 0.9, 0.9])
     return vis

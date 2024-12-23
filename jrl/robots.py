@@ -325,6 +325,7 @@ class PandaTemp(Robot):
             "panda_joint5",  # (-2.8973, 2.8973)
             "panda_joint6",  # (-0.0175, 3.7525)
             "panda_joint7",  # (-2.8973, 2.8973)
+            "panda_finger_joint1",  # (-2.8973, 2.8973)
         ]
 
         # Must match the total number of joints (including fixed) in the robot.
@@ -340,12 +341,12 @@ class PandaTemp(Robot):
             "panda_link7": _load_capsule("urdfs/panda/capsules/link7.txt"),
             "panda_link8": None,
             "panda_hand": _load_capsule("urdfs/panda/capsules/hand.txt"),
-            "finger_temp": _load_capsule("urdfs/panda/capsules/finger_temp.txt")
+            "panda_leftfinger": _load_capsule("urdfs/panda/capsules/finger_temp.txt")
         }
 
         urdf_filepath = get_filepath("urdfs/panda/panda_temp_formatted.urdf")
         base_link = "panda_link0"
-        end_effector_link_name = "panda_hand"
+        end_effector_link_name = "panda_leftfinger"
         # with additional ignored pairs, goes from 20 collision pair checks to 9. This results in a ~2x speedup
         ignored_collision_pairs = (
             [
@@ -356,7 +357,7 @@ class PandaTemp(Robot):
             + PANDA_ALWAYS_COLLIDING_LINKS
             + PANDA_NEVER_COLLIDING_LINKS
         )
-        additional_link_name = "finger_temp"
+        additional_link_name = None # "panda_leftfinger"
 
         Robot.__init__(
             self,
