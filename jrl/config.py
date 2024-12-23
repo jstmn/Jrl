@@ -56,12 +56,14 @@ def _get_device() -> Tuple[str, int]:
     # Warn if chosen device has high memory or utilization
     if ave_mems[min_pct_sum_idx] > 20:
         print(
-            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high memory usage: {ave_mems[min_pct_sum_idx]:.1f}%",
+            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high memory usage:"
+            f" {ave_mems[min_pct_sum_idx]:.2f}%",
             flush=True,
         )
     if ave_utils[min_pct_sum_idx] > 20:
         print(
-            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high utilization: {ave_utils[min_pct_sum_idx]:.1f}%",
+            f"  WARNING: Chosen device 'cuda:{min_pct_sum_idx}' has high utilization:"
+            f" {ave_utils[min_pct_sum_idx]:.2f}%",
             flush=True,
         )
 
