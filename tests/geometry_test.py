@@ -2,6 +2,7 @@ import unittest
 
 import torch
 import numpy as np
+import math
 
 from jrl.utils import set_seed
 from jrl.geometry import (
@@ -327,9 +328,6 @@ class TestGeometry(unittest.TestCase):
         tfs = torch.cat(
             [
                 torch.tensor([
-                    # [0.2919266, 0.7080734, 0.6429704, 0.5],
-                    # [0.7080734, 0.2919266, -0.6429704, 0.5],
-                    # [-0.6429704, 0.6429704, -0.4161468, 0],
                     [1.0, 0.0, 0.0, 0.5],
                     [0.0, 1.0, 0.0, 0.5],
                     [0.0, 0.0, 1.0, 0],
@@ -359,26 +357,26 @@ class TestGeometry(unittest.TestCase):
     # python -m unittest tests.geometry_test.TestGeometry.test_sphere_capsule_distance_batch
     def test_sphere_capsule_distance_batch(self):
 
+        # Capsules refrence frame have end points in the +x direction
         # capsule center points are (0, 0, -1), (0, 0, 1)
         capsules = torch.tensor([
-            [0, 0, -1, 0, 0, 1, 0.25],
-            # [0, 0, -1, 0, 0, 1, 0.25],
-            # [0, 0, -1, 0, 0, 1, 0.25],
+            [0, 0, -1, 0, 0, 1, 0.1],
+            [0, 0, -1, 0, 0, 1, 0.1],
+            [0, 0, -1, 0, 0, 1, 0.1],
         ])
-        capsule_poses = torch.eye(4).expand(3, 4, 4)
+        capsule_poses = torch.eye(4).expand(capsules.shape[0], 4, 4)
         spheres = torch.tensor([
-            [1.0, 0.0, 0.0, 0.1],
-            # [0.0, 0.0, 2.0, 0.1],
-            # [1.0, 1.0, 2.0, 0.1] # dist from (0, 0, 1) to (1, 1, 2) minus 0.1, minus 0.25
+            [1.0, 0.0, 0.0, 0.2],
+            [0.0, 0.0, 2.0, 0.2],
+            [1.0, 1.0, 0.0, 0.2],  # dist from (0, 0, 1) to (1, 1, 2) minus 0.1, minus 0.25
         ])
-
-        distances_expected = torch.tensor([0.0])
-        # dist_gt_3 = math.sqrt(3) - 0.25 - 0.1
-        # distances_expected = torch.tensor([0.65, 0.65, dist_gt_3])
+        sqrt_2 = math.sqrt(2)
+        distances_expected = torch.tensor([0.7, 0.7, sqrt_2 - 0.2 - 0.1])  # 1 - 0.2 - 0.1  # 1 - 0.2 - 0.1  #
         distances = sphere_capsule_distance_batch(capsules, capsule_poses, spheres)
+
         print("distances:         ", distances)
         print("\ndistances_expected:", distances_expected)
-        self.assertEqual(distances.numel(), 3)
+        # self.assertEqual(distances.numel(), 3)
         torch.testing.assert_close(distances, distances_expected, atol=0.001, rtol=0.0)
 
 

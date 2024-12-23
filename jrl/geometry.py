@@ -471,6 +471,8 @@ def sphere_capsule_distance_batch(
     Capsules are defined by two points in local frame, and a radius. The memory layout is
         [nx7]: [x1, y1, z1, x2, y2, z2, r1].
 
+    Local points are at the origin and top of capsule along the +z axis.
+
     Sphere are [x y z radius]
 
     Args:
@@ -481,29 +483,39 @@ def sphere_capsule_distance_batch(
     Returns:
         torch.Tensor: [n] tensor containing the distance between capsule i and sphere i for i in [0, n).
     """
-
-    # Local points are at the origin and top of capsule along the +z axis.
-    radius = capsules[:, 6]
+    n_batch = capsules.shape[0]
+    sphere_radius = spheres[:, 3]
+    caps_radius = capsules[:, 6]
     caps_p1 = (capsule_poses[:, :3, :3].bmm(capsules[:, 0:3].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
     caps_p2 = (capsule_poses[:, :3, :3].bmm(capsules[:, 3:6].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
-
-    # Calculate the distance between spheres and capsule points.
-    c1_dist = torch.norm(caps_p1 - spheres[:, 0:3])
-    c2_dist = torch.norm(caps_p2 - spheres[:, 0:3])
-
-    print("spheres:\n", spheres)
-    print("caps_p1:\n", caps_p1)
-    print("caps_p2:\n", caps_p2)
-    print("c1_dist:\n", c1_dist)
-    print("c2_dist:\n", c2_dist)
-
-    # say that there is a line from 'caps_p1 + v(caps_p2-caps_p1)'
+    p_spheres = spheres[:, :3]
+    v1 = p_spheres - caps_p1
     d = caps_p2 - caps_p1
-    v1 = spheres[:, :3] - caps_p1
-    v2 = torch.sum(v1 * d, dim=1) / torch.norm(d) * d
-    # v2 =  torch.dot(v1, d) / torch.norm(d) * d
-    perpendicular = v1 - v2
-    return torch.min(torch.min(c1_dist, c2_dist), torch.norm(perpendicular, dim=1)) - capsules[:, 6] - spheres[:, 3]
+    t = torch.sum(v1 * d, dim=1) / torch.sum(d * d, dim=1)
+    # t=0 -> v_proj = 0
+    # t=1 -> v_proj = d
+    t = torch.clamp(t, 0.0, 1.0).view(n_batch, 1)
+    closest_point = caps_p1 + t * d
+    return torch.norm(closest_point - p_spheres, dim=1) - caps_radius - sphere_radius
+
+
+# ==========
+
+# c1_dist = torch.norm(caps_p1 - spheres[:, 0:3])
+# c2_dist = torch.norm(caps_p2 - spheres[:, 0:3])
+
+# print("\nspheres:\n", spheres)
+# print("\ncaps_p1:\n", caps_p1)
+# print("\ncaps_p2:\n", caps_p2)
+# print("\nc1_dist:\n", c1_dist)
+# print("\nc2_dist:\n", c2_dist)
+
+# d = caps_p2 - caps_p1
+# v1 = spheres[:, :3] - caps_p1
+# v2 = torch.sum(v1 * d, dim=1) / torch.norm(d) * d
+# # v2 =  torch.dot(v1, d) / torch.norm(d) * d
+# perpendicular = v1 - v2
+# return torch.min(torch.min(c1_dist, c2_dist), torch.norm(perpendicular, dim=1)) - caps_radius - sphere_radius
 
 
 """ python jrl/collision_detection.py
