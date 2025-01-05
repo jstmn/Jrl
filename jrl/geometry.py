@@ -483,6 +483,12 @@ def sphere_capsule_distance_batch(
     Returns:
         torch.Tensor: [n] tensor containing the distance between capsule i and sphere i for i in [0, n).
     """
+    assert capsules.shape[0] == capsule_poses.shape[0], f"capsules: {capsules.shape}, capsule_poses: {capsule_poses.shape}"
+    assert capsules.shape[0] == spheres.shape[0], f"capsules: {capsules.shape}, spheres: {spheres.shape}"
+    assert spheres.shape[1] == 4, f"spheres: {spheres.shape}, should be: ({capsules.shape[0]}, 4)"
+    assert capsules.shape[1] == 7, f"capsules: {capsules.shape}, should be: ({capsules.shape[0]}, 7)"
+    assert capsule_poses.shape == (capsules.shape[0], 4, 4), f"capsule_poses: {capsule_poses.shape}, should be: ({capsules.shape[0]}, 4, 4)"
+
     n_batch = capsules.shape[0]
     sphere_radius = spheres[:, 3]
     caps_radius = capsules[:, 6]
