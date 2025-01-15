@@ -1213,7 +1213,7 @@ class Robot:
         assert x.shape[1] == self.ndof
         n_capsules = len(self._collision_capsules_by_link)
         base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype).view(n_capsules, 4, 4)
-        capsule_params = torch.cat([v.view(1, 7) for v in self._collision_capsules_by_link.values()], axis=0)
+        capsule_params = torch.cat([v.view(1, 7) for v in self._collision_capsules_by_link.values()], axis=0).to(x.device)
         # Capsules are defined by two points in local frame, and a radius. The memory layout is
         # [nx7]: [x1, y1, z1, x2, y2, z2, r1].
         caps_radius = capsule_params[:, 6]
