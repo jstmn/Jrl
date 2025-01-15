@@ -156,9 +156,9 @@ class TestGeometry(unittest.TestCase):
             [
                 torch.eye(4).view(1, 4, 4),
                 torch.tensor([
-                    [0.0000000, -1.0000000, 0.0000000, 5.0],
-                    [1.0000000, 0.0000000, 0.0000000, 5.0],
-                    [0.0000000, 0.0000000, 1.0000000, 5.0],
+                    [0.0000, -1.0000, 0.0000, 5.0],
+                    [1.0000, 0.0000, 0.0000, 5.0],
+                    [0.0000, 0.0000, 1.0000, 5.0],
                     [0, 0, 0, 1.0],
                 ]).view(1, 4, 4),
             ],
@@ -194,9 +194,9 @@ class TestGeometry(unittest.TestCase):
                 ]).view(1, 4, 4),
                 torch.eye(4).view(1, 4, 4),
                 torch.tensor([
-                    [0.0000000, -1.0000000, 0.0000000, 3.0],
-                    [1.0000000, 0.0000000, 0.0000000, 3.0],
-                    [0.0000000, 0.0000000, 1.0000000, 2.0],
+                    [0.0000, -1.0000, 0.0000, 3.0],
+                    [1.0000, 0.0000, 0.0000, 3.0],
+                    [0.0000, 0.0000, 1.0000, 2.0],
                     [0, 0, 0, 1.0],
                 ]).view(1, 4, 4),
                 torch.tensor([
@@ -219,10 +219,6 @@ class TestGeometry(unittest.TestCase):
         G, h = CuboidUtils._get_cuboid_G_h(tfs, c0, c1, c2, c3, c4, c5, c6, c7, debug=False)
         self.assertEqual(G.shape, (len(tfs), 6, 3))  # G is [ n x 6 x 3]
 
-        print()
-        print("G: ", G)
-        print("h: ", h)
-
         # Gx <= h
         # so should be that 'G*center <= h' / 'G*center - h <= 0'
         #   G[:, 0, :] = plane . lower
@@ -236,42 +232,27 @@ class TestGeometry(unittest.TestCase):
         #
         centers = tfs[:, :3, 3].view(len(tfs), 3, 1)
         res = G.bmm(centers) - h.view(len(tfs), 6, 1)
-        print()
-        print()
-        print("===== Testing cube centers against constraints\n")
-        print("centers:", centers)
-        print("res:    ", res)
         self.assertLessEqual(res.max(), 0.0)
-        print("SUCCESS - constraints satisfied for all cube centers")
 
-        #
-        #
-        print()
-        print()
-        print("===== Testing point (0, 0, 0) against front plane constraint\n")
+        # print("===== Testing point (0, 0, 0) against front plane constraint\n")
         G_0_front = G[0, 4]
         p_zero = torch.tensor([0.0, 0.0, 0.0])
         res_p_zero = G_0_front.dot(p_zero) - h[0, 4]
         assert res_p_zero.numel() == 1
         print("res_p_zero:", res_p_zero)
 
-        # (0, 0., 0.0) is outside of the cube, so Gp - h should be positive
-        print()
-        print()
-        print("===== Testing point outside of cube\n")
+        # print("===== Testing point outside of cube\n")
         G_0 = G[0]  # [ 6 x 3 ]
         p = torch.tensor([[0.0, 0.0, 0.0]]).T  # [ 3 x 1 ]
         res_2 = G_0.matmul(p.T.view(3, 1)).view(6) - h[0]
         assert res_2.numel() == 6, f"res.shape: {res.shape}"
-        print("res_2:", res_2.view(6, 1))
+        # print("res_2:", res_2.view(6, 1))
 
         for i in range(6):
             constraint_names = ["lower", "upper", "left", "right", "front", "back"]
             if res_2[i] > 0.0:
                 print(f"  {constraint_names[i]} constraint violated (res_2[{i}]: {res_2[i]})")
-
         self.assertGreater(res_2.max(), 0.0, f"one value must be positive, meaning there is a unsatisfied constraint")
-        print("success - all constraints satisfied for point outside of cube")
 
     # python -m unittest tests.geometry_test.TestGeometry.test_sphere_cuboid
     def test_sphere_cuboid(self):
@@ -282,9 +263,9 @@ class TestGeometry(unittest.TestCase):
                 torch.eye(4).view(1, 4, 4),
                 torch.eye(4).view(1, 4, 4),
                 torch.tensor([
-                    [0.0000000, -1.0000000, 0.0000000, 0.0],
-                    [1.0000000, 0.0000000, 0.0000000, 0.0],
-                    [0.0000000, 0.0000000, 1.0000000, 0.0],
+                    [0.0000, -1.0000, 0.0000, 0.0],
+                    [1.0000, 0.0000, 0.0000, 0.0],
+                    [0.0000, 0.0000, 1.0000, 0.0],
                     [0, 0, 0, 1.0],
                 ]).view(1, 4, 4),
                 torch.tensor([
@@ -294,10 +275,10 @@ class TestGeometry(unittest.TestCase):
                     [0, 0, 0, 1.0],
                 ]).view(1, 4, 4),
                 torch.tensor([
-                    [1.0000, 0.0000, 0.0000, 0.7874],
-                    [0.0000, 1.0000, 0.0000, 0.9345],
-                    [0.0000, 0.0000, 1.0000, 0.4503],
-                    [0.0000, 0.0000, 0.0000, 1.0000],
+                    [1.0, 0.0, 0.0, 0.7874],
+                    [0.0, 1.0, 0.0, 0.9345],
+                    [0.0, 0.0, 1.0, 0.4503],
+                    [0.0, 0.0, 0.0, 1.0],
                 ]).view(1, 4, 4),
             ],
             dim=0,
@@ -311,16 +292,14 @@ class TestGeometry(unittest.TestCase):
         ])
 
         sphere_centers = torch.tensor(
-            [[2.0, 2.0, 2.0], [2.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 0.0, 1.5], [0.7874 + 1.0, 0.9345, 0.4503]]
+            [[2.0, 2.0, 2.0], [2.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 0.0, 1.5], [0.7874 + 1.2, 0.9345, 0.4503]]
         )
         sphere_radii = torch.tensor([[1.732050808 / 2], [0.25], [0.25], [0.25], [0.1]])
 
         # TODO: this is wrong i think, draw it out
-        distances_expected = torch.tensor([[1.732050808 / 2], [0.75], [0.75], [0.75], [0.9]])
+        distances_expected = torch.tensor([[1.732050808 / 2], [0.75], [0.75], [0.75], [0.1]])
         distances_recv = cuboid_sphere_distance_batch(tfs, corners, sphere_centers, sphere_radii)
         self.assertEqual(distances_recv.numel(), len(tfs))
-        print("distances_expected:", distances_expected)
-        print("distances_recv:    ", distances_recv)
         torch.testing.assert_close(distances_expected, distances_recv, rtol=0.0, atol=0.001)
 
     # python -m unittest tests.geometry_test.TestGeometry.test_sphere_cuboid_specific
@@ -343,10 +322,10 @@ class TestGeometry(unittest.TestCase):
         sphere_radii = torch.tensor([[0.1]])
         dist, sol, G, h = cuboid_sphere_distance_batch(tfs, corners, sphere_centers, sphere_radii, return_sol=True)
 
-        print("dist:", dist)
-        print("sol: ", sol)
-        print("G:   ", G)
-        print("h:   ", h)
+        # print("dist:", dist)
+        # print("sol: ", sol)
+        # print("G:   ", G)
+        # print("h:   ", h)
 
         for i in range(6):
             constraint_names = ["lower", "upper", "left", "right", "front", "back"]

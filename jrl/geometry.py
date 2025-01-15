@@ -8,6 +8,17 @@ from jrl.math_utils import QP
 from jrl.utils import evenly_spaced_colors
 
 
+def _get_capsule_axis_endpoints(
+    capsules: torch.Tensor, capsule_poses: torch.Tensor
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Returns the endpoints of the capsule axis in world frame.
+    """
+    caps_p1 = (capsule_poses[:, :3, :3].bmm(capsules[:, 0:3].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
+    caps_p2 = (capsule_poses[:, :3, :3].bmm(capsules[:, 3:6].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
+    return caps_p1, caps_p2
+
+
 def capsule_capsule_distance_batch(
     caps1: torch.Tensor,
     T1: torch.Tensor,
@@ -42,12 +53,9 @@ def capsule_capsule_distance_batch(
 
     # Local points are at the origin and top of capsule along the +z axis.
     r1 = caps1[:, 6]
-    c1_world1 = T1[:, :3, :3].bmm(caps1[:, 0:3].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
-    c1_world2 = T1[:, :3, :3].bmm(caps1[:, 3:6].unsqueeze(2)).squeeze(2) + T1[:, :3, 3]
-
     r2 = caps2[:, 6]
-    c2_world1 = T2[:, :3, :3].bmm(caps2[:, 0:3].unsqueeze(2)).squeeze(2) + T2[:, :3, 3]
-    c2_world2 = T2[:, :3, :3].bmm(caps2[:, 3:6].unsqueeze(2)).squeeze(2) + T2[:, :3, 3]
+    c1_world1, c1_world2 = _get_capsule_axis_endpoints(caps1, T1)
+    c2_world1, c2_world2 = _get_capsule_axis_endpoints(caps2, T2)
 
     p1 = c1_world1
     s1 = c1_world2 - p1
@@ -395,7 +403,12 @@ def cuboid_sphere_distance_batch(
       faces: front, back, right, left, up, and down. (borrowed from rubik's cube notation)
 
     """
-    if debug_timing:
+    t0 = time()
+
+    # Put everything in cuboid frame
+    c0, c1, c2, c3, c4, c5, c6, c7 = CuboidUtils._cuboid_corners_in_world_frame(world__T__cuboids, cuboid_corners)
+    G, h = CuboidUtils._get_cuboid_G_h(world__T__cuboids, c0, c1, c2, c3, c4, c5, c6, c7, viz=viz)
+    if debug:
         print()
         for i in range(n):
             print(f"cube/sphere {i}:")
@@ -403,12 +416,9 @@ def cuboid_sphere_distance_batch(
             print(f"  corners cube:  ", cuboid_corners[i])
             print(f"  sphere center: ", sphere_centers[i])
             print(f"  sphere radius: ", sphere_radii[i])
+            print(f"  c0:            ", c0[i])
+            print(f"  c6:            ", c6[i])
             print()
-        t0 = time()
-
-    # Put everything in cuboid frame
-    c0, c1, c2, c3, c4, c5, c6, c7 = CuboidUtils._cuboid_corners_in_world_frame(world__T__cuboids, cuboid_corners)
-    G, h = CuboidUtils._get_cuboid_G_h(world__T__cuboids, c0, c1, c2, c3, c4, c5, c6, c7, viz=viz)
 
     Q = torch.diag_embed(torch.ones(n, 3))
     Q = Q + 5e-4 * torch.eye(3).expand(n, 3, 3)
@@ -433,8 +443,8 @@ def cuboid_sphere_distance_batch(
         sol = sol.unsqueeze(2)
     else:
         x0 = world__T__cuboids[:, :3, 3].view(n, 3, 1)
-        qp = QP(2 * Q, p, G, h, x0)
-        sol = qp.solve().unsqueeze(2)
+        qp = QP(2 * Q, p, G, h)
+        sol = qp.solve(x0=x0).unsqueeze(2)
 
     constraint_violation = G.bmm(sol) - h.view(n, 6, 1)
     assert constraint_violation.max() <= 2e-3, (
@@ -452,7 +462,8 @@ def cuboid_sphere_distance_batch(
             print(f"cube/sphere {i}:")
             print(f"  sol: ", sol[i].tolist())
             const = G.matmul(sol[i]) - h[i].view(6, 1)
-            print(f"  const: ", const.view(6).tolist())
+            # print(f"  const: ", const.view(6).tolist())
+            print(f"  const: ", const.tolist())
             print()
 
     # TODO: add more tests to test_sphere_cuboid()
@@ -483,18 +494,23 @@ def sphere_capsule_distance_batch(
     Returns:
         torch.Tensor: [n] tensor containing the distance between capsule i and sphere i for i in [0, n).
     """
-    assert capsules.shape[0] == capsule_poses.shape[0], f"capsules: {capsules.shape}, capsule_poses: {capsule_poses.shape}"
+    assert (
+        capsules.shape[0] == capsule_poses.shape[0]
+    ), f"capsules: {capsules.shape}, capsule_poses: {capsule_poses.shape}"
     assert capsules.shape[0] == spheres.shape[0], f"capsules: {capsules.shape}, spheres: {spheres.shape}"
     assert spheres.shape[1] == 4, f"spheres: {spheres.shape}, should be: ({capsules.shape[0]}, 4)"
     assert capsules.shape[1] == 7, f"capsules: {capsules.shape}, should be: ({capsules.shape[0]}, 7)"
-    assert capsule_poses.shape == (capsules.shape[0], 4, 4), f"capsule_poses: {capsule_poses.shape}, should be: ({capsules.shape[0]}, 4, 4)"
+    assert capsule_poses.shape == (
+        capsules.shape[0],
+        4,
+        4,
+    ), f"capsule_poses: {capsule_poses.shape}, should be: ({capsules.shape[0]}, 4, 4)"
 
     n_batch = capsules.shape[0]
     sphere_radius = spheres[:, 3]
     caps_radius = capsules[:, 6]
-    caps_p1 = (capsule_poses[:, :3, :3].bmm(capsules[:, 0:3].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
-    caps_p2 = (capsule_poses[:, :3, :3].bmm(capsules[:, 3:6].unsqueeze(2)).squeeze(2) + capsule_poses[:, :3, 3])[:, 0:3]
     p_spheres = spheres[:, :3]
+    caps_p1, caps_p2 = _get_capsule_axis_endpoints(capsules, capsule_poses)
     v1 = p_spheres - caps_p1
     d = caps_p2 - caps_p1
     t = torch.sum(v1 * d, dim=1) / torch.sum(d * d, dim=1)

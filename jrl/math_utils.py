@@ -69,8 +69,11 @@ class QP:
         self.A = A
         self.b = b
 
-    def solve(self, trace=False, iterlimit=None):
-        x = torch.zeros((self.nbatch, self.dim, 1), dtype=torch.float32, device=self.Q.device)
+    def solve(self, x0=None, trace=False, iterlimit=None):
+        if x0 is None:
+            x = torch.zeros((self.nbatch, self.dim, 1), dtype=torch.float32, device=self.Q.device)
+        else:
+            x = x0
         if trace:
             trace = [x]
         working_set = torch.zeros((self.nbatch, self.nc, 1), dtype=torch.bool, device=x.device)

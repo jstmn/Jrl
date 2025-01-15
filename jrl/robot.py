@@ -33,7 +33,7 @@ from jrl.urdf_utils import (
     merge_fixed_joints_to_one,
 )
 from jrl.utils import to_torch
-from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
+from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch, _get_capsule_axis_endpoints
 
 
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
@@ -1197,6 +1197,36 @@ class Robot:
     # ---                                                                                                            ---
     # ---                                            Collision Detection                                             ---
     # ---                                                                                                            ---
+
+    def get_capsule_axis_endpoints(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Returns the endpoints of the capsule axis endpoints in the robots base frame.
+
+        Args:
+            x (torch.Tensor): [n x ndofs] joint angle vectors
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+                (c1_world1, c1_world2, c2_world1, c2_world2, r1, r2) where c1_world1 and c1_world2 are the endpoints of
+                the first capsule axis in the robots base frame, c2_world1 and c2_world2 are the endpoints of the second
+                capsule axis in the robots base frame, and r1 and r2 are the radii of the capsules
+        """
+        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
+        print("base_T_links:", base_T_links.shape)
+        print("self._collision_idx0:", self._collision_idx0)
+        print("self._collision_idx1:", self._collision_idx1)
+        print("self._collision_idx0:", self._collision_idx0.shape)
+        print("self._collision_idx1:", self._collision_idx1.shape)
+        print("self._collision_capsules:", self._collision_capsules.shape)
+        batch_size = x.shape[0]
+        T1s = base_T_links[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
+        T2s = base_T_links[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
+        c1s = self._collision_capsules[self._collision_idx0, :].expand(batch_size, -1, -1).reshape(-1, 7)
+        c2s = self._collision_capsules[self._collision_idx1, :].expand(batch_size, -1, -1).reshape(-1, 7)
+        c1_world1, c1_world2 = _get_capsule_axis_endpoints(c1s, T1s)
+        c2_world1, c2_world2 = _get_capsule_axis_endpoints(c2s, T2s)
+        return c1_world1, c1_world2, c2_world1, c2_world2, c1s[:, 6], c2s[:, 6]
 
     def self_collision_distances(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot

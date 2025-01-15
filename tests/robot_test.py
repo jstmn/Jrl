@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from jrl.urdf_utils import _len3_tuple_from_str
-from jrl.utils import set_seed
+from jrl.utils import set_seed, to_torch
 from jrl.robot import Robot
 from jrl.robots import get_all_robots, Panda, Fetch, FetchArm
 from jrl.config import DEVICE, PT_NP_TYPE
@@ -16,6 +16,12 @@ class RobotTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.robots = get_all_robots()
+        cls.panda = None
+        for robot in cls.robots:
+            if robot.name == Panda.name:
+                cls.panda = robot
+                break
+        assert cls.panda is not None
 
     def _assert_joint_angles_within_limits(self, joint_angles: PT_NP_TYPE, robot: Robot):
         for joint_angle in joint_angles:
@@ -141,7 +147,7 @@ class RobotTest(unittest.TestCase):
         './bin/RobotPose /path/to/<robot>/<robot>_formatted.urdf'. 'RobotPose' is from Klamp't (need to build from
         source).
         """
-        panda = Panda()
+        panda = self.panda
         x = torch.tensor([0, 0, 0, -0.0698, 0, 3.0, 0])
         self.assertFalse(panda.config_self_collides(x))
 
@@ -192,7 +198,7 @@ class RobotTest(unittest.TestCase):
             [0, 0, 0, 0, 0, 0, 0],
             [3, 0, 0, 0, 0, 0, 0],
         ])
-        panda = Panda()
+        panda = self.panda
         returned = panda.clamp_to_joint_limits(joint_angles_unclamped)
         expected = torch.tensor([
             [0, 0, 0, -0.1, 0, 0, 0],
@@ -465,7 +471,7 @@ class RobotTest(unittest.TestCase):
     def test_robot_self_collision_distances(self):
         """Test that self_collision_distances() returns the expected distances"""
         atol = 1e-5
-        for robot in [Panda()]:
+        for robot in [self.panda]:
             for _ in range(10):
                 # batch_size = 5
                 batch_size = 1
@@ -481,7 +487,7 @@ class RobotTest(unittest.TestCase):
         """Test that the jacobian of self_collision_distances() is correct"""
         atol = 1e-3
         set_seed(54321)
-        for robot in [Panda()]:
+        for robot in [self.panda]:
             for i in range(10):
                 batch_size = 5
                 x = robot.sample_joint_angles(batch_size)
@@ -509,6 +515,20 @@ class RobotTest(unittest.TestCase):
                 np.testing.assert_allclose(J.cpu(), J_fd.cpu(), atol=atol)
                 self.assertGreater(num_larger, 0)
                 print("Number of elements larger than 100 * atol:", num_larger)
+
+    # python -m unittest tests.robot_test.RobotTest.test_get_capsule_axis_endpoints
+    def test_get_capsule_axis_endpoints(self):
+        """Test that get_capsule_axis_endpoints() returns the expected endpoints"""
+        for robot in [self.panda]:
+            x = to_torch(robot.sample_joint_angles(1))
+            assert x.shape == (1, robot.ndof)
+            c1_world1, c1_world2, c2_world1, c2_world2, r1, r2 = robot.get_capsule_axis_endpoints(x)
+            self.assertEqual(c1_world1.shape, (9, 3))  # panda has 9 links with capsules
+            self.assertEqual(c1_world2.shape, (9, 3))
+            self.assertEqual(c2_world1.shape, (9, 3))
+            self.assertEqual(c2_world2.shape, (9, 3))
+            self.assertEqual(r1.shape, (9,))
+            self.assertEqual(r2.shape, (9,))
 
 
 if __name__ == "__main__":
