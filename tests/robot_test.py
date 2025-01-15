@@ -519,16 +519,12 @@ class RobotTest(unittest.TestCase):
     # python -m unittest tests.robot_test.RobotTest.test_get_capsule_axis_endpoints
     def test_get_capsule_axis_endpoints(self):
         """Test that get_capsule_axis_endpoints() returns the expected endpoints"""
-        for robot in [self.panda]:
-            x = to_torch(robot.sample_joint_angles(1))
-            assert x.shape == (1, robot.ndof)
-            c1_world1, c1_world2, c2_world1, c2_world2, r1, r2 = robot.get_capsule_axis_endpoints(x)
-            self.assertEqual(c1_world1.shape, (9, 3))  # panda has 9 links with capsules
-            self.assertEqual(c1_world2.shape, (9, 3))
-            self.assertEqual(c2_world1.shape, (9, 3))
-            self.assertEqual(c2_world2.shape, (9, 3))
-            self.assertEqual(r1.shape, (9,))
-            self.assertEqual(r2.shape, (9,))
+        x = to_torch(self.panda.sample_joint_angles(1))
+        assert x.shape == (1, self.panda.ndof)
+        c1_world, c2_world, r = self.panda.get_capsule_axis_endpoints(x)
+        self.assertEqual(c1_world.shape, (10, 3))
+        self.assertEqual(c2_world.shape, (10, 3))
+        self.assertEqual(r.shape, (10,))
 
 
 if __name__ == "__main__":

@@ -1198,35 +1198,28 @@ class Robot:
     # ---                                            Collision Detection                                             ---
     # ---                                                                                                            ---
 
-    def get_capsule_axis_endpoints(
-        self, x: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Returns the endpoints of the capsule axis endpoints in the robots base frame.
+    def get_capsule_axis_endpoints(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Returns the endpoints of the capsules attached to each link, in the robots base frame for a single joint 
+        angle vector
 
         Args:
-            x (torch.Tensor): [n x ndofs] joint angle vectors
+            x (torch.Tensor): [1 x ndofs] joint angle vector
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-                (c1_world1, c1_world2, c2_world1, c2_world2, r1, r2) where c1_world1 and c1_world2 are the endpoints of
-                the first capsule axis in the robots base frame, c2_world1 and c2_world2 are the endpoints of the second
-                capsule axis in the robots base frame, and r1 and r2 are the radii of the capsules
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: (endpoints1, endpoints2, radii) where endpoints1 and 
+            endpoints2 are the endpoints of the capsules in the robots base frame, and radii are the radii of the capsules
         """
-        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype)
-        print("base_T_links:", base_T_links.shape)
-        print("self._collision_idx0:", self._collision_idx0)
-        print("self._collision_idx1:", self._collision_idx1)
-        print("self._collision_idx0:", self._collision_idx0.shape)
-        print("self._collision_idx1:", self._collision_idx1.shape)
-        print("self._collision_capsules:", self._collision_capsules.shape)
-        batch_size = x.shape[0]
-        T1s = base_T_links[:, self._collision_idx0, :, :].reshape(-1, 4, 4)
-        T2s = base_T_links[:, self._collision_idx1, :, :].reshape(-1, 4, 4)
-        c1s = self._collision_capsules[self._collision_idx0, :].expand(batch_size, -1, -1).reshape(-1, 7)
-        c2s = self._collision_capsules[self._collision_idx1, :].expand(batch_size, -1, -1).reshape(-1, 7)
-        c1_world1, c1_world2 = _get_capsule_axis_endpoints(c1s, T1s)
-        c2_world1, c2_world2 = _get_capsule_axis_endpoints(c2s, T2s)
-        return c1_world1, c1_world2, c2_world1, c2_world2, c1s[:, 6], c2s[:, 6]
+        assert x.shape[0] == 1
+        assert x.shape[1] == self.ndof
+        n_capsules = len(self._collision_capsules_by_link)
+        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype).view(n_capsules, 4, 4)
+        capsule_params = torch.cat([v.view(1, 7) for v in self._collision_capsules_by_link.values()], axis=0)
+        # Capsules are defined by two points in local frame, and a radius. The memory layout is
+        # [nx7]: [x1, y1, z1, x2, y2, z2, r1].
+        caps_radius = capsule_params[:, 6]
+        caps_p1, caps_p2 = _get_capsule_axis_endpoints(capsule_params, base_T_links)
+        return caps_p1, caps_p2, caps_radius
+
 
     def self_collision_distances(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot
