@@ -1199,27 +1199,30 @@ class Robot:
     # ---                                                                                                            ---
 
     def get_capsule_axis_endpoints(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Returns the endpoints of the capsules attached to each link, in the robots base frame for a single joint 
+        """Returns the endpoints of the capsules attached to each link, in the robots base frame for a single joint
         angle vector
 
         Args:
             x (torch.Tensor): [1 x ndofs] joint angle vector
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: (endpoints1, endpoints2, radii) where endpoints1 and 
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: (endpoints1, endpoints2, radii) where endpoints1 and
             endpoints2 are the endpoints of the capsules in the robots base frame, and radii are the radii of the capsules
         """
         assert x.shape[0] == 1
         assert x.shape[1] == self.ndof
         n_capsules = len(self._collision_capsules_by_link)
-        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype).view(n_capsules, 4, 4)
-        capsule_params = torch.cat([v.view(1, 7) for v in self._collision_capsules_by_link.values()], axis=0).to(x.device)
+        base_T_links = self.forward_kinematics(x, return_full_link_fk=True, out_device=x.device, dtype=x.dtype).view(
+            n_capsules, 4, 4
+        )
+        capsule_params = torch.cat([v.view(1, 7) for v in self._collision_capsules_by_link.values()], axis=0).to(
+            x.device
+        )
         # Capsules are defined by two points in local frame, and a radius. The memory layout is
         # [nx7]: [x1, y1, z1, x2, y2, z2, r1].
         caps_radius = capsule_params[:, 6]
         caps_p1, caps_p2 = _get_capsule_axis_endpoints(capsule_params, base_T_links)
         return caps_p1, caps_p2, caps_radius
-
 
     def self_collision_distances(self, x: torch.Tensor, use_qpth: bool = False) -> torch.Tensor:
         """Returns the distance between all valid collision pairs of the robot

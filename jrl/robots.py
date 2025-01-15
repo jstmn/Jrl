@@ -58,6 +58,25 @@ PANDA_NEVER_COLLIDING_LINKS = [
     ("panda_link4", "panda_link6"),
     ("panda_link4", "panda_link7"),
 ]
+FR3_NEVER_COLLIDING_LINKS = [
+    ("fr3_link0", "fr3_link2"),
+    ("fr3_link0", "fr3_link3"),
+    ("fr3_link0", "fr3_link4"),
+    ("fr3_link1", "fr3_link3"),
+    ("fr3_link1", "fr3_link4"),
+    ("fr3_link2", "fr3_link4"),
+    ("fr3_link3", "fr3_link5"),
+    ("fr3_link3", "fr3_link6"),
+    ("fr3_link3", "fr3_link7"),
+    ("fr3_link3", "fr3_hand"),
+    ("fr3_link4", "fr3_link6"),
+    ("fr3_link4", "fr3_link7"),
+    ("fr3_link4", "fr3_hand"),
+    ("fr3_link6", "fr3_hand"),
+]
+FR3_ALWAYS_COLLIDING_LINKS = []
+
+
 RIZON4_ALWAYS_COLLIDING_LINKS = []
 RIZON4_NEVER_COLLIDING_LINKS = [
     ("base_link", "link2"),
@@ -312,6 +331,73 @@ class Panda(Robot):
         )
 
 
+class Fr3(Robot):
+    """From google: 'The Franka Research 3 (FR3) is the successor to the Franka Emika Robot (FER)'
+
+    Known changes vs Panda:
+        - 'fr3_hand' has a slightly different shape
+        - Includes the 'fr3_hand_tcp' link
+        - Uses a updated urdf, as of Jan 15 2025 (source: https://github.com/frankaemika/franka_ros/tree/develop)
+        - Different joint limits
+    """
+
+    name = "fr3"
+    formal_robot_name = "Franka Emika Fr3"
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "fr3_joint1",  # (-2.7437, 2.7437)
+            "fr3_joint2",  # (-1.7837, 1.7837)
+            "fr3_joint3",  # (-2.9007, 2.9007)
+            "fr3_joint4",  # (-3.0421, 0.1518)
+            "fr3_joint5",  # (-2.8065, 2.8065)
+            "fr3_joint6",  # (0.5445, 4.5169)
+            "fr3_joint7",  # (-3.0159, 3.015)
+        ]
+        # Must match the total number of joints (including fixed) in the robot. Awkward, I know. This design is because
+        # forward kinematics returns the pose of each joint link, instead of every link. This means we only know where
+        # the links attached to joints are. A refactor to fix this would return the pose of every link in the kinematic
+        # tree.
+        collision_capsules_by_link = {
+            "fr3_link0": _load_capsule("urdfs/fr3/capsules/fr3_link0.txt"),
+            "fr3_link1": _load_capsule("urdfs/fr3/capsules/fr3_link1.txt"),
+            "fr3_link2": _load_capsule("urdfs/fr3/capsules/fr3_link2.txt"),
+            "fr3_link3": _load_capsule("urdfs/fr3/capsules/fr3_link3.txt"),
+            "fr3_link4": _load_capsule("urdfs/fr3/capsules/fr3_link4.txt"),
+            "fr3_link5": _load_capsule("urdfs/fr3/capsules/fr3_link5.txt"),
+            "fr3_link6": _load_capsule("urdfs/fr3/capsules/fr3_link6.txt"),
+            "fr3_link7": _load_capsule("urdfs/fr3/capsules/fr3_link7.txt"),
+            "fr3_link8": None,
+            "fr3_hand": torch.tensor([0, 0.08, 0.03, 0, -0.08, 0.03, 0.03]),
+        }
+        urdf_filepath = get_filepath("urdfs/fr3/fr3.urdf")
+        base_link = "fr3_link0"
+        end_effector_link_name = "fr3_hand_tcp"
+        ignored_collision_pairs = (
+            [
+                ("fr3_hand", "fr3_link7"),
+                ("fr3_rightfinger", "fr3_leftfinger"),
+                ("fr3_link7", "fr3_link5"),  # these two don't actually collide if joint limits are respected
+            ]
+            + FR3_ALWAYS_COLLIDING_LINKS
+            + FR3_NEVER_COLLIDING_LINKS
+        )
+        Robot.__init__(
+            self,
+            Fr3.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
 class Iiwa7(Robot):
     name = "iiwa7"
     formal_robot_name = "Kuka LBR IIWA7"
@@ -504,7 +590,7 @@ class Ur5(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14]
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14, Fr3]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
