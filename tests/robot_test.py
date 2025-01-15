@@ -6,7 +6,7 @@ import numpy as np
 from jrl.urdf_utils import _len3_tuple_from_str
 from jrl.utils import set_seed, to_torch
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, Panda, Fetch, FetchArm
+from jrl.robots import get_all_robots, Panda, Fetch, FetchArm, Fr3
 from jrl.config import DEVICE, PT_NP_TYPE
 
 set_seed(0)
@@ -17,11 +17,14 @@ class RobotTest(unittest.TestCase):
     def setUpClass(cls):
         cls.robots = get_all_robots()
         cls.panda = None
+        cls.fr3 = None
         for robot in cls.robots:
             if robot.name == Panda.name:
                 cls.panda = robot
-                break
+            if robot.name == Fr3.name:
+                cls.fr3 = robot
         assert cls.panda is not None
+        assert cls.fr3 is not None
 
     def _assert_joint_angles_within_limits(self, joint_angles: PT_NP_TYPE, robot: Robot):
         for joint_angle in joint_angles:
@@ -522,6 +525,16 @@ class RobotTest(unittest.TestCase):
         x = to_torch(self.panda.sample_joint_angles(1))
         assert x.shape == (1, self.panda.ndof)
         c1_world, c2_world, r = self.panda.get_capsule_axis_endpoints(x)
+        self.assertEqual(c1_world.shape, (10, 3))
+        self.assertEqual(c2_world.shape, (10, 3))
+        self.assertEqual(r.shape, (10,))
+
+    # python -m unittest tests.robot_test.RobotTest.test_get_capsule_axis_endpoints_fr3
+    def test_get_capsule_axis_endpoints_fr3(self):
+        """Test that get_capsule_axis_endpoints() returns the expected endpoints"""
+        x = to_torch(self.fr3.sample_joint_angles(1))
+        assert x.shape == (1, self.fr3.ndof)
+        c1_world, c2_world, r = self.fr3.get_capsule_axis_endpoints(x)
         self.assertEqual(c1_world.shape, (10, 3))
         self.assertEqual(c2_world.shape, (10, 3))
         self.assertEqual(r.shape, (10,))

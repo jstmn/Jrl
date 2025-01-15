@@ -73,9 +73,9 @@ FR3_NEVER_COLLIDING_LINKS = [
     ("fr3_link4", "fr3_link7"),
     ("fr3_link4", "fr3_hand"),
     ("fr3_link6", "fr3_hand"),
+    ("fr3_link7", "fr3_link5"),  # these two don't actually collide if joint limits are respected
 ]
-FR3_ALWAYS_COLLIDING_LINKS = []
-
+FR3_ALWAYS_COLLIDING_LINKS = [("fr3_rightfinger", "fr3_leftfinger")]
 
 RIZON4_ALWAYS_COLLIDING_LINKS = []
 RIZON4_NEVER_COLLIDING_LINKS = [
@@ -374,16 +374,8 @@ class Fr3(Robot):
         }
         urdf_filepath = get_filepath("urdfs/fr3/fr3.urdf")
         base_link = "fr3_link0"
-        end_effector_link_name = "fr3_hand_tcp"
-        ignored_collision_pairs = (
-            [
-                ("fr3_hand", "fr3_link7"),
-                ("fr3_rightfinger", "fr3_leftfinger"),
-                ("fr3_link7", "fr3_link5"),  # these two don't actually collide if joint limits are respected
-            ]
-            + FR3_ALWAYS_COLLIDING_LINKS
-            + FR3_NEVER_COLLIDING_LINKS
-        )
+        end_effector_link_name = "fr3_hand"
+        ignored_collision_pairs = FR3_ALWAYS_COLLIDING_LINKS + FR3_NEVER_COLLIDING_LINKS
         Robot.__init__(
             self,
             Fr3.name,
