@@ -770,8 +770,8 @@ class Ur10(Robot):
             "wrist_3_link": _load_capsule("urdfs/ur10/capsules/wrist3.txt"),
         }
 
-        ignored_collision_pairs = []
-        # ignored_collision_pairs = UR10_NEVER_COLLIDING_LINKS + UR10_ALWAYS_COLLIDING_LINKS
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR10_NEVER_COLLIDING_LINKS + UR10_ALWAYS_COLLIDING_LINKS
         Robot.__init__(
             self,
             Ur10.name,
@@ -821,8 +821,8 @@ class Ur3e(Robot):
             "wrist_3_link": _load_capsule("urdfs/ur3e/capsules/wrist3.txt"),
         }
 
-        ignored_collision_pairs = []
-        # ignored_collision_pairs = UR3E_NEVER_COLLIDING_LINKS + UR3E_ALWAYS_COLLIDING_LINKS
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR3E_NEVER_COLLIDING_LINKS + UR3E_ALWAYS_COLLIDING_LINKS
         Robot.__init__(
             self,
             Ur3e.name,
@@ -872,8 +872,8 @@ class Ur5e(Robot):
             "wrist_3_link": _load_capsule("urdfs/ur5e/capsules/wrist3.txt"),
         }
 
-        ignored_collision_pairs = []
-        # ignored_collision_pairs = UR5E_NEVER_COLLIDING_LINKS + UR5E_ALWAYS_COLLIDING_LINKS
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR5E_NEVER_COLLIDING_LINKS + UR5E_ALWAYS_COLLIDING_LINKS
         Robot.__init__(
             self,
             Ur5e.name,
