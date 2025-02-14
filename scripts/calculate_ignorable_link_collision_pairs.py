@@ -1,7 +1,6 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-# from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Fr3, Ur3, Iiwa7, XArm6
 from jrl.robots import ALL_ROBOT_NAMES, get_robot
 
 import torch
@@ -15,6 +14,7 @@ torch.set_default_device(DEVICE)
 
 if __name__ == "__main__":
     import argparse
+
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--robot_name", type=str, required=True)
     args = argparser.parse_args()
@@ -70,7 +70,7 @@ if __name__ == "__main__":
             if colliding[i, j]:
                 collision_counter[(link_names[robot._collision_idx0[j]], link_names[robot._collision_idx1[j]])] += 1
 
-        if (i+1) % 20000 == 0:
+        if (i + 1) % 20000 == 0:
             print_collision_counter(i)
     print_collision_counter(i)
 

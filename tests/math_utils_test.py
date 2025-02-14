@@ -9,6 +9,10 @@ from jrl.math_utils import (
     quaternion_conjugate,
     quaternion_norm,
     geodesic_distance_between_quaternions,
+<<<<<<< HEAD
+=======
+    # geodesic_distance_between_quaternions_warp,
+>>>>>>> ee69e80 (jstmn: added '<klampt use_vis_geom="1"/>', debug prints to assert_pose_positions_almost_equal(). TODO: fix fk errors for Ur robots. currently there is a flipped sign on the position)
     quatconj,
     quaternion_product,
     quatmul,

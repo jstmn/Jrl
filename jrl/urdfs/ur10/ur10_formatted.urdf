@@ -59,6 +59,7 @@
           package. Users CANNOT rely on this file being available, or stored in
           this location. Nor can they rely on the existence of the macro.
   -->
+  <klampt use_vis_geom="1" flip_yz="1" />
   <!-- links: main serial chain -->
   <link name="base_link"/>
   <link name="base_link_inertia">

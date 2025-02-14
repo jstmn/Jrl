@@ -15,6 +15,7 @@ def assert_pose_positions_almost_equal(
     source_1: str = "",
     source_2: str = "",
     threshold: float = _DEFAULT_MAX_ALLOWABLE_L2_ERR,
+    debug_str: str = "",
 ):
     """Check that the position of each pose is nearly the same"""
     if isinstance(endpoints1, torch.Tensor):
@@ -23,7 +24,10 @@ def assert_pose_positions_almost_equal(
         l2_errors = np.linalg.norm(endpoints1[:, 0:3] - endpoints2[:, 0:3], axis=1)
     for i in range(l2_errors.shape[0]):
         assert l2_errors[i] < threshold, (
-            f"Position of poses '{source_1}', '{source_2}' are not equal (error={l2_errors[i]})"
+            f"Position of poses '{source_1}', '{source_2}' are not equal (position error: {l2_errors[i]} m)\n"
+            f"pose 1: {endpoints1[i, :]}\n"
+            f"pose 2: {endpoints2[i, :]}\n"
+            f"{debug_str}"
         )
 
 
@@ -33,6 +37,7 @@ def assert_pose_rotations_almost_equal(
     source_1: str = "",
     source_2: str = "",
     threshold: float = _DEFAULT_MAX_ALLOWABLE_ANG_ERR,
+    debug_str: str = "",
 ):
     """Check that the rotation of each pose is nearly the same"""
     endpoints1 = to_torch(endpoints1)
@@ -44,5 +49,8 @@ def assert_pose_rotations_almost_equal(
     for i in range(errors.shape[0]):
         assert errors[i] < threshold, (
             f"Rotation of poses '{source_1}({endpoints1[i, :]})', '{source_2} ({endpoints2[i, :]})' are not equal"
-            f" (error={errors[i]})"
+            f" (rotation error: {errors[i]} rad)\n"
+            f"pose 1: {endpoints1[i, :]}\n"
+            f"pose 2: {endpoints2[i, :]}\n"
+            f"{debug_str}"
         )

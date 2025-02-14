@@ -93,46 +93,45 @@ RIZON4_NEVER_COLLIDING_LINKS = [
     ("link4", "link7"),
 ]
 
-IIWA14_NEVER_COLLIDING_LINKS = [('link_0', 'link_3'),
-    ('link_0', 'link_4'),
-    ('link_1', 'link_3'),
-    ('link_1', 'link_4'),
-    ('link_1', 'link_5'),
-    ('link_1', 'link_6'),
-    ('link_1', 'link_7'),
-    ('link_2', 'link_4'),
-    ('link_2', 'link_5'),
-    ('link_2', 'link_6'),
-    ('link_2', 'link_7'),
-    ('link_3', 'link_5'),
-    ('link_3', 'link_6'),
-    ('link_3', 'link_7'),
-    ('link_4', 'link_6'),
-    ('link_4', 'link_7'),
+IIWA14_NEVER_COLLIDING_LINKS = [
+    ("link_0", "link_3"),
+    ("link_0", "link_4"),
+    ("link_1", "link_3"),
+    ("link_1", "link_4"),
+    ("link_1", "link_5"),
+    ("link_1", "link_6"),
+    ("link_1", "link_7"),
+    ("link_2", "link_4"),
+    ("link_2", "link_5"),
+    ("link_2", "link_6"),
+    ("link_2", "link_7"),
+    ("link_3", "link_5"),
+    ("link_3", "link_6"),
+    ("link_3", "link_7"),
+    ("link_4", "link_6"),
+    ("link_4", "link_7"),
 ]
 
 IIWA7_NEVER_COLLIDING_LINKS = [
-    ('iiwa_link_0', 'iiwa_link_2'),
-    ('iiwa_link_0', 'iiwa_link_3'),
-    ('iiwa_link_0', 'iiwa_link_4'),
-    ('iiwa_link_1', 'iiwa_link_3'),
-    ('iiwa_link_1', 'iiwa_link_4'),
-    ('iiwa_link_1', 'iiwa_link_5'),
-    ('iiwa_link_1', 'iiwa_link_6'),
-    ('iiwa_link_1', 'iiwa_link_7'),
-    ('iiwa_link_2', 'iiwa_link_4'),
-    ('iiwa_link_2', 'iiwa_link_5'),
-    ('iiwa_link_2', 'iiwa_link_6'),
-    ('iiwa_link_2', 'iiwa_link_7'),
-    ('iiwa_link_3', 'iiwa_link_5'),
-    ('iiwa_link_3', 'iiwa_link_6'),
-    ('iiwa_link_3', 'iiwa_link_7'),
-    ('iiwa_link_4', 'iiwa_link_6'),
-    ('iiwa_link_4', 'iiwa_link_7')
+    ("iiwa_link_0", "iiwa_link_2"),
+    ("iiwa_link_0", "iiwa_link_3"),
+    ("iiwa_link_0", "iiwa_link_4"),
+    ("iiwa_link_1", "iiwa_link_3"),
+    ("iiwa_link_1", "iiwa_link_4"),
+    ("iiwa_link_1", "iiwa_link_5"),
+    ("iiwa_link_1", "iiwa_link_6"),
+    ("iiwa_link_1", "iiwa_link_7"),
+    ("iiwa_link_2", "iiwa_link_4"),
+    ("iiwa_link_2", "iiwa_link_5"),
+    ("iiwa_link_2", "iiwa_link_6"),
+    ("iiwa_link_2", "iiwa_link_7"),
+    ("iiwa_link_3", "iiwa_link_5"),
+    ("iiwa_link_3", "iiwa_link_6"),
+    ("iiwa_link_3", "iiwa_link_7"),
+    ("iiwa_link_4", "iiwa_link_6"),
+    ("iiwa_link_4", "iiwa_link_7"),
 ]
-IIWA7_ALWAYS_COLLIDING_LINKS = [
-    ('iiwa_link_5', 'iiwa_link_7')
-]
+IIWA7_ALWAYS_COLLIDING_LINKS = [("iiwa_link_5", "iiwa_link_7")]
 
 UR3_NEVER_COLLIDING_LINKS = [
     ("upper_arm_link", "forearm_link"),
@@ -149,33 +148,36 @@ UR5_NEVER_COLLIDING_LINKS = [
 ]
 UR5_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
-UR10_NEVER_COLLIDING_LINKS = [('base_link_inertia', 'upper_arm_link'),
+UR10_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
     ("upper_arm_link", "forearm_link"),
-    ('upper_arm_link', 'wrist_2_link'),
-    ('upper_arm_link', 'wrist_3_link'),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
     ("wrist_1_link", "wrist_3_link"),
 ]
 UR10_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
-UR3E_NEVER_COLLIDING_LINKS = [('base_link_inertia', 'wrist_1_link'),
-  ('base_link_inertia', 'wrist_2_link'),
-  ('upper_arm_link', 'forearm_link'),
-  ('forearm_link', 'wrist_1_link'),
-  ('wrist_1_link', 'wrist_3_link')
+UR3E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "wrist_1_link"),
+    ("base_link_inertia", "wrist_2_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("forearm_link", "wrist_1_link"),
+    ("wrist_1_link", "wrist_3_link"),
 ]
-UR3E_ALWAYS_COLLIDING_LINKS = [('base_link_inertia', 'shoulder_link')]
+UR3E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
-UR5E_NEVER_COLLIDING_LINKS = [('base_link_inertia', 'upper_arm_link'),
-  ('upper_arm_link', 'forearm_link'),
-  ('upper_arm_link', 'wrist_2_link'),
-  ('upper_arm_link', 'wrist_3_link'),
-  ('wrist_1_link', 'wrist_3_link')
+UR5E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
+    ("wrist_1_link", "wrist_3_link"),
 ]
 UR5E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
 UR10E_NEVER_COLLIDING_LINKS = [
     ("base_link_inertia", "upper_arm_link"),
-    ('base_link_inertia', 'wrist_1_link'),
+    ("base_link_inertia", "wrist_1_link"),
     ("upper_arm_link", "forearm_link"),
     ("upper_arm_link", "wrist_2_link"),
     ("upper_arm_link", "wrist_3_link"),
@@ -183,10 +185,11 @@ UR10E_NEVER_COLLIDING_LINKS = [
 ]
 UR10E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
-UR16E_NEVER_COLLIDING_LINKS = [('base_link_inertia', 'upper_arm_link'),
-  ('base_link_inertia', 'wrist_1_link'),
-  ('upper_arm_link', 'forearm_link'),
-  ('wrist_1_link', 'wrist_3_link')
+UR16E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("base_link_inertia", "wrist_1_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("wrist_1_link", "wrist_3_link"),
 ]
 UR16E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
@@ -733,7 +736,6 @@ class Ur5(Robot):
         )
 
 
-
 class Ur10(Robot):
     name = "ur10"
     formal_robot_name = "UR10"
@@ -784,6 +786,7 @@ class Ur10(Robot):
             verbose=verbose,
             additional_link_name=None,
         )
+
 
 class Ur3e(Robot):
     name = "ur3e"
@@ -836,6 +839,7 @@ class Ur3e(Robot):
             additional_link_name=None,
         )
 
+
 class Ur5e(Robot):
     name = "ur5e"
     formal_robot_name = "UR5e"
@@ -886,6 +890,7 @@ class Ur5e(Robot):
             verbose=verbose,
             additional_link_name=None,
         )
+
 
 class Ur10e(Robot):
     name = "ur10e"
@@ -938,6 +943,7 @@ class Ur10e(Robot):
             additional_link_name=None,
         )
 
+
 class Ur16e(Robot):
     name = "ur16e"
     formal_robot_name = "UR16e"
@@ -989,6 +995,7 @@ class Ur16e(Robot):
             additional_link_name=None,
         )
 
+
 class XArm6(Robot):
     name = "xarm6"
     formal_robot_name = "XArm6"
@@ -1025,7 +1032,7 @@ class XArm6(Robot):
         }
 
         # ignored_collision_pairs = []
-        ignored_collision_pairs = [('link3', 'link5'), ('link3', 'link6')]
+        ignored_collision_pairs = [("link3", "link5"), ("link3", "link6")]
         Robot.__init__(
             self,
             XArm6.name,
@@ -1038,6 +1045,7 @@ class XArm6(Robot):
             verbose=verbose,
             additional_link_name=None,
         )
+
 
 class Cr5(Robot):
     name = "cr5"
@@ -1075,7 +1083,7 @@ class Cr5(Robot):
         }
 
         # ignored_collision_pairs = []
-        ignored_collision_pairs = [('link1', 'link4'), ('link4', 'link6')]
+        ignored_collision_pairs = [("link1", "link4"), ("link4", "link6")]
         Robot.__init__(
             self,
             Cr5.name,

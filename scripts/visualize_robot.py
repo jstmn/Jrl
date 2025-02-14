@@ -102,6 +102,9 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 
 """ Example usage
 
+# Panda, Fetch, FetchArm, Rizon4, Ur3, Ur5, Ur10, Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, Cr5
+
+
 # Oscillate joints
 uv run python scripts/visualize_robot.py --robot_name=panda
 uv run python scripts/visualize_robot.py --robot_name=iiwa7
