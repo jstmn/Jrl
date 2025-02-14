@@ -84,6 +84,7 @@ Note: This project uses the `w,x,y,z` format for quaternions.
 Clone the repo and install with poetry. Don't use the version on pypi - it will remain out of date until this project hardens
 ```
 git clone https://github.com/jstmn/Jrl.git && cd Jrl/
+poetry env use python3.10
 poetry install --without dev
 # or:
 poetry install # includes dev dependencies, like the linter
