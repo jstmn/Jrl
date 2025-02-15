@@ -4,9 +4,10 @@ from time import time
 import numpy as np
 
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, Panda
+from jrl.robots import Panda
 from jrl.utils import set_seed, to_torch
-from testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from tests.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
+from tests.all_robots import all_robots
 
 # Set seed to ensure reproducibility
 set_seed()
@@ -17,7 +18,7 @@ np.set_printoptions(edgeitems=30, linewidth=100000)
 class TestInverseKinematics(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.robots = get_all_robots()
+        self.robots = all_robots
         self.panda = Panda()
 
     def assert_solution_is_valid(self, robot: Robot, solution: np.ndarray, pose_gt: np.ndarray, positional_tol: float):
