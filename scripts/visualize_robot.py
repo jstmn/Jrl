@@ -79,6 +79,9 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
         x = _prev_x + _ratio * (_next_x - _prev_x)
         vis.lock()
         robot.set_klampt_robot_config(x.cpu().numpy())
+        if robot.config_self_collides(x.cpu().numpy(), verbose=True):
+            print(f"config {x} is colliding")
+            exit()
         vis.unlock()
         sleep(time_p_loop)  # note: don't put sleep inside the lock()
 
@@ -100,20 +103,26 @@ def transition_between(robot: Robot, configs: List[List[float]], show_collision_
 """ Example usage
 
 # Oscillate joints
-python scripts/visualize_robot.py --robot_name=panda
-python scripts/visualize_robot.py --robot_name=iiwa7
-python scripts/visualize_robot.py --robot_name=iiwa14
-python scripts/visualize_robot.py --robot_name=fetch
-python scripts/visualize_robot.py --robot_name=rizon4
-python scripts/visualize_robot.py --robot_name=ur5
+uv run python scripts/visualize_robot.py --robot_name=panda
+uv run python scripts/visualize_robot.py --robot_name=iiwa7
+uv run python scripts/visualize_robot.py --robot_name=iiwa14
+uv run python scripts/visualize_robot.py --robot_name=fetch
+uv run python scripts/visualize_robot.py --robot_name=rizon4
+uv run python scripts/visualize_robot.py --robot_name=ur5
 
 # Move between configs
-python scripts/visualize_robot.py \
+uv run python scripts/visualize_robot.py \
     --robot_name=panda \
     --start_config 0   1.5707 0 0 0 3.141592 0 \
     --end_config   1.0 1.5707 0 0 0 3.141592 0
 
-python scripts/visualize_robot.py \
+uv run python scripts/visualize_robot.py \
+    --robot_name=fr3 \
+    --start_config 0.66015  1.0492  -1.75236 -2.93568 -1.13264  3.01334 -2.12062 \
+    --end_config   0.66015  1.0492  -1.5236 -2.93568 -1.13264  3.01334 -2.12062
+
+    
+uv run python scripts/visualize_robot.py \
     --robot_name=iiwa7 \
     --start_config 0.0 -0.7 0.0 -1.4 0.0 0.6 2.1 \
     --end_config   0.0  0.0 0.0  0.0 0.0 0.0 0.0

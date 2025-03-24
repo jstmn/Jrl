@@ -22,7 +22,7 @@ def fn_mean_std(fn: Callable, k: int):
 
 """ Example 
 
-python scripts/benchmark_math_utils.py
+uv run python scripts/benchmark_math_utils.py
 
 
 """

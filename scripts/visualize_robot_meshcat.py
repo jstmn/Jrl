@@ -169,10 +169,10 @@ def main(robot: Robot):
 
 
 """ 
-python scripts/visualize_robot_meshcat.py --robot_name panda
-python scripts/visualize_robot_meshcat.py --robot_name fetch
-python scripts/visualize_robot_meshcat.py --robot_name rizon4
-python scripts/visualize_robot_meshcat.py --robot_name iiwa14
+uv run python scripts/visualize_robot_meshcat.py --robot_name panda
+uv run python scripts/visualize_robot_meshcat.py --robot_name fetch
+uv run python scripts/visualize_robot_meshcat.py --robot_name rizon4
+uv run python scripts/visualize_robot_meshcat.py --robot_name iiwa14
 
 """
 

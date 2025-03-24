@@ -230,7 +230,7 @@ def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
 
 
 """
-python scripts/calculate_capsule_approximation.py --visualize --robot_name=iiwa14
+uv run python scripts/calculate_capsule_approximation.py --visualize --robot_name=iiwa14
 """
 
 

@@ -464,7 +464,7 @@ class Robot:
             x[:, i] = clamp_fn(x[:, i], l, u)
         return x
 
-    def config_self_collides(self, x: PT_NP_TYPE) -> bool:
+    def config_self_collides(self, x: PT_NP_TYPE, verbose: bool = False) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
 
         Args:
@@ -475,7 +475,13 @@ class Robot:
             x = x.detach().cpu().numpy()
         self.set_klampt_robot_config(x)
         collisions = self._klampt_collision_checker.robotSelfCollisions(self._klampt_robot)
-        # for link1, link2 in collisions:
+        if verbose:
+            is_first = True
+            for i, (link1, link2) in enumerate(collisions):
+                if is_first:
+                    print(f"\nCollisions")
+                    is_first = False
+                print(f"collision {i}: {link1.getName()} {link2.getName()}")
         for _ in collisions:
             return True
         return False
@@ -968,6 +974,96 @@ class Robot:
         lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
         rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
         delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
+
+        if alphas is not None:
+            assert alphas.shape == (n, 1)
+            xs_updated = xs_current + alphas * torch.squeeze(delta_x)
+        else:
+            xs_updated = xs_current + alpha * torch.squeeze(delta_x)
+
+        if clamp_to_joint_limits:
+            return self.clamp_to_joint_limits(xs_updated)
+        return xs_updated
+
+    def inverse_kinematics_step_levenburg_marquardt_cholesky(
+        self,
+        target_poses: torch.Tensor,
+        xs_current: torch.Tensor,
+        lambd: float = 0.0001,
+        alpha: float = 1.0,
+        alphas: Optional[torch.Tensor] = None,
+        clamp_to_joint_limits: bool = True,
+    ) -> torch.Tensor:
+        """Perform a levenburg-marquardt optimization step."""
+        n = xs_current.shape[0]
+        eye = torch.eye(self.ndof, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
+
+        # Get current error
+        current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
+        # TODO: Use cat instead of creating a new tensor
+        pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=xs_current.dtype)  # [n 6 1]
+        for i in range(3):
+            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
+
+        # TODO: implement, test, compare runtime for quaternion_difference_to_rpy()
+        # rotation_error_rpy = quaternion_difference_to_rpy(target_poses[:, 3:], current_poses[:, 3:])
+        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
+        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
+
+        J_batch = torch.tensor(
+            self.jacobian_batch_np(np.array(xs_current.detach().cpu())),
+            device=xs_current.device,
+            dtype=xs_current.dtype,
+        )  # [n 6 ndof]
+        assert J_batch.shape == (n, 6, self.ndof)
+        J_batch_T = torch.transpose(J_batch, 1, 2)  # [n ndof 6]
+        assert J_batch_T.shape == (
+            n,
+            self.ndof,
+            6,
+        ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.ndof, 6)}"
+
+        # Solve (J_batch_T^T*J_batch_T + lambd*I)*delta_X = J_batch_T*pose_errors
+        # From wikipedia (https://en.wikipedia.org/wiki/Cholesky_decomposition)
+        #  Problem: solve Ax=b
+        #  Solution:
+        #    1. find L s.t. A = L*L^T
+        #    2. solve L*y = b for y by forward substitution
+        #    3. solve L^T*x = y for y by backward substitution
+        # eye = torch.eye(n * ndof, dtype=opt_state.x.dtype, device=opt_state.x.device)
+        # eye = torch.eye(n * ndof)
+        # J_T = torch.transpose(J, 0, 1)
+        # A = torch.matmul(J_T, J) + lambd * eye  # [n*ndof x n*ndof]
+        # b = torch.matmul(J_T, r)
+        # L = torch.linalg.cholesky(A, upper=False)
+        # y = torch.linalg.solve_triangular(L, b, upper=False)
+        # delta_x = torch.linalg.solve_triangular(L.T, y, upper=True).reshape((n, ndof))
+
+        eye = torch.eye(self.ndof, device=xs_current.device, dtype=xs_current.dtype)[None, :, :].repeat(n, 1, 1)
+        assert eye.shape == (n, self.ndof, self.ndof)
+
+        A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        assert A.shape == (n, self.ndof, self.ndof)
+
+        b = torch.bmm(J_batch_T, pose_errors)  # [n x ndof x 6] * [n x 6 x 1] = [n x ndof x 1]
+        assert b.shape == (n, self.ndof, 1)
+
+        L = torch.linalg.cholesky(A, upper=False)  # [n ndof ndof]
+        assert L.shape == (n, self.ndof, self.ndof)
+
+        y = torch.linalg.solve_triangular(L, b, upper=False)  # [n ndof 1]
+        assert y.shape == (n, self.ndof, 1)
+
+        L_T = L.transpose(-2, -1)  # Explicitly transpose to ensure correct shape
+        assert L_T.shape == (n, self.ndof, self.ndof), f"L_T.shape: {L_T.shape}, should be {(n, self.ndof, self.ndof)}"
+        delta_x = torch.linalg.solve_triangular(L_T, y, upper=True)  # [n ndof 1]
+
+
+        # lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        # rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
+        # delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
 
         if alphas is not None:
             assert alphas.shape == (n, 1)

@@ -16,7 +16,7 @@ Robot models include the following:
 | Flexiv Rizon 4              |  Rizon4     |   `rizon4`     |
 | Ur5                         |  Ur5        |   `ur5`        |
 
-Robots can easily be visualized with `python scripts/visualize_robot.py --robot_name=<alias>`, where `<alias>` is one from the table above.
+Robots can easily be visualized with `uv run python scripts/visualize_robot.py --robot_name=<alias>`, where `<alias>` is one from the table above.
 
 <table>
   <tr>

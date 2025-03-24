@@ -13,12 +13,12 @@ set_seed()
 
 """ Example usage:
 
-python scripts/save_ground_truth_fk_data.py --robot=fetch
-python scripts/save_ground_truth_fk_data.py --robot=fetch_arm
-python scripts/save_ground_truth_fk_data.py --robot=iiwa7
-python scripts/save_ground_truth_fk_data.py --robot=iiwa14
-python scripts/save_ground_truth_fk_data.py --robot=baxter
-python scripts/save_ground_truth_fk_data.py --robot=rizon4
+uv run python scripts/save_ground_truth_fk_data.py --robot=fetch
+uv run python scripts/save_ground_truth_fk_data.py --robot=fetch_arm
+uv run python scripts/save_ground_truth_fk_data.py --robot=iiwa7
+uv run python scripts/save_ground_truth_fk_data.py --robot=iiwa14
+uv run python scripts/save_ground_truth_fk_data.py --robot=baxter
+uv run python scripts/save_ground_truth_fk_data.py --robot=rizon4
 
 """
 
