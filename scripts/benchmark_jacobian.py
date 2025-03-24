@@ -1,4 +1,3 @@
-import argparse
 from time import time
 from typing import Callable
 

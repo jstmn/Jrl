@@ -1,4 +1,3 @@
-from math import floor
 from jrl.evaluation import pose_errors_cm_deg
 from jrl.robots import get_all_robots
 from jrl.utils import set_seed

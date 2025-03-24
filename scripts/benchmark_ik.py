@@ -52,7 +52,9 @@ if __name__ == "__main__":
 
         methods = {
             "Levenberg-Marquardt": lambda: robot.inverse_kinematics_step_levenburg_marquardt(goalposes_cuda, x_pt_cuda),
-            "Levenberg-Marquardt Cholesky": lambda: robot.inverse_kinematics_step_levenburg_marquardt_cholesky(goalposes_cuda, x_pt_cuda),
+            "Levenberg-Marquardt Cholesky": lambda: robot.inverse_kinematics_step_levenburg_marquardt_cholesky(
+                goalposes_cuda, x_pt_cuda
+            ),
             "Jacobian Psuedo-Inverse": lambda: robot.inverse_kinematics_step_jacobian_pinv(goalposes_cuda, x_pt_cuda),
             # "torch.AutoDiff": lambda: robot.inverse_kinematics_autodiff_single_step_batch_pt(goalposes_cuda, x_pt_cuda),
         }

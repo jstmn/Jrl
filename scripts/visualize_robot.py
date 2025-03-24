@@ -9,7 +9,7 @@ import torch
 
 from visualization_utils import _init_klampt_vis
 from jrl.robot import Robot
-from jrl.robots import get_robot, Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14
+from jrl.robots import get_robot, Fetch, Rizon4, Ur5, Iiwa7, Iiwa14
 
 PI = np.pi
 
@@ -147,9 +147,9 @@ if __name__ == "__main__":
     assert (args.start_config is None and args.end_config is None) or (
         args.start_config is not None and args.end_config is not None
     ), "--start_config and --end_config must either have both provided, or neither be provided"
-    assert (
-        not args.show_collision_capsules
-    ), "--show_collision_capsules currently unimplemented. bug @jstmn if you want this feature"
+    assert not args.show_collision_capsules, (
+        "--show_collision_capsules currently unimplemented. bug @jstmn if you want this feature"
+    )
 
     robot = get_robot(args.robot_name)
 

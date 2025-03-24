@@ -247,9 +247,9 @@ class Robot:
         # TODO: Consider finding a better way to fix the mesh filepath issue.
         self._urdf_filepath_absolute = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
         self._klampt_world_model.loadRobot(self._urdf_filepath_absolute)  # TODO: suppress output of loadRobot call
-        assert (
-            self._klampt_world_model.numRobots()
-        ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
+        assert self._klampt_world_model.numRobots(), (
+            f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
+        )
         self._klampt_robot: robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._ignored_collision_pairs_formatted = [
             (self._klampt_robot.link(link1_name), self._klampt_robot.link(link2_name))
@@ -557,9 +557,9 @@ class Robot:
         driver_vec_tester = [1 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
         active_driver_idxs = list(locate(driver_vec_tester, lambda x: x == 1))
 
-        assert (
-            len(active_driver_idxs) == self.ndof
-        ), f"Error - the number of active drivers != ndof ({len(active_driver_idxs)} != {self.ndof})"
+        assert len(active_driver_idxs) == self.ndof, (
+            f"Error - the number of active drivers != ndof ({len(active_driver_idxs)} != {self.ndof})"
+        )
         return active_driver_idxs
 
     # TODO(@jstm): Consider changing this to take (batch x ndofs)
@@ -1060,7 +1060,6 @@ class Robot:
         assert L_T.shape == (n, self.ndof, self.ndof), f"L_T.shape: {L_T.shape}, should be {(n, self.ndof, self.ndof)}"
         delta_x = torch.linalg.solve_triangular(L_T, y, upper=True)  # [n ndof 1]
 
-
         # lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
         # rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
         # delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
@@ -1101,9 +1100,9 @@ class Robot:
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
-        assert (
-            xs_current.device == target_poses.device
-        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        assert xs_current.device == target_poses.device, (
+            f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        )
         n = target_poses.shape[0]
 
         # Get the jacobian of the end effector with respect to the current joint angles
@@ -1117,9 +1116,9 @@ class Robot:
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
-        assert (
-            current_poses.shape == target_poses.shape
-        ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        assert current_poses.shape == target_poses.shape, (
+            f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        )
 
         # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
         pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=dtype)
@@ -1138,9 +1137,9 @@ class Robot:
                     print(f"target_pose:  {target_poses[row_i].data}")
                     print(f"current_pose: {current_poses[row_i].data}")
                     print(f"pose_error:   {pose_errors[row_i, :, 0].data}")
-        assert (
-            torch.isnan(pose_errors).sum() == 0
-        ), f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
+        assert torch.isnan(pose_errors).sum() == 0, (
+            f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
+        )
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
@@ -1176,9 +1175,9 @@ class Robot:
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
-        assert (
-            xs_current.device == target_poses.device
-        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        assert xs_current.device == target_poses.device, (
+            f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        )
 
         # New graph
         xs_current = xs_current.detach()
@@ -1186,9 +1185,9 @@ class Robot:
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
-        assert (
-            current_poses.shape == target_poses.shape
-        ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        assert current_poses.shape == target_poses.shape, (
+            f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        )
 
         t_err = target_poses[:, 0:3] - current_poses[:, 0:3]
         R_err = geodesic_distance_between_quaternions(target_poses[:, 3:7], current_poses[:, 3:7])

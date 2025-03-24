@@ -36,7 +36,7 @@ assert_poses_almost_equal(poses, robot.forward_kinematics(ik_sols))
 
 # Check for robot-robot collisions
 self_coll_distances = robot.self_collision_distances(joint_angles)
-print(f"configs self-colliding:", torch.min(self_coll_distances, dim=1)[0] < 0.0)
+print("configs self-colliding:", torch.min(self_coll_distances, dim=1)[0] < 0.0)
 
 # Check for robot-environment collisions
 cuboid = torch.tensor(
@@ -48,4 +48,4 @@ Tcuboid[1, 3] = 0.25
 Tcuboid[2, 3] = 0.25  # cuboid is centered at x=y=z=0.25
 Tcuboid[:3, :3] = rpy_tuple_to_rotation_matrix((0.0, 0.0, 0.0))
 cuboid_to_link_dists = robot.env_collision_distances(joint_angles, cuboid, Tcuboid)
-print(f"configs env-colliding:", torch.min(cuboid_to_link_dists, dim=1)[0] < 0.0)
+print("configs env-colliding:", torch.min(cuboid_to_link_dists, dim=1)[0] < 0.0)

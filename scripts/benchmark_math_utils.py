@@ -29,7 +29,6 @@ uv run python scripts/benchmark_math_utils.py
 
 
 if __name__ == "__main__":
-
     k = 10
     df = pd.DataFrame(
         columns=["method", "number of solutions", "total runtime (ms)", "runtime std", "runtime per solution (ms)"]

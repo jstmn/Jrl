@@ -56,12 +56,12 @@ class QP:
         assert len(h.shape) == 2, f"h.shape: {h.shape}"
         self.h = h.unsqueeze(2)
 
-        assert (
-            self.nbatch == self.p.shape[0] == self.G.shape[0] == self.h.shape[0] == self.Q.shape[0]
-        ), f"{self.nbatch}, {self.p.shape[0]}, {self.G.shape[0]}, {self.h.shape[0]}, {self.Q.shape[0]}"
-        assert (
-            self.dim == self.p.shape[1] == self.G.shape[2] == self.Q.shape[1] == self.Q.shape[2]
-        ), f"{self.dim}, {self.p.shape[1]}, {self.G.shape[2]}, {self.Q.shape[1]}, {self.Q.shape[2]}"
+        assert self.nbatch == self.p.shape[0] == self.G.shape[0] == self.h.shape[0] == self.Q.shape[0], (
+            f"{self.nbatch}, {self.p.shape[0]}, {self.G.shape[0]}, {self.h.shape[0]}, {self.Q.shape[0]}"
+        )
+        assert self.dim == self.p.shape[1] == self.G.shape[2] == self.Q.shape[1] == self.Q.shape[2], (
+            f"{self.dim}, {self.p.shape[1]}, {self.G.shape[2]}, {self.Q.shape[1]}, {self.Q.shape[2]}"
+        )
         assert self.nc == self.G.shape[1] == self.h.shape[1]
 
         if A is not None or b is not None:
@@ -502,12 +502,14 @@ def quatmul(q1: torch.Tensor, q2: torch.Tensor) -> torch.Tensor:
     w1, x1, y1, z1 = tuple(q1[:, i] for i in range(4))
     w2, x2, y2, z2 = tuple(q2[:, i] for i in range(4))
 
-    return torch.vstack((
-        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-    )).T
+    return torch.vstack(
+        (
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        )
+    ).T
 
 
 def geodesic_distance_between_quaternions(

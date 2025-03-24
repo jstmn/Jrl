@@ -18,8 +18,14 @@ dependencies = [
 [tool.setuptools.packages]
 find = { include = ["jrl"], exclude = ["media"] }
 
-[tool.black]
+[tool.ruff]
 line-length = 120
+ignore = ["E741"]
+
+
+# uv run jupyter nbconvert --clear-output scripts/*.ipynb
+# uv run ruff check --exclude jrl/deprecated.py
+# uv run ruff format --exclude jrl/deprecated.py
 
 [dependency-groups]
 dev = [

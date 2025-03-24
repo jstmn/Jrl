@@ -99,10 +99,10 @@ class TestInverseKinematics(unittest.TestCase):
                     self.assertLess(l2_err, 1e-3)
                     n_successes_kl += 1
 
-            print(f"  Success rate:  {round(100*(n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
+            print(f"  Success rate:  {round(100 * (n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
             print(
-                f"  Total runtime: {round(1000*total_ik_runtime, 3)}ms for {n} solutions\t (avg:"
-                f" {round(1000*total_ik_runtime/n, 3)}ms/sol)"
+                f"  Total runtime: {round(1000 * total_ik_runtime, 3)}ms for {n} solutions\t (avg:"
+                f" {round(1000 * total_ik_runtime / n, 3)}ms/sol)"
             )
 
     def test_inverse_kinematics_klampt_with_random_seed(self):
@@ -135,10 +135,10 @@ class TestInverseKinematics(unittest.TestCase):
                     self.assertLess(l2_err, 1e-3)
                     n_successes_kl += 1
 
-            print(f"  Success rate:  {round(100*(n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
+            print(f"  Success rate:  {round(100 * (n_successes_kl / n), 2)}% ({n_successes_kl}/{n})")
             print(
-                f"  Total runtime: {round(1000*total_ik_runtime, 3)}ms for {n} solutions\t (avg:"
-                f" {round(1000*total_ik_runtime/n, 3)}ms/sol)"
+                f"  Total runtime: {round(1000 * total_ik_runtime, 3)}ms for {n} solutions\t (avg:"
+                f" {round(1000 * total_ik_runtime / n, 3)}ms/sol)"
             )
 
 
