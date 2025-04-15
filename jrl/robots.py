@@ -171,6 +171,21 @@ UR16E_NEVER_COLLIDING_LINKS = [('base_link_inertia', 'upper_arm_link'),
 ]
 UR16E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
+KINOVA3_NEVER_COLLIDING_LINKS = [
+    ('base_link', 'half_arm_2_link'),
+    ('base_link', 'forearm_link'),
+    ('shoulder_link', 'half_arm_2_link'),
+    ('shoulder_link', 'forearm_link'),
+    ('shoulder_link', 'spherical_wrist_1_link'),
+    ('half_arm_1_link', 'forearm_link'),
+    ('half_arm_1_link', 'spherical_wrist_1_link'),
+    ('half_arm_2_link', 'spherical_wrist_1_link'),
+    ('half_arm_2_link', 'spherical_wrist_2_link'),
+    ('forearm_link', 'spherical_wrist_2_link'),
+    ('spherical_wrist_1_link', 'bracelet_link'),
+]
+
+KINOVA3_ALWAYS_COLLIDING_LINKS = []
 
 def _load_capsule(path: str):
     data = np.loadtxt(get_filepath(path), delimiter=",")
@@ -1011,8 +1026,62 @@ class Cr5(Robot):
             additional_link_name=None,
         )
 
+class Kinova3(Robot):
+    name = "kinova3"
+    formal_robot_name = "KinovaGen3"
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur3, Ur5, Ur10, Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, Cr5]
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
+            "joint_7",
+        ]
+        urdf_filepath = get_filepath("urdfs/kinova3/kinova_formatted.urdf")
+        base_link = "base_link"
+        end_effector_link_name = "bracelet_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link": _load_capsule("urdfs/kinova3/capsules/base_link.txt"),
+            "shoulder_link": _load_capsule("urdfs/kinova3/capsules/shoulder_link.txt"),
+            "half_arm_1_link": _load_capsule("urdfs/kinova3/capsules/half_arm_1_link.txt"),
+            "half_arm_2_link": _load_capsule("urdfs/kinova3/capsules/half_arm_2_link.txt"),
+            "forearm_link": _load_capsule("urdfs/kinova3/capsules/forearm_link.txt"),
+            "spherical_wrist_1_link": _load_capsule("urdfs/kinova3/capsules/spherical_wrist_1_link.txt"),
+            "spherical_wrist_2_link": _load_capsule("urdfs/kinova3/capsules/spherical_wrist_2_link.txt"),
+            "bracelet_link": _load_capsule("urdfs/kinova3/capsules/bracelet_with_vision_link.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = KINOVA3_NEVER_COLLIDING_LINKS + KINOVA3_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Kinova3.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur3, Ur5, Ur10, 
+            Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, 
+            Cr5, Kinova3]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
