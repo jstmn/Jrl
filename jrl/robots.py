@@ -184,8 +184,21 @@ KINOVA3_NEVER_COLLIDING_LINKS = [
     ('forearm_link', 'spherical_wrist_2_link'),
     ('spherical_wrist_1_link', 'bracelet_link'),
 ]
-
 KINOVA3_ALWAYS_COLLIDING_LINKS = []
+
+SAWYER_NEVER_COLLIDING_LINKS = [
+    ('right_arm_base_link', 'right_l1'),
+    ('right_arm_base_link', 'right_l2'),
+    ('right_l0', 'right_l2'),
+    ('right_l1', 'right_l3'),
+    ('right_l2', 'right_l4'),
+    ('right_l2', 'right_l5'),
+    ('right_l3', 'right_l5'),
+    ('right_l3', 'right_l6'),
+    ('right_l4', 'right_l6'),
+]
+SAWYER_ALWAYS_COLLIDING_LINKS = []
+
 
 def _load_capsule(path: str):
     data = np.loadtxt(get_filepath(path), delimiter=",")
@@ -1078,10 +1091,63 @@ class Kinova3(Robot):
             additional_link_name=None,
         )
 
+class Sawyer(Robot):
+    name = "sawyer"
+    formal_robot_name = "Sawyer"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "right_j0",
+            "right_j1",
+            "right_j2",
+            "right_j3",
+            "right_j4",
+            "right_j5",
+            "right_j6",
+        ]
+        urdf_filepath = get_filepath("urdfs/sawyer/sawyer_formatted.urdf")
+        base_link = "base"
+        end_effector_link_name = "right_l6"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base": None,
+            "right_arm_base_link": _load_capsule("urdfs/sawyer/capsules/base.txt"),
+            "right_l0": _load_capsule("urdfs/sawyer/capsules/l0.txt"),
+            "right_l1": _load_capsule("urdfs/sawyer/capsules/l1.txt"),
+            "right_l2": _load_capsule("urdfs/sawyer/capsules/l2.txt"),
+            "right_l3": _load_capsule("urdfs/sawyer/capsules/l3.txt"),
+            "right_l4": _load_capsule("urdfs/sawyer/capsules/l4.txt"),
+            "right_l5": _load_capsule("urdfs/sawyer/capsules/l5.txt"),
+            "right_l6": _load_capsule("urdfs/sawyer/capsules/l6.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = SAWYER_NEVER_COLLIDING_LINKS + SAWYER_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Sawyer.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
 
 ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur3, Ur5, Ur10, 
             Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, 
-            Cr5, Kinova3]
+            Cr5, Kinova3, Sawyer]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
