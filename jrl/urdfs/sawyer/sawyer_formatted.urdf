@@ -39,7 +39,6 @@
       <material name="sawyer_red"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0 0 0.12"/>
       <geometry>
         <mesh filename="urdfs/sawyer/meshes/collision/base.stl"/>
       </geometry>
@@ -66,7 +65,6 @@
       <material name="sawyer_red"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="0.08 0 0.23"/>
       <geometry>
         <mesh filename="urdfs/sawyer/meshes/collision/l0.stl"/>
       </geometry>
