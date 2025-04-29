@@ -409,6 +409,7 @@ class Robot:
         only_non_self_colliding: bool = True,
         tqdm_enabled: bool = False,
         return_torch: bool = False,
+        self_colliding_percentage: float = 1.0,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
         samples = np.zeros((n, self.ndof))
@@ -416,6 +417,9 @@ class Robot:
         internal_batch_size = 5000
         counter = 0
 
+        if not only_non_self_colliding:
+            num_self_collide = 0
+            
         with tqdm.tqdm(total=n, disable=not tqdm_enabled) as pbar:
             while True:
                 samples_i = self.sample_joint_angles(internal_batch_size, joint_limit_eps=joint_limit_eps)
@@ -423,8 +427,14 @@ class Robot:
 
                 for i in range(samples_i.shape[0]):
                     sample = samples_i[i]
+                    
                     if only_non_self_colliding and self.config_self_collides(sample):
                         continue
+                    if (not only_non_self_colliding) and self.config_self_collides(sample):
+                        if num_self_collide < (n * self_colliding_percentage):
+                            num_self_collide += 1
+                        else:
+                            continue
 
                     pose = self.forward_kinematics_klampt(sample[None, :])
                     samples[counter] = sample
