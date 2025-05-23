@@ -16,7 +16,7 @@ Robot models include the following:
 | Flexiv Rizon 4              |  Rizon4     |   `rizon4`     |
 | Ur5                         |  Ur5        |   `ur5`        |
 
-Robots can easily be visualized with `python scripts/visualize_robot.py --robot_name=<alias>`, where `<alias>` is one from the table above.
+Robots can easily be visualized with `uv run python scripts/visualize_robot.py --robot_name=<alias>`, where `<alias>` is one from the table above.
 
 <table>
   <tr>
@@ -81,13 +81,11 @@ Note: This project uses the `w,x,y,z` format for quaternions.
 
 ## Installation
 
-Clone the repo and install with poetry. Don't use the version on pypi - it will remain out of date until this project hardens
+Clone the repo and install with uv. Don't use the version on pypi - it will remain out of date until this project hardens.
 ```
 git clone https://github.com/jstmn/Jrl.git && cd Jrl/
-poetry env use python3.10
-poetry install --without dev
-# or:
-poetry install # includes dev dependencies, like the linter
+uv sync
+uv pip install -e .
 ```
 
 

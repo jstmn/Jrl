@@ -45,10 +45,10 @@ def init_vis(links: List[str], vis_mesh_path: str, mesh_format: str):
         0.7, [1, 2, 3]
     )
     cube_lengths = np.array([0.4, 0.5, 0.3])
-    vis[f"cuboid"].set_object(
+    vis["cuboid"].set_object(
         meshcat.geometry.Box(cube_lengths), meshcat.geometry.MeshToonMaterial(color=0xFF8800, wireframe=True)
     )
-    vis[f"cuboid"].set_transform(Tcube)
+    vis["cuboid"].set_transform(Tcube)
 
     for link_i, link in enumerate(links):
         capsule = robot._collision_capsules[link_i, :].cpu().numpy().astype(np.float64)
@@ -169,10 +169,10 @@ def main(robot: Robot):
 
 
 """ 
-python scripts/visualize_robot_meshcat.py --robot_name panda
-python scripts/visualize_robot_meshcat.py --robot_name fetch
-python scripts/visualize_robot_meshcat.py --robot_name rizon4
-python scripts/visualize_robot_meshcat.py --robot_name iiwa14
+uv run python scripts/visualize_robot_meshcat.py --robot_name panda
+uv run python scripts/visualize_robot_meshcat.py --robot_name fetch
+uv run python scripts/visualize_robot_meshcat.py --robot_name rizon4
+uv run python scripts/visualize_robot_meshcat.py --robot_name iiwa14
 
 """
 

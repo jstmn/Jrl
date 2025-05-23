@@ -118,9 +118,9 @@ def capsule_cuboid_distance_batch(
     """
 
     n = caps.shape[0]
-    assert (
-        Tcaps.shape == Tcuboids.shape == (n, 4, 4)
-    ), f"Tcaps: {Tcaps.shape}, Tcuboids: {Tcuboids.shape}, Correct: ({n}, 4, 4)"
+    assert Tcaps.shape == Tcuboids.shape == (n, 4, 4), (
+        f"Tcaps: {Tcaps.shape}, Tcuboids: {Tcuboids.shape}, Correct: ({n}, 4, 4)"
+    )
     assert caps.shape == (n, 7), f"{caps.shape}, ({n}, 7)"
     assert cuboids.shape == (n, 6), f"{cuboids.shape}, ({n}, 6)"
 
@@ -412,12 +412,12 @@ def cuboid_sphere_distance_batch(
         print()
         for i in range(n):
             print(f"cube/sphere {i}:")
-            print(f"  world__T__cube:", world__T__cuboids[i])
-            print(f"  corners cube:  ", cuboid_corners[i])
-            print(f"  sphere center: ", sphere_centers[i])
-            print(f"  sphere radius: ", sphere_radii[i])
-            print(f"  c0:            ", c0[i])
-            print(f"  c6:            ", c6[i])
+            print("  world__T__cube:", world__T__cuboids[i])
+            print("  corners cube:  ", cuboid_corners[i])
+            print("  sphere center: ", sphere_centers[i])
+            print("  sphere radius: ", sphere_radii[i])
+            print("  c0:            ", c0[i])
+            print("  c6:            ", c6[i])
             print()
 
     Q = torch.diag_embed(torch.ones(n, 3))
@@ -494,9 +494,9 @@ def sphere_capsule_distance_batch(
     Returns:
         torch.Tensor: [n] tensor containing the distance between capsule i and sphere i for i in [0, n).
     """
-    assert (
-        capsules.shape[0] == capsule_poses.shape[0]
-    ), f"capsules: {capsules.shape}, capsule_poses: {capsule_poses.shape}"
+    assert capsules.shape[0] == capsule_poses.shape[0], (
+        f"capsules: {capsules.shape}, capsule_poses: {capsule_poses.shape}"
+    )
     assert capsules.shape[0] == spheres.shape[0], f"capsules: {capsules.shape}, spheres: {spheres.shape}"
     assert spheres.shape[1] == 4, f"spheres: {spheres.shape}, should be: ({capsules.shape[0]}, 4)"
     assert capsules.shape[1] == 7, f"capsules: {capsules.shape}, should be: ({capsules.shape[0]}, 7)"
@@ -527,18 +527,22 @@ class PlottingDemos:
         #
         tfs = torch.cat(
             [
-                torch.tensor([
-                    [1.0, 0.0, 0.0, 0.5],
-                    [0.0, 1.0, 0.0, 0.5],
-                    [0.0, 0.0, 1.0, 0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [1.0, 0.0, 0.0, 0.5],
+                        [0.0, 1.0, 0.0, 0.5],
+                        [0.0, 0.0, 1.0, 0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ).view(1, 4, 4),
             ],
             dim=0,
         )
-        corners = torch.tensor([
-            [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
-        ])
+        corners = torch.tensor(
+            [
+                [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
+            ]
+        )
         sphere_centers = torch.tensor([[0.0, 0.0, 0.0]])
         sphere_radii = torch.tensor([[0.1]])
 

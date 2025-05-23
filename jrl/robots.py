@@ -75,7 +75,7 @@ FR3_NEVER_COLLIDING_LINKS = [
     ("fr3_link6", "fr3_hand"),
     ("fr3_link7", "fr3_link5"),  # these two don't actually collide if joint limits are respected
 ]
-FR3_ALWAYS_COLLIDING_LINKS = [("fr3_rightfinger", "fr3_leftfinger")]
+FR3_ALWAYS_COLLIDING_LINKS = [("fr3_rightfinger", "fr3_leftfinger"), ("fr3_hand", "fr3_link7")]
 
 RIZON4_ALWAYS_COLLIDING_LINKS = []
 RIZON4_NEVER_COLLIDING_LINKS = [

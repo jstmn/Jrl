@@ -155,20 +155,24 @@ class TestGeometry(unittest.TestCase):
         tfs = torch.cat(
             [
                 torch.eye(4).view(1, 4, 4),
-                torch.tensor([
-                    [0.0000, -1.0000, 0.0000, 5.0],
-                    [1.0000, 0.0000, 0.0000, 5.0],
-                    [0.0000, 0.0000, 1.0000, 5.0],
-                    [0, 0, 0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [0.0000, -1.0000, 0.0000, 5.0],
+                        [1.0000, 0.0000, 0.0000, 5.0],
+                        [0.0000, 0.0000, 1.0000, 5.0],
+                        [0, 0, 0, 1.0],
+                    ]
+                ).view(1, 4, 4),
             ],
             dim=0,
         )
         assert tfs.shape == (2, 4, 4)
-        corners = torch.tensor([
-            [-1, -1, -1, 2, 3, 4],  # ( x1, y1, z1, x2, y2, z2)
-            [-2, -2, -2, 5.0, 1.0, 1.0],  # ( x1, y1, z1, x2, y2, z2)
-        ])
+        corners = torch.tensor(
+            [
+                [-1, -1, -1, 2, 3, 4],  # ( x1, y1, z1, x2, y2, z2)
+                [-2, -2, -2, 5.0, 1.0, 1.0],  # ( x1, y1, z1, x2, y2, z2)
+            ]
+        )
         c0_expected = torch.tensor([[-1, -1, -1], [2 + 5.0, -2 + 5.0, -2 + 5.0]])
         c6_expected = torch.tensor([[2, 3, 4], [-1 + 5.0, 5 + 5.0, 1 + 5.0]])
 
@@ -181,40 +185,47 @@ class TestGeometry(unittest.TestCase):
 
     # python -m unittest tests.geometry_test.TestGeometry.test__get_cuboid_G_h
     def test__get_cuboid_G_h(self):
-
         # tf 0: identity
         # tf 1: rotz(90 deg) + translation([1, 1, 1])
         tfs = torch.cat(
             [
-                torch.tensor([
-                    [1.0, 0.0, 0.0, 0.5],
-                    [0.0, 1.0, 0.0, 0.5],
-                    [0.0, 0.0, 1.0, 0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [1.0, 0.0, 0.0, 0.5],
+                        [0.0, 1.0, 0.0, 0.5],
+                        [0.0, 0.0, 1.0, 0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ).view(1, 4, 4),
                 torch.eye(4).view(1, 4, 4),
-                torch.tensor([
-                    [0.0000, -1.0000, 0.0000, 3.0],
-                    [1.0000, 0.0000, 0.0000, 3.0],
-                    [0.0000, 0.0000, 1.0000, 2.0],
-                    [0, 0, 0, 1.0],
-                ]).view(1, 4, 4),
-                torch.tensor([
-                    [0.7071068, -0.5, 0.50, -1.0],
-                    [0.5, 0.8535534, 0.1464466, -1.0],
-                    [-0.5, 0.1464466, 0.8535534, 4.0],
-                    [0, 0, 0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [0.0000, -1.0000, 0.0000, 3.0],
+                        [1.0000, 0.0000, 0.0000, 3.0],
+                        [0.0000, 0.0000, 1.0000, 2.0],
+                        [0, 0, 0, 1.0],
+                    ]
+                ).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [0.7071068, -0.5, 0.50, -1.0],
+                        [0.5, 0.8535534, 0.1464466, -1.0],
+                        [-0.5, 0.1464466, 0.8535534, 4.0],
+                        [0, 0, 0, 1.0],
+                    ]
+                ).view(1, 4, 4),
             ],
             dim=0,
         )
 
-        corners = torch.tensor([
-            [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
-            [-1, -1, -1, 1, 0.5, 0.5],  # ( x1, y1, z1, x2, y2, z2)
-            [-1, -1, -2, 0.5, 0.5, 1.0],
-            [-1, -1, -1, 1.0, 1.0, 1.0],
-        ])
+        corners = torch.tensor(
+            [
+                [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
+                [-1, -1, -1, 1, 0.5, 0.5],  # ( x1, y1, z1, x2, y2, z2)
+                [-1, -1, -2, 0.5, 0.5, 1.0],
+                [-1, -1, -1, 1.0, 1.0, 1.0],
+            ]
+        )
         c0, c1, c2, c3, c4, c5, c6, c7 = CuboidUtils._cuboid_corners_in_world_frame(tfs, corners)
         G, h = CuboidUtils._get_cuboid_G_h(tfs, c0, c1, c2, c3, c4, c5, c6, c7, debug=False)
         self.assertEqual(G.shape, (len(tfs), 6, 3))  # G is [ n x 6 x 3]
@@ -252,7 +263,7 @@ class TestGeometry(unittest.TestCase):
             constraint_names = ["lower", "upper", "left", "right", "front", "back"]
             if res_2[i] > 0.0:
                 print(f"  {constraint_names[i]} constraint violated (res_2[{i}]: {res_2[i]})")
-        self.assertGreater(res_2.max(), 0.0, f"one value must be positive, meaning there is a unsatisfied constraint")
+        self.assertGreater(res_2.max(), 0.0, "one value must be positive, meaning there is a unsatisfied constraint")
 
     # python -m unittest tests.geometry_test.TestGeometry.test_sphere_cuboid
     def test_sphere_cuboid(self):
@@ -262,34 +273,42 @@ class TestGeometry(unittest.TestCase):
             [
                 torch.eye(4).view(1, 4, 4),
                 torch.eye(4).view(1, 4, 4),
-                torch.tensor([
-                    [0.0000, -1.0000, 0.0000, 0.0],
-                    [1.0000, 0.0000, 0.0000, 0.0],
-                    [0.0000, 0.0000, 1.0000, 0.0],
-                    [0, 0, 0, 1.0],
-                ]).view(1, 4, 4),
-                torch.tensor([
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 1.5],
-                    [0, 0, 0, 1.0],
-                ]).view(1, 4, 4),
-                torch.tensor([
-                    [1.0, 0.0, 0.0, 0.7874],
-                    [0.0, 1.0, 0.0, 0.9345],
-                    [0.0, 0.0, 1.0, 0.4503],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [0.0000, -1.0000, 0.0000, 0.0],
+                        [1.0000, 0.0000, 0.0000, 0.0],
+                        [0.0000, 0.0000, 1.0000, 0.0],
+                        [0, 0, 0, 1.0],
+                    ]
+                ).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 1.5],
+                        [0, 0, 0, 1.0],
+                    ]
+                ).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [1.0, 0.0, 0.0, 0.7874],
+                        [0.0, 1.0, 0.0, 0.9345],
+                        [0.0, 0.0, 1.0, 0.4503],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ).view(1, 4, 4),
             ],
             dim=0,
         )
-        corners = torch.tensor([
-            [-1, -1, -1, 1, 1, 1.0],
-            [-1, -1, -1, 1, 1, 1.0],
-            [-1, -1, -1, 1, 1, 1.0],
-            [-1, -1, -1, 1, 1, 1.0],
-            [-1, -1, -1, 1, 1, 1.0],
-        ])
+        corners = torch.tensor(
+            [
+                [-1, -1, -1, 1, 1, 1.0],
+                [-1, -1, -1, 1, 1, 1.0],
+                [-1, -1, -1, 1, 1, 1.0],
+                [-1, -1, -1, 1, 1, 1.0],
+                [-1, -1, -1, 1, 1, 1.0],
+            ]
+        )
 
         sphere_centers = torch.tensor(
             [[2.0, 2.0, 2.0], [2.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 0.0, 1.5], [0.7874 + 1.2, 0.9345, 0.4503]]
@@ -306,18 +325,22 @@ class TestGeometry(unittest.TestCase):
     def test_sphere_cuboid_specific(self):
         tfs = torch.cat(
             [
-                torch.tensor([
-                    [1.0, 0.0, 0.0, 0.5],
-                    [0.0, 1.0, 0.0, 0.5],
-                    [0.0, 0.0, 1.0, 0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]).view(1, 4, 4),
+                torch.tensor(
+                    [
+                        [1.0, 0.0, 0.0, 0.5],
+                        [0.0, 1.0, 0.0, 0.5],
+                        [0.0, 0.0, 1.0, 0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+                ).view(1, 4, 4),
             ],
             dim=0,
         )
-        corners = torch.tensor([
-            [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
-        ])
+        corners = torch.tensor(
+            [
+                [-0.25, -0.25, -0.25, 0.25, 0.25, 0.25],
+            ]
+        )
         sphere_centers = torch.tensor([[0.0, 0.0, 0.0]])
         sphere_radii = torch.tensor([[0.1]])
         dist, sol, G, h = cuboid_sphere_distance_batch(tfs, corners, sphere_centers, sphere_radii, return_sol=True)
@@ -335,20 +358,23 @@ class TestGeometry(unittest.TestCase):
 
     # python -m unittest tests.geometry_test.TestGeometry.test_sphere_capsule_distance_batch
     def test_sphere_capsule_distance_batch(self):
-
         # Capsules refrence frame have end points in the +x direction
         # capsule center points are (0, 0, -1), (0, 0, 1)
-        capsules = torch.tensor([
-            [0, 0, -1, 0, 0, 1, 0.1],
-            [0, 0, -1, 0, 0, 1, 0.1],
-            [0, 0, -1, 0, 0, 1, 0.1],
-        ])
+        capsules = torch.tensor(
+            [
+                [0, 0, -1, 0, 0, 1, 0.1],
+                [0, 0, -1, 0, 0, 1, 0.1],
+                [0, 0, -1, 0, 0, 1, 0.1],
+            ]
+        )
         capsule_poses = torch.eye(4).expand(capsules.shape[0], 4, 4)
-        spheres = torch.tensor([
-            [1.0, 0.0, 0.0, 0.2],
-            [0.0, 0.0, 2.0, 0.2],
-            [1.0, 1.0, 0.0, 0.2],  # dist from (0, 0, 1) to (1, 1, 2) minus 0.1, minus 0.25
-        ])
+        spheres = torch.tensor(
+            [
+                [1.0, 0.0, 0.0, 0.2],
+                [0.0, 0.0, 2.0, 0.2],
+                [1.0, 1.0, 0.0, 0.2],  # dist from (0, 0, 1) to (1, 1, 2) minus 0.1, minus 0.25
+            ]
+        )
         sqrt_2 = math.sqrt(2)
         distances_expected = torch.tensor([0.7, 0.7, sqrt_2 - 0.2 - 0.1])  # 1 - 0.2 - 0.1  # 1 - 0.2 - 0.1  #
         distances = sphere_capsule_distance_batch(capsules, capsule_poses, spheres)

@@ -22,9 +22,9 @@ def assert_pose_positions_almost_equal(
     else:
         l2_errors = np.linalg.norm(endpoints1[:, 0:3] - endpoints2[:, 0:3], axis=1)
     for i in range(l2_errors.shape[0]):
-        assert (
-            l2_errors[i] < threshold
-        ), f"Position of poses '{source_1}', '{source_2}' are not equal (error={l2_errors[i]})"
+        assert l2_errors[i] < threshold, (
+            f"Position of poses '{source_1}', '{source_2}' are not equal (error={l2_errors[i]})"
+        )
 
 
 def assert_pose_rotations_almost_equal(

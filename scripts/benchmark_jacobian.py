@@ -1,4 +1,3 @@
-import argparse
 from time import time
 from typing import Callable
 
@@ -22,7 +21,7 @@ def fn_mean_std(fn: Callable, k: int):
 
 """ Example 
 
-python scripts/benchmark_jacobian.py
+uv run python scripts/benchmark_jacobian.py
 
 
 """

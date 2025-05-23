@@ -54,8 +54,8 @@ def show_redundancy(robot: Robot, n_qs=15):
 
 """ Example usage:
 
-python scripts/visualize_redundancy.py --robot_name=ur5
-python scripts/visualize_redundancy.py --robot_name=panda
+uv run python scripts/visualize_redundancy.py --robot_name=ur5
+uv run python scripts/visualize_redundancy.py --robot_name=panda
 """
 
 

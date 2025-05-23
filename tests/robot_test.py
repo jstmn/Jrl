@@ -185,7 +185,7 @@ class RobotTest(unittest.TestCase):
     #     x = torch.tensor([0, -1.3, -2.9671, -2.0944, 0.1371, 2.0944, 0], dtype=torch.float32)
     #     self.assertFalse(iiwa.config_self_collides(x))
 
-    def test_joint_limits(self):
+    def test_joint_limits_2(self):
         # panda_joint_lims:
         # (-2.8973, 2.8973),
         # (-1.7628, 1.7628),
@@ -196,18 +196,22 @@ class RobotTest(unittest.TestCase):
         # (-2.8973, 2.8973)
 
         # Test 1:
-        joint_angles_unclamped = torch.tensor([
-            [0, 0, 0, -0.1, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [3, 0, 0, 0, 0, 0, 0],
-        ])
+        joint_angles_unclamped = torch.tensor(
+            [
+                [0, 0, 0, -0.1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0],
+                [3, 0, 0, 0, 0, 0, 0],
+            ]
+        )
         panda = self.panda
         returned = panda.clamp_to_joint_limits(joint_angles_unclamped)
-        expected = torch.tensor([
-            [0, 0, 0, -0.1, 0, 0, 0],
-            [0, 0, 0, -0.0698, 0, 0, 0],
-            [2.8973, 0, 0, -0.0698, 0, 0, 0],
-        ])
+        expected = torch.tensor(
+            [
+                [0, 0, 0, -0.1, 0, 0, 0],
+                [0, 0, 0, -0.0698, 0, 0, 0],
+                [2.8973, 0, 0, -0.0698, 0, 0, 0],
+            ]
+        )
         torch.testing.assert_close(returned, expected)
 
     def test_jacobian_np(self):
@@ -434,10 +438,12 @@ class RobotTest(unittest.TestCase):
         for robot in self.robots:
             print(robot)
             ndofs = robot.ndof
-            x_original = np.array([
-                [0] * ndofs,
-                list(i * 0.1 for i in range(ndofs)),
-            ])
+            x_original = np.array(
+                [
+                    [0] * ndofs,
+                    list(i * 0.1 for i in range(ndofs)),
+                ]
+            )
             q = robot._x_to_qs(x_original)
             x_returned = robot._qs_to_x(q)
             np.testing.assert_allclose(x_original, x_returned)

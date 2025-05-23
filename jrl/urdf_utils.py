@@ -68,16 +68,16 @@ class Joint:
     def __post_init__(self):
         assert len(self.origin_rpy) == 3
         assert len(self.origin_xyz) == 3
-        assert (
-            len(self.limits) == 2
-        ), f"limits should be length 2, currently {len(self.limits)} (self.limits={self.limits})"
+        assert len(self.limits) == 2, (
+            f"limits should be length 2, currently {len(self.limits)} (self.limits={self.limits})"
+        )
 
         # Note: 'fixed' joints have been observed to have non zero limits, for example (0, 0.04) - see 'panda.urdf'. Not
         # sure what's up with that. Ignoring this for now.
         if self.is_actuated:
-            assert (
-                self.limits[0] <= self.limits[1]
-            ), f"lower limit should be less or equal than upper limit, currently {self.limits[0]} <= {self.limits[1]}"
+            assert self.limits[0] <= self.limits[1], (
+                f"lower limit should be less or equal than upper limit, currently {self.limits[0]} <= {self.limits[1]}"
+            )
             assert self.velocity_limit > 0
 
         # If joint_type is 'fixed' we can ignore `axis_xyz`
@@ -386,9 +386,9 @@ def get_kinematic_chain(
 
     # Check that all joints in `active_joints` are in the urdf
     for active_joint_name in active_joints:
-        assert (
-            active_joint_name in all_joint_names
-        ), f"active joint '{active_joint_name}' not found in the urdf (all present: {all_joint_names})"
+        assert active_joint_name in all_joint_names, (
+            f"active joint '{active_joint_name}' not found in the urdf (all present: {all_joint_names})"
+        )
         matching_joint = _get_joint_by_name(active_joint_name, all_joints)
         assert matching_joint.joint_type != "fixed", f"active joint '{active_joint_name}' is fixed"
 

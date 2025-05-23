@@ -247,9 +247,9 @@ class Robot:
         # TODO: Consider finding a better way to fix the mesh filepath issue.
         self._urdf_filepath_absolute = get_urdf_filepath_w_filenames_updated(self._urdf_filepath)
         self._klampt_world_model.loadRobot(self._urdf_filepath_absolute)  # TODO: suppress output of loadRobot call
-        assert (
-            self._klampt_world_model.numRobots()
-        ), f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
+        assert self._klampt_world_model.numRobots(), (
+            f"There should be one robot loaded (found {self._klampt_world_model.numRobots()}). Is the urdf well formed?"
+        )
         self._klampt_robot: robotsim.RobotModel = self._klampt_world_model.robot(0)
         self._ignored_collision_pairs_formatted = [
             (self._klampt_robot.link(link1_name), self._klampt_robot.link(link2_name))
@@ -464,7 +464,7 @@ class Robot:
             x[:, i] = clamp_fn(x[:, i], l, u)
         return x
 
-    def config_self_collides(self, x: PT_NP_TYPE) -> bool:
+    def config_self_collides(self, x: PT_NP_TYPE, verbose: bool = False) -> bool:
         """Returns True if the given joint angle vector causes the robot to self collide
 
         Args:
@@ -475,7 +475,13 @@ class Robot:
             x = x.detach().cpu().numpy()
         self.set_klampt_robot_config(x)
         collisions = self._klampt_collision_checker.robotSelfCollisions(self._klampt_robot)
-        # for link1, link2 in collisions:
+        if verbose:
+            is_first = True
+            for i, (link1, link2) in enumerate(collisions):
+                if is_first:
+                    print(f"\nCollisions")
+                    is_first = False
+                print(f"collision {i}: {link1.getName()} {link2.getName()}")
         for _ in collisions:
             return True
         return False
@@ -551,9 +557,9 @@ class Robot:
         driver_vec_tester = [1 if (driver.getName() in actuated_joint_child_names) else -1 for driver in all_drivers]
         active_driver_idxs = list(locate(driver_vec_tester, lambda x: x == 1))
 
-        assert (
-            len(active_driver_idxs) == self.ndof
-        ), f"Error - the number of active drivers != ndof ({len(active_driver_idxs)} != {self.ndof})"
+        assert len(active_driver_idxs) == self.ndof, (
+            f"Error - the number of active drivers != ndof ({len(active_driver_idxs)} != {self.ndof})"
+        )
         return active_driver_idxs
 
     # TODO(@jstm): Consider changing this to take (batch x ndofs)
@@ -979,6 +985,95 @@ class Robot:
             return self.clamp_to_joint_limits(xs_updated)
         return xs_updated
 
+    def inverse_kinematics_step_levenburg_marquardt_cholesky(
+        self,
+        target_poses: torch.Tensor,
+        xs_current: torch.Tensor,
+        lambd: float = 0.0001,
+        alpha: float = 1.0,
+        alphas: Optional[torch.Tensor] = None,
+        clamp_to_joint_limits: bool = True,
+    ) -> torch.Tensor:
+        """Perform a levenburg-marquardt optimization step."""
+        n = xs_current.shape[0]
+        eye = torch.eye(self.ndof, device=xs_current.device)[None, :, :].repeat(n, 1, 1)
+
+        # Get current error
+        current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=xs_current.dtype)
+        # TODO: Use cat instead of creating a new tensor
+        pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=xs_current.dtype)  # [n 6 1]
+        for i in range(3):
+            pose_errors[:, i + 3, 0] = target_poses[:, i] - current_poses[:, i]
+
+        # TODO: implement, test, compare runtime for quaternion_difference_to_rpy()
+        # rotation_error_rpy = quaternion_difference_to_rpy(target_poses[:, 3:], current_poses[:, 3:])
+        current_pose_quat_inv = quaternion_inverse(current_poses[:, 3:7])
+        rotation_error_quat = quaternion_product(target_poses[:, 3:], current_pose_quat_inv)
+        rotation_error_rpy = quaternion_to_rpy(rotation_error_quat)
+        pose_errors[:, 0:3, 0] = rotation_error_rpy  #
+
+        J_batch = torch.tensor(
+            self.jacobian_batch_np(np.array(xs_current.detach().cpu())),
+            device=xs_current.device,
+            dtype=xs_current.dtype,
+        )  # [n 6 ndof]
+        assert J_batch.shape == (n, 6, self.ndof)
+        J_batch_T = torch.transpose(J_batch, 1, 2)  # [n ndof 6]
+        assert J_batch_T.shape == (
+            n,
+            self.ndof,
+            6,
+        ), f"error, J_batch_T: {J_batch_T.shape}, should be {(n, self.ndof, 6)}"
+
+        # Solve (J_batch_T^T*J_batch_T + lambd*I)*delta_X = J_batch_T*pose_errors
+        # From wikipedia (https://en.wikipedia.org/wiki/Cholesky_decomposition)
+        #  Problem: solve Ax=b
+        #  Solution:
+        #    1. find L s.t. A = L*L^T
+        #    2. solve L*y = b for y by forward substitution
+        #    3. solve L^T*x = y for y by backward substitution
+        # eye = torch.eye(n * ndof, dtype=opt_state.x.dtype, device=opt_state.x.device)
+        # eye = torch.eye(n * ndof)
+        # J_T = torch.transpose(J, 0, 1)
+        # A = torch.matmul(J_T, J) + lambd * eye  # [n*ndof x n*ndof]
+        # b = torch.matmul(J_T, r)
+        # L = torch.linalg.cholesky(A, upper=False)
+        # y = torch.linalg.solve_triangular(L, b, upper=False)
+        # delta_x = torch.linalg.solve_triangular(L.T, y, upper=True).reshape((n, ndof))
+
+        eye = torch.eye(self.ndof, device=xs_current.device, dtype=xs_current.dtype)[None, :, :].repeat(n, 1, 1)
+        assert eye.shape == (n, self.ndof, self.ndof)
+
+        A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        assert A.shape == (n, self.ndof, self.ndof)
+
+        b = torch.bmm(J_batch_T, pose_errors)  # [n x ndof x 6] * [n x 6 x 1] = [n x ndof x 1]
+        assert b.shape == (n, self.ndof, 1)
+
+        L = torch.linalg.cholesky(A, upper=False)  # [n ndof ndof]
+        assert L.shape == (n, self.ndof, self.ndof)
+
+        y = torch.linalg.solve_triangular(L, b, upper=False)  # [n ndof 1]
+        assert y.shape == (n, self.ndof, 1)
+
+        L_T = L.transpose(-2, -1)  # Explicitly transpose to ensure correct shape
+        assert L_T.shape == (n, self.ndof, self.ndof), f"L_T.shape: {L_T.shape}, should be {(n, self.ndof, self.ndof)}"
+        delta_x = torch.linalg.solve_triangular(L_T, y, upper=True)  # [n ndof 1]
+
+        # lfs_A = torch.bmm(J_batch_T, J_batch) + lambd * eye  # [n ndof ndof]
+        # rhs_B = torch.bmm(J_batch_T, pose_errors)  # [n ndof 1]
+        # delta_x = torch.linalg.solve(lfs_A, rhs_B)  # [n ndof 1]
+
+        if alphas is not None:
+            assert alphas.shape == (n, 1)
+            xs_updated = xs_current + alphas * torch.squeeze(delta_x)
+        else:
+            xs_updated = xs_current + alpha * torch.squeeze(delta_x)
+
+        if clamp_to_joint_limits:
+            return self.clamp_to_joint_limits(xs_updated)
+        return xs_updated
+
     # TODO: Enforce joint limits
     def inverse_kinematics_step_jacobian_pinv(
         self,
@@ -1005,9 +1100,9 @@ class Robot:
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
-        assert (
-            xs_current.device == target_poses.device
-        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        assert xs_current.device == target_poses.device, (
+            f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        )
         n = target_poses.shape[0]
 
         # Get the jacobian of the end effector with respect to the current joint angles
@@ -1021,9 +1116,9 @@ class Robot:
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
-        assert (
-            current_poses.shape == target_poses.shape
-        ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        assert current_poses.shape == target_poses.shape, (
+            f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        )
 
         # Fill out `pose_errors` - the matrix of positional and rotational for each row (rotational error is in rpy)
         pose_errors = torch.zeros((n, 6, 1), device=xs_current.device, dtype=dtype)
@@ -1042,9 +1137,9 @@ class Robot:
                     print(f"target_pose:  {target_poses[row_i].data}")
                     print(f"current_pose: {current_poses[row_i].data}")
                     print(f"pose_error:   {pose_errors[row_i, :, 0].data}")
-        assert (
-            torch.isnan(pose_errors).sum() == 0
-        ), f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
+        assert torch.isnan(pose_errors).sum() == 0, (
+            f"pose_errors contains NaNs ({torch.isnan(pose_errors).sum()} of {pose_errors.numel()})"
+        )
 
         # tensor dimensions: [batch x ndofs x 6] * [batch x 6 x 1] = [batch x ndofs x 1]
         delta_x = J_pinv @ pose_errors
@@ -1080,9 +1175,9 @@ class Robot:
         _assert_is_pose_matrix(target_poses)
         _assert_is_joint_angle_matrix(xs_current, self.ndof)
         assert xs_current.shape[0] == target_poses.shape[0]
-        assert (
-            xs_current.device == target_poses.device
-        ), f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        assert xs_current.device == target_poses.device, (
+            f"xs_current and target_poses must be on the same device (got {xs_current.device} and {target_poses.device})"
+        )
 
         # New graph
         xs_current = xs_current.detach()
@@ -1090,9 +1185,9 @@ class Robot:
 
         # Run the xs_current through FK to get their realized poses
         current_poses = self.forward_kinematics(xs_current, out_device=xs_current.device, dtype=dtype)
-        assert (
-            current_poses.shape == target_poses.shape
-        ), f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        assert current_poses.shape == target_poses.shape, (
+            f"current_poses.shape != target_poses.shape ({current_poses.shape} != {target_poses.shape})"
+        )
 
         t_err = target_poses[:, 0:3] - current_poses[:, 0:3]
         R_err = geodesic_distance_between_quaternions(target_poses[:, 3:7], current_poses[:, 3:7])

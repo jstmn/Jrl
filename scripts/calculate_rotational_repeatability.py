@@ -1,4 +1,3 @@
-from math import floor
 from jrl.evaluation import pose_errors_cm_deg
 from jrl.robots import get_all_robots
 from jrl.utils import set_seed
@@ -10,7 +9,7 @@ np.set_printoptions(suppress=True, linewidth=120)
 set_seed()
 
 
-""" python scripts/calculate_rotational_repeatability.py
+""" uv run python scripts/calculate_rotational_repeatability.py
 
 This script estimates the rotational repeatability of all robots in the repository. Hardware specifications for robots 
 always comes with a _positional_ repeatability value (typically 0.1mm), however the rotational repeatibility is 

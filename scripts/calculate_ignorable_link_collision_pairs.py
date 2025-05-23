@@ -8,7 +8,7 @@ import torch
 torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
 torch.set_default_device(DEVICE)
 
-""" python scripts/calculate_ignorable_link_collision_pairs.py
+""" uv run python scripts/calculate_ignorable_link_collision_pairs.py
 """
 
 

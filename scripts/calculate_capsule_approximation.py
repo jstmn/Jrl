@@ -97,10 +97,12 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                     p2.expand(vertices.shape[0], -1),
                     r.expand(vertices.shape[0]),
                 )
-                return torch.cat((
-                    capsule_volume_batch(p1, p2, r),
-                    torch.clamp(mu * dists, min=0),
-                ))
+                return torch.cat(
+                    (
+                        capsule_volume_batch(p1, p2, r),
+                        torch.clamp(mu * dists, min=0),
+                    )
+                )
 
             Jfn = torch.func.jacfwd(fg, argnums=0)
 
@@ -190,7 +192,6 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
 
 
 def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
-
     linkname = stl_path.stem
     txt_path = outdir / f"{linkname}.txt"
     if txt_path.exists():
@@ -230,7 +231,7 @@ def stl_to_capsule(stl_path: str, outdir: pathlib.PosixPath, vis=None):
 
 
 """
-python scripts/calculate_capsule_approximation.py --visualize --robot_name=iiwa14
+uv run python scripts/calculate_capsule_approximation.py --visualize --robot_name=iiwa14
 """
 
 

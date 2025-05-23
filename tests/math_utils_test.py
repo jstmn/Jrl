@@ -307,7 +307,7 @@ class TestConversions(unittest.TestCase):
 
         product_returned_2 = quatmul(q1, q2)
         torch.testing.assert_close(product_expected, product_returned_2)
-        print(f"test_quaternion_product() passed")
+        print("test_quaternion_product() passed")
 
 
 if __name__ == "__main__":
