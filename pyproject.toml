@@ -18,6 +18,13 @@ dependencies = [
 [tool.setuptools.packages]
 find = { include = ["jrl"], exclude = ["media"] }
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+jrl = ["**/*.urdf", "**/*.DAE", "**/*.STL", "**/*.dae", "**/*.stl", "**/*.txt", "**/*.md"]
+
+
 [tool.ruff]
 line-length = 120
 ignore = ["E741"]
