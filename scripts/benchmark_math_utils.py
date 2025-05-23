@@ -1,9 +1,7 @@
 from time import time
 from typing import Callable
-import sys
 
 import numpy as np
-import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 

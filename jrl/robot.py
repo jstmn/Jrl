@@ -479,7 +479,7 @@ class Robot:
             is_first = True
             for i, (link1, link2) in enumerate(collisions):
                 if is_first:
-                    print(f"\nCollisions")
+                    print("\nCollisions")
                     is_first = False
                 print(f"collision {i}: {link1.getName()} {link2.getName()}")
         for _ in collisions:

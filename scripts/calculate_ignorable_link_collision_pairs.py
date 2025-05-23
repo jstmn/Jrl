@@ -1,7 +1,7 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.robots import Fetch, FetchArm, Panda, Rizon4, Ur5, Iiwa14, Fr3
+from jrl.robots import Fr3
 
 import torch
 

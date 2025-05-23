@@ -11,6 +11,7 @@ dependencies = [
     "meshcat>=0.3.2",
     "more-itertools>=10.6.0",
     "pandas>=2.2.3",
+    "pylint>=3.3.7",
     "torch>=2.3.0",
     "tqdm>=4.67.1",
 ]
@@ -27,7 +28,7 @@ jrl = ["**/*.urdf", "**/*.DAE", "**/*.STL", "**/*.dae", "**/*.stl", "**/*.txt", 
 
 [tool.ruff]
 line-length = 120
-ignore = ["E741"]
+lint.ignore = ["E741"]
 
 
 # uv run jupyter nbconvert --clear-output scripts/*.ipynb

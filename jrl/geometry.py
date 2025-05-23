@@ -460,10 +460,10 @@ def cuboid_sphere_distance_batch(
         print()
         for i in range(n):
             print(f"cube/sphere {i}:")
-            print(f"  sol: ", sol[i].tolist())
+            print("  sol: ", sol[i].tolist())
             const = G.matmul(sol[i]) - h[i].view(6, 1)
             # print(f"  const: ", const.view(6).tolist())
-            print(f"  const: ", const.tolist())
+            print("  const: ", const.tolist())
             print()
 
     # TODO: add more tests to test_sphere_cuboid()
@@ -580,7 +580,5 @@ class PlottingDemos:
 
 
 if __name__ == "__main__":
-    import meshcat
     from jrl import meshcat_utils
-
     PlottingDemos.plot_sphere_cuboid()

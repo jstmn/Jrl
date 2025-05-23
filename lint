@@ -1,15 +1,17 @@
+#!/bin/bash
+
 # Follow these two webpages to setup black to automatically run on saving
 # https://marcobelo.medium.com/setting-up-python-black-on-visual-studio-code-5318eba4cd00#
 # https://dev.to/adamlombard/vscode-setting-line-lengths-in-the-black-python-code-formatter-1g62
 
 echo "_____________"
-echo "Running black"
-python -m black **/*.py --line-length=120 --target-version=py38 --preview
+echo "Running ruff"
+uv run ruff check --exclude jrl/deprecated.py --fix
 
 echo "______________"
 echo "Running pylint"
-python -m pylint jrl/*.py 
+uv run python -m pylint jrl/*.py --ignore jrl/deprecated.py
 
 echo "_________________________________"
 echo "Clearing jupyter notebook outputs"
-jupyter nbconvert --clear-output --inplace scripts/*.ipynb
+uv run jupyter nbconvert --clear-output --inplace scripts/*.ipynb
