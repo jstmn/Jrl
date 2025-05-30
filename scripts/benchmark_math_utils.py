@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 from jrl.utils import random_quaternions
 from jrl.math_utils import geodesic_distance_between_quaternions, geodesic_distance_between_quaternions_warp
-
+from jrl.config import DEVICE
 
 def fn_mean_std(fn: Callable, k: int):
     runtimes = []
@@ -44,9 +44,9 @@ if __name__ == "__main__":
     for batch_size in [1, 5, 10, 50, 100, 500, 1000, 5000, 10000]:
         print(f"Batch size: {batch_size}")
 
-        qs1_gpu = random_quaternions(batch_size, device="cuda")
+        qs1_gpu = random_quaternions(batch_size, device=DEVICE)
         qs1_cpu = qs1_gpu.clone().cpu()
-        qs2_gpu = random_quaternions(batch_size, device="cuda")
+        qs2_gpu = random_quaternions(batch_size, device=DEVICE)
         qs2_cpu = qs2_gpu.clone().cpu()
 
         lambdas = [

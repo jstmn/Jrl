@@ -11,13 +11,13 @@ from typing import Tuple, Optional
 import torch
 import numpy as np
 
-from jrl.config import DEFAULT_TORCH_DTYPE
+from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
 _TORCH_EPS_CUDA = torch.tensor(
     1e-8,
     dtype=DEFAULT_TORCH_DTYPE,
-    device="mps" if torch.backends.mps.is_available() else "cuda",
+    device="mps" if torch.backends.mps.is_available() else DEVICE,
 )
 
 

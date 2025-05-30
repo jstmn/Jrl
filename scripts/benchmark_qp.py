@@ -8,9 +8,10 @@ import time
 import tqdm
 from jrl.math_utils import QP
 import argparse
+from jrl.config import DEVICE
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument("--device", type=str, default="cuda")
+argparser.add_argument("--device", type=str, default=DEVICE)
 args = argparser.parse_args()
 
 

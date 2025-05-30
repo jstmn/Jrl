@@ -18,6 +18,7 @@ from jrl.math_utils import (
 )
 from jrl.utils import set_seed, to_torch
 from jrl.robots import FetchArm
+from jrl.config import DEVICE
 
 # Set seed to ensure reproducibility
 set_seed()
@@ -127,14 +128,14 @@ class TestConversions(unittest.TestCase):
             return theta_vec, pose_fk, geodesic_distance_between_quaternions(pose_fk[:, 3:], target_pose[:, 3:])[0]
 
         theta_cpu, _, dist_cpu = get_distance("cpu")
-        theta_cuda, _, dist_cuda = get_distance("cuda")
+        theta_cuda, _, dist_cuda = get_distance(DEVICE)
         dist_cpu.backward()
         dist_cuda.backward()
         self.assertFalse(torch.isnan(theta_cpu.grad).any())
         self.assertFalse(torch.isnan(theta_cuda.grad).any())
 
         # Test 2: Increase a joint angle away from a fixed one
-        device = "cuda"
+        device = DEVICE
         joint_angle, target_pose = robot.sample_joint_angles_and_poses(1)
         joint_angle = to_torch(joint_angle, device=device)
         target_pose = to_torch(target_pose, device=device)

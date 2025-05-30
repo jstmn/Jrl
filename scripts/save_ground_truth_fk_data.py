@@ -7,6 +7,7 @@ from jrl.robots import get_robot
 from jrl.robot import forward_kinematics_kinpy
 from jrl.math_utils import geodesic_distance_between_quaternions
 from jrl.utils import set_seed
+from jrl.config import DEVICE
 
 set_seed()
 
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     # batch_fk
     if robot._batch_fk_enabled:
         poses_batchfk = robot.forward_kinematics(
-            torch.tensor(joint_angles, dtype=torch.float32, device="cuda"), return_quaternion=True
+            torch.tensor(joint_angles, dtype=torch.float32, device=DEVICE), return_quaternion=True
         )
         rotational_errors_kinpy_batchfk = geodesic_distance_between_quaternions(
             poses_kinpy[:, 3:7], poses_batchfk[:, 3:7]

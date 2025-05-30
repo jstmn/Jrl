@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from jrl.utils import to_torch
 from jrl.robots import Panda
+from jrl.config import DEVICE
 
 
 def fn_mean_std(fn: Callable, k: int):
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
         lambdas = [
             lambda: robot.forward_kinematics(x_pt_cpu, out_device="cpu"),
-            lambda: robot.forward_kinematics(x_pt_cuda, out_device="cuda"),
+            lambda: robot.forward_kinematics(x_pt_cuda, out_device=DEVICE),
             lambda: robot.forward_kinematics_klampt(x),
         ]
         for lambda_, method_name in zip(lambdas, method_names):
