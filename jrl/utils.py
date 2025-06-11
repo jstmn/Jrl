@@ -4,7 +4,8 @@ import pathlib
 import colorsys
 
 # TODO: pkg_resources is deprecated. Use importlib.resources instead.
-import pkg_resources
+# import pkg_resources
+import importlib.resources
 import torch
 import numpy as np
 
@@ -25,7 +26,8 @@ def safe_mkdir(dir_name: str):
 
 
 def get_filepath(local_filepath: str):
-    return pkg_resources.resource_filename(__name__, local_filepath)
+    resource = importlib.resources.files(__package__).joinpath(local_filepath)
+    return str(resource)
 
 
 def set_seed(seed=0):
