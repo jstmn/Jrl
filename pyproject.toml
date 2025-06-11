@@ -12,6 +12,7 @@ dependencies = [
     "more-itertools>=10.6.0",
     "pandas>=2.2.3",
     "pylint>=3.3.7",
+    "pytest>=8.4.0",
     "torch>=2.3.0",
     "tqdm>=4.67.1",
 ]

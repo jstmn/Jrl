@@ -11,18 +11,10 @@ from typing import Tuple, Optional
 import torch
 import numpy as np
 
-from jrl.config import DEFAULT_TORCH_DTYPE, ACCELERATOR_AVAILABLE
+from jrl.config import DEFAULT_TORCH_DTYPE, ACCELERATOR_AVAILABLE, DEVICE
 
 _TORCH_EPS_CPU = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device="cpu")
-_TORCH_EPS_CUDA = (
-    torch.tensor(
-        1e-8,
-        dtype=DEFAULT_TORCH_DTYPE,
-        device="mps" if torch.backends.mps.is_available() else "cuda",
-    )
-    if ACCELERATOR_AVAILABLE
-    else None
-)
+_TORCH_EPS_CUDA = torch.tensor(1e-8, dtype=DEFAULT_TORCH_DTYPE, device=DEVICE) if ACCELERATOR_AVAILABLE else None
 
 
 class QP:
