@@ -35,7 +35,6 @@ from jrl.urdf_utils import (
 from jrl.utils import to_torch
 from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance_batch
 
-
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
     assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
     assert isinstance(x, (torch.Tensor, np.ndarray)), f"Expected x to be a torch.Tensor or np.ndarray but got {type(x)}"
@@ -410,6 +409,8 @@ class Robot:
         tqdm_enabled: bool = False,
         return_torch: bool = False,
         self_colliding_percentage: float = 1.0,
+        standardize_quat: bool = False,
+
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a [N x ndof] matrix of randomly drawn joint angle vectors with matching end effector poses."""
         samples = np.zeros((n, self.ndof))
@@ -436,7 +437,9 @@ class Robot:
                         else:
                             continue
 
-                    pose = self.forward_kinematics_klampt(sample[None, :])
+                    pose = self.forward_kinematics_klampt(sample[None, :])[0]
+                    if standardize_quat:
+                        pose[3:7] = np.where(pose[3:4] < 0, -pose[3:7], pose[3:7])
                     samples[counter] = sample
                     poses[counter] = pose
                     counter += 1
@@ -661,6 +664,9 @@ class Robot:
             R, t = link.getTransform()
             y[i, 0:3] = np.array(t)
             y[i, 3:] = np.array(so3.quaternion(R))
+            # from . import rotation_conversions as rc
+            # R = torch.tensor(R).reshape(3,3).T  # Ensure R is a 3x3 matrix.
+            # y[i, 3:] = rc.matrix_to_quaternion(R).cpu().numpy()
         return y
 
     def _ensure_forward_kinematics_cache(self, device: torch.device, dtype: torch.dtype = DEFAULT_TORCH_DTYPE):
