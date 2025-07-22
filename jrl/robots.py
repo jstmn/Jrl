@@ -612,7 +612,7 @@ class Jaka(Robot):
             "J_6",
             "J_7",
         ]
-        urdf_filepath = get_filepath("urdfs/jaka/urdf/left_jaka.urdf")
+        urdf_filepath = get_filepath("urdfs/jaka/left_jaka.urdf")
         base_link = "LINK_BASE"
         # base_link = "base_link_inertia"
         end_effector_link_name = "LINK_7"
