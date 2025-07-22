@@ -103,6 +103,18 @@ UR5_NEVER_COLLIDING_LINKS = [
 
 UR5_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
+JAKA_NEVER_COLLIDING_LINKS = [
+    ("LINK_BASE", "LINK_1"),
+    ("LINK_1", "LINK_2"),
+    ("LINK_2", "LINK_3"),
+    ("LINK_3", "LINK_4"),
+    ("LINK_4", "LINK_5"),
+    ("LINK_5", "LINK_6"),
+    ("LINK_6", "LINK_7"),
+]
+
+JAKA_ALWAYS_COLLIDING_LINKS = []
+
 
 def _load_capsule(path: str):
     data = np.loadtxt(get_filepath(path), delimiter=",")
@@ -581,8 +593,59 @@ class Ur5(Robot):
             additional_link_name=None,
         )
 
+class Jaka(Robot):
+    name = "jaka"
+    formal_robot_name = "JAKA"
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14, Fr3]
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.12614500942996015
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "J_1",
+            "J_2",
+            "J_3",
+            "J_4",
+            "J_5",
+            "J_6",
+            "J_7",
+        ]
+        urdf_filepath = get_filepath("urdfs/jaka/urdf/left_jaka.urdf")
+        base_link = "LINK_BASE"
+        # base_link = "base_link_inertia"
+        end_effector_link_name = "LINK_7"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        collision_capsules_by_link = {
+            "LINK_BASE": _load_capsule("urdfs/jaka/capsules/LINK_BASE.txt"),
+            "LINK_1": _load_capsule("urdfs/jaka/capsules/LINK_1.txt"),
+            "LINK_2": _load_capsule("urdfs/jaka/capsules/LINK_2.txt"),
+            "LINK_3": _load_capsule("urdfs/jaka/capsules/LINK_3.txt"),
+            "LINK_4": _load_capsule("urdfs/jaka/capsules/LINK_4.txt"),
+            "LINK_5": _load_capsule("urdfs/jaka/capsules/LINK_5.txt"),
+            "LINK_6": _load_capsule("urdfs/jaka/capsules/LINK_6.txt"),
+            "LINK_7": _load_capsule("urdfs/jaka/capsules/LINK_7.txt"),
+        }
+
+        ignored_collision_pairs = JAKA_NEVER_COLLIDING_LINKS + JAKA_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Jaka.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14, Fr3, Jaka]
 # ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
 # ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]

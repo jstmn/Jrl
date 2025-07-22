@@ -1,0 +1,223 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="jaka">
+	<link name="LINK_BASE">
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_BASE.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_BASE.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<link name="LINK_1">
+		<inertial>
+			<origin xyz="-2.45882405047748E-06 -3.29464987541828E-07 0.164278748238532" rpy="0 0 0" />
+			<mass value="1.49114512916932" />
+			<inertia ixx="0.00305995014022018" ixy="1.23264704383502E-07" ixz="4.84189867969247E-08" iyy="0.00378498860937113" iyz="-4.00260808091414E-08" izz="0.00212611420638742" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_1.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_1.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_1" type="revolute">
+		<origin xyz="-0.00207 0.01075 -0.00174" rpy="1.56941 -0.00315 -3.13962" />
+		<parent link="LINK_BASE" />
+		<child link="LINK_1" />
+		<axis xyz="0 0 1" />
+		<limit lower="-6.1927" upper="6.1927" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_2">
+		<inertial>
+			<origin xyz="1.74240956271055E-05 -0.0453022741090805 -0.000759873712155773" rpy="0 0 0" />
+			<mass value="2.70306833498583" />
+			<inertia ixx="0.00985115974478498" ixy="3.38929946328778E-06" ixz="7.02637815742899E-10" iyy="0.00588774779064225" iyz="9.30817838600324E-05" izz="0.00748058795777288" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_2.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_2.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_2" type="revolute">
+		<origin xyz="-0.00013 0.0001 0.2158" rpy="-1.57295 -0.00457 0.00517" />
+		<parent link="LINK_1" />
+		<child link="LINK_2" />
+		<axis xyz="0 0 1" />
+		<limit lower="-1.6572" upper="1.6572" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_3">
+		<inertial>
+			<origin xyz="0.00701838224257123 0.000445384597281745 0.236718911084163" rpy="0 0 0" />
+			<mass value="3.54660277017021" />
+			<inertia ixx="0.0185269491147814" ixy="1.22803062163473E-06" ixz="-0.000120248225064981" iyy="0.0186931698736287" iyz="1.68848260564534E-05" izz="0.0037520600759143" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_3.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_3.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_3" type="revolute">
+		<origin xyz="0.00038 0.00051 7e-05" rpy="1.5712 0.00116 -0.00546" />
+		<parent link="LINK_2" />
+		<child link="LINK_3" />
+		<axis xyz="0 0 1" />
+		<limit lower="-6.1927" upper="6.1927" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_4">
+		<inertial>
+			<origin xyz="0.00464860545503498 -0.031606800570405 0.000433536963443448" rpy="0 0 0" />
+			<mass value="1.47407564170496" />
+			<inertia ixx="0.00379436315877962" ixy="0.000160580379176352" ixz="2.46367423553941E-07" iyy="0.00225645703041677" iyz="7.77418840504163E-06" izz="0.00281220417778935" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_4.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_4.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_4" type="revolute">
+		<origin xyz="7e-05 -0.00033 0.32977" rpy="-1.57237 -0.00478 0.0009" />
+		<parent link="LINK_3" />
+		<child link="LINK_4" />
+		<axis xyz="0 0 1" />
+		<limit lower="-2.2677" upper="0.3837" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_5">
+		<inertial>
+			<origin xyz="2.43096568794399E-06 -0.00407933089387785 0.183521133028236" rpy="0 0 0" />
+			<mass value="2.28121146224532" />
+			<inertia ixx="0.00549376132472019" ixy="1.63295392051663E-07" ixz="-1.60666859093446E-07" iyy="0.00558037685767306" iyz="0.000384345843703894" izz="0.0019595069767207" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_5.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_5.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_5" type="revolute">
+		<origin xyz="-0.00028 0.00147 -0.0003" rpy="1.57115 0.00072 0.00478" />
+		<parent link="LINK_4" />
+		<child link="LINK_5" />
+		<axis xyz="0 0 1" />
+		<limit lower="-6.1927" upper="6.1927" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_6">
+		<inertial>
+			<origin xyz="-3.20485791543978E-07 -0.0871588885252024 0.00553927259501111" rpy="0 0 0" />
+			<mass value="1.76792309991608" />
+			<inertia ixx="0.00447235828100318" ixy="4.71470081986946E-08" ixz="1.19024742791782E-08" iyy="0.00158251986786073" iyz="-0.000773038350882278" izz="0.00428293497271528" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_6.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_6.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_6" type="revolute">
+		<origin xyz="0.00011 -0.00027 0.23345" rpy="-1.56989 0.00018 -0.00035" />
+		<parent link="LINK_5" />
+		<child link="LINK_6" />
+		<axis xyz="0 0 1" />
+		<limit lower="-1.5707" upper="1.5707" effort="0" velocity="0" />
+	</joint>
+	<link name="LINK_7">
+		<inertial>
+			<origin xyz="2.69436515210053E-07 -3.26753170756533E-05 0.176617274894147" rpy="0 0 0" />
+			<mass value="0.63498344781308" />
+			<inertia ixx="0.000369700889597725" ixy="3.27053047976352E-20" ixz="1.86652534700175E-20" iyy="0.000370207332440143" iyz="4.29842702140588E-07" izz="0.000512144747874417" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_7.STL" />
+			</geometry>
+			<material name="">
+				<color rgba="1 1 1 1" />
+			</material>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="urdfs/jaka/meshes/meshes/LINK_7.STL" />
+			</geometry>
+		</collision>
+	</link>
+	<joint name="J_7" type="revolute">
+		<origin xyz="-1e-05 -0.27976 -0.00028" rpy="1.57196 0.00105 0.00019" />
+		<parent link="LINK_6" />
+		<child link="LINK_7" />
+		<axis xyz="0 0 1" />
+		<limit lower="-6.1927" upper="6.1927" effort="0" velocity="0" />
+	</joint>
+</robot>

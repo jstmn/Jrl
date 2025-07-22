@@ -48,9 +48,11 @@ def point_capsule_distance_batch(p: torch.Tensor, c1: torch.Tensor, c2: torch.Te
 
 def plot_sphere(ax, center, radius):
     u, v = np.mgrid[0 : 2 * np.pi : 20j, 0 : np.pi : 10j]
-    x = radius * np.cos(u) * np.sin(v) + center[0]
-    y = radius * np.sin(u) * np.sin(v) + center[1]
-    z = radius * np.cos(v) + center[2]
+    radius_cpu = radius.cpu().item()
+    center_cpu = center.cpu().numpy()
+    x = radius_cpu * np.cos(u) * np.sin(v) + center_cpu[0]
+    y = radius_cpu * np.sin(u) * np.sin(v) + center_cpu[1]
+    z = radius_cpu * np.cos(v) + center_cpu[2]
     ax.plot_wireframe(x, y, z, color="r")
 
 
@@ -115,8 +117,9 @@ def lm_penalty_optimal_capsule(vertices: torch.Tensor, nruns=5, vis=None):
                 inner_step = 0
                 converged = False
                 while not converged:
-                    p1vis = np.array([x[0], x[1], x[2]], dtype=np.float64)
-                    p2vis = np.array([x[3], x[4], x[5]], dtype=np.float64)
+                    x_cpu = x.cpu().numpy()
+                    p1vis = np.array(x_cpu[0:3], dtype=np.float64)
+                    p2vis = np.array(x_cpu[3:6], dtype=np.float64)
                     rvis = x[6].item()
                     h = np.linalg.norm(p2vis - p1vis)
                     capsule_material = meshcat.geometry.MeshToonMaterial(color=0x8888FF, opacity=0.4)
@@ -237,8 +240,8 @@ uv run python scripts/calculate_capsule_approximation.py --visualize --robot_nam
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--visualize", action="store_true")
-    argparser.add_argument("--robot_name", type=str, required=True)
+    argparser.add_argument("--visualize", action="store_true", default=True)
+    argparser.add_argument("--robot_name", type=str, default="jaka")
     args = argparser.parse_args()
 
     assert args.robot_name in ALL_ROBOT_NAMES
@@ -250,5 +253,5 @@ if __name__ == "__main__":
 
     outdir = pathlib.Path(f"jrl/urdfs/{args.robot_name}/capsules")
     outdir.mkdir(exist_ok=True)
-    for stl_path in pathlib.Path(f"jrl/urdfs/{args.robot_name}/meshes/collision").glob("*.stl"):
+    for stl_path in pathlib.Path(f"jrl/urdfs/{args.robot_name}/meshes").glob("*.STL"):
         stl_to_capsule(stl_path, outdir, vis)
