@@ -4,7 +4,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_BASE.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_BASE.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -13,7 +13,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_BASE.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_BASE.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -26,7 +26,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_1.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_1.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -35,7 +35,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_1.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_1.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -55,7 +55,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_2.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_2.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -64,7 +64,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_2.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_2.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -84,7 +84,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_3.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_3.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -93,7 +93,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_3.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_3.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -113,7 +113,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_4.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_4.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -122,7 +122,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_4.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_4.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -142,7 +142,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_5.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_5.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -151,7 +151,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_5.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_5.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -171,7 +171,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_6.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_6.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
@@ -180,7 +180,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_6.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_6.STL" />
 			</geometry>
 		</collision>
 	</link>
@@ -200,7 +200,7 @@
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_7.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_7.STL" />
 			</geometry>
 			<material name="">
 				<color rgba="1 1 1 1" />
@@ -209,7 +209,7 @@
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<geometry>
-				<mesh filename="urdfs/jaka/meshes/meshes/LINK_7.STL" />
+				<mesh filename="urdfs/jaka/meshes/LINK_7.STL" />
 			</geometry>
 		</collision>
 	</link>
