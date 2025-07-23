@@ -240,8 +240,8 @@ uv run python scripts/calculate_capsule_approximation.py --visualize --robot_nam
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--visualize", action="store_true", default=True)
-    argparser.add_argument("--robot_name", type=str, default="jaka")
+    argparser.add_argument("--visualize", action="store_true")
+    argparser.add_argument("--robot_name", type=str, required=True)
     args = argparser.parse_args()
 
     assert args.robot_name in ALL_ROBOT_NAMES
