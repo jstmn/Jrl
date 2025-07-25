@@ -279,6 +279,7 @@ class RobotTest(unittest.TestCase):
             "ur5e": 6,
             "xarm6": 6,
             "cr5": 6,
+            "fr3": 7,
         }
         for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
