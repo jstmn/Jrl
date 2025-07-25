@@ -8,7 +8,6 @@ from jrl.utils import set_seed, to_torch
 from jrl.robot import Robot
 from jrl.robots import get_all_robots, Panda, Fetch, FetchArm, Fr3
 from jrl.config import DEVICE, PT_NP_TYPE
-from tests.all_robots import all_robots
 
 set_seed(0)
 
@@ -272,7 +271,6 @@ class RobotTest(unittest.TestCase):
             "ur10": 6,
             "ur16": 6,
             "ur3": 6,
-            "ur5e": 6,
             "ur10e": 6,
             "ur16e": 6,
             "ur3e": 6,

@@ -5,7 +5,7 @@ import torch
 import numpy as np
 
 from jrl import config
-from jrl.robots import Fetch, FetchArm, Ur5
+from jrl.robots import Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
 from jrl.math_utils import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
 from jrl.utils import set_seed, to_torch
