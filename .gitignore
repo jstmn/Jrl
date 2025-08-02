@@ -19,3 +19,4 @@ venv-test/
 thirdparty/rerun-loader-python-example-urdf/
 .ruff_cache/
 .benchmarks/
+deprecated.py
