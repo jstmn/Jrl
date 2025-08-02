@@ -1,30 +1,42 @@
 from time import time
 
 from jrl.config import DEVICE, DEFAULT_TORCH_DTYPE
-from jrl.robots import Fr3
+from jrl.robots import ALL_ROBOT_NAMES, get_robot
 
 import torch
 
 torch.set_default_dtype(DEFAULT_TORCH_DTYPE)
 torch.set_default_device(DEVICE)
 
-""" uv run python scripts/calculate_ignorable_link_collision_pairs.py
+""" uv run python scripts/calculate_ignorable_link_collision_pairs.py --robot_name panda
 """
 
 
 if __name__ == "__main__":
+    import argparse
+
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--robot_name", type=str, required=True)
+    args = argparser.parse_args()
+
+    assert args.robot_name in ALL_ROBOT_NAMES
+
     always_colliding_pct = 0.95  # value used in moveit
     never_colliding_pct = 0.001
 
     # Note: you need to manually comment out the collision pairs in 'ignored_collision_pairs' in __init__()
-    robot = Fr3()
+    robot = get_robot(args.robot_name)
+    # robot = Iiwa14()
+    # robot = Iiwa7()
     # robot = Ur5()
+    # robot = Ur3()
     # robot = Rizon4()
     # robot = Fetch()
     # robot = FetchArm()
     # robot = Panda()
 
     link_names = list(robot._collision_capsules_by_link.keys())
+    print(link_names)
     n_pairs = robot._collision_idx0.numel()
 
     print()
@@ -58,7 +70,7 @@ if __name__ == "__main__":
             if colliding[i, j]:
                 collision_counter[(link_names[robot._collision_idx0[j]], link_names[robot._collision_idx1[j]])] += 1
 
-        if i % 1000 == 0:
+        if (i + 1) % 20000 == 0:
             print_collision_counter(i)
     print_collision_counter(i)
 

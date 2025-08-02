@@ -6,7 +6,7 @@
 | `panda`  | https://github.com/ARISE-Initiative/robosuite/blob/92abf5595eddb3a845cd1093703e5a3ccd01e77e/robosuite/models/assets/bullet_data/panda_description/urdf/panda.urdf  |  |
 | `fetch` | https://github.com/openai/roboschool/tree/master/roboschool/models_robot/fetch_description/robots  |  |
 | `iiwa7` | https://github.com/IFL-CAMP/iiwa_stack/blob/master/iiwa_description/urdf/iiwa7.xacro  |  |
-| `ur5` | https://github.com/ros-industrial/universal_robot/tree/melodic-devel  |  |
+| `ur3-ur16e` | https://github.com/ros-industrial/universal_robot/tree/melodic-devel  |  |
 
 
 ## Generate a .urdf from an .xacro file
@@ -41,6 +41,15 @@ catkin_make install
 rosrun xacro xacro src/universal_robot/ur_description/urdf/ur5.xacro > ur5.urdf
 # cp ur5.urdf <path/to/jrl/jrl/urdfs/ur5>
 ```
+
+
+
+## Convert from `.mtl` to `.dae`
+
+I used [imagetostl.com](https://imagetostl.com/convert/file/mtl/to/dae#google_vignette) for this conversion. I'm not sure if color is correctly converted however.
+
+
+
 
 ## Create a pdf of the urdf
 

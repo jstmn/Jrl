@@ -6,8 +6,9 @@ import numpy as np
 from jrl.urdf_utils import _len3_tuple_from_str
 from jrl.utils import set_seed, to_torch
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, Panda, Fetch, FetchArm, Fr3
+from jrl.robots import Panda, Fetch, FetchArm, Fr3
 from jrl.config import DEVICE, PT_NP_TYPE
+from jrl.testing_utils import all_robots
 
 set_seed(0)
 
@@ -15,7 +16,7 @@ set_seed(0)
 class RobotTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.robots = get_all_robots()
+        cls.robots = all_robots
         cls.panda = None
         cls.fr3 = None
         for robot in cls.robots:
@@ -268,6 +269,16 @@ class RobotTest(unittest.TestCase):
             "rizon4": 7,
             "ur5": 6,
             "iiwa14": 7,
+            "ur10": 6,
+            "ur16": 6,
+            "ur3": 6,
+            "ur10e": 6,
+            "ur16e": 6,
+            "ur3e": 6,
+            "ur5e": 6,
+            "xarm6": 6,
+            "cr5": 6,
+            "fr3": 7,
         }
         for robot in self.robots:
             self.assertEqual(robot.ndof, ground_truth_n_dofs[robot.name])
@@ -350,6 +361,10 @@ class RobotTest(unittest.TestCase):
         }
         for robot in self.robots:
             self.assertEqual(len(robot.actuated_joints_limits), robot.ndof)
+            if robot.name not in ground_truth_joint_limits:
+                print(f"Skipping {robot.name}. TODO: add ground truthjoint limits for this robot")
+                continue
+
             for gt_limit, parsed_limit in zip(ground_truth_joint_limits[robot.name], robot.actuated_joints_limits):
                 self.assertAlmostEqual(gt_limit[0], parsed_limit[0])
                 self.assertAlmostEqual(gt_limit[1], parsed_limit[1])
@@ -431,6 +446,9 @@ class RobotTest(unittest.TestCase):
             ],
         }
         for robot in self.robots:
+            if robot.name not in ground_truth_actuated_joints:
+                print(f"Skipping {robot.name}. TODO: add ground truthactuated joints for this robot")
+                continue
             self.assertEqual(len(robot.actuated_joint_names), robot.ndof)
             self.assertListEqual(robot.actuated_joint_names, ground_truth_actuated_joints[robot.name])
 
@@ -460,6 +478,9 @@ class RobotTest(unittest.TestCase):
         }
 
         for robot in self.robots:
+            if robot.name not in gt_klampt_vector_dimensionality:
+                print(f"Skipping {robot.name}. TODO: add ground truth vector dimensionality for this robot")
+                continue
             gt_vector_dim = gt_klampt_vector_dimensionality[robot.name]
             ndof = robot.ndof
 

@@ -93,3 +93,5 @@ uv pip install -e .
 ## Acknowledgements
 * [klampt](https://github.com/krishauser/Klampt) is used as a visualizer, for testing the Jrl FK / jacobian calculations, and for single configuration collision checking
 * [David Millard](https://github.com/dmillard) developed the collision checking functionality, improved the efficiency of the FK code, and wrote the jacobian function.
+* [kinpy](https://github.com/neka-nat/kinpy) as a second FK library for comparing against the internal `batch_fk` implementation, and the klampt FK version
+* [YupuLu](https://github.com/YupuLu) for contributing a number of the robot urdfs

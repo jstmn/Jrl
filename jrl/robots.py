@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from jrl.robot import Robot
-from jrl.utils import get_filepath
+from jrl.utils import get_filepath, make_text_green_or_red
 from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE
 
 
@@ -93,6 +93,52 @@ RIZON4_NEVER_COLLIDING_LINKS = [
     ("link4", "link7"),
 ]
 
+IIWA14_NEVER_COLLIDING_LINKS = [
+    ("link_0", "link_3"),
+    ("link_0", "link_4"),
+    ("link_1", "link_3"),
+    ("link_1", "link_4"),
+    ("link_1", "link_5"),
+    ("link_1", "link_6"),
+    ("link_1", "link_7"),
+    ("link_2", "link_4"),
+    ("link_2", "link_5"),
+    ("link_2", "link_6"),
+    ("link_2", "link_7"),
+    ("link_3", "link_5"),
+    ("link_3", "link_6"),
+    ("link_3", "link_7"),
+    ("link_4", "link_6"),
+    ("link_4", "link_7"),
+]
+
+IIWA7_NEVER_COLLIDING_LINKS = [
+    ("iiwa_link_0", "iiwa_link_2"),
+    ("iiwa_link_0", "iiwa_link_3"),
+    ("iiwa_link_0", "iiwa_link_4"),
+    ("iiwa_link_1", "iiwa_link_3"),
+    ("iiwa_link_1", "iiwa_link_4"),
+    ("iiwa_link_1", "iiwa_link_5"),
+    ("iiwa_link_1", "iiwa_link_6"),
+    ("iiwa_link_1", "iiwa_link_7"),
+    ("iiwa_link_2", "iiwa_link_4"),
+    ("iiwa_link_2", "iiwa_link_5"),
+    ("iiwa_link_2", "iiwa_link_6"),
+    ("iiwa_link_2", "iiwa_link_7"),
+    ("iiwa_link_3", "iiwa_link_5"),
+    ("iiwa_link_3", "iiwa_link_6"),
+    ("iiwa_link_3", "iiwa_link_7"),
+    ("iiwa_link_4", "iiwa_link_6"),
+    ("iiwa_link_4", "iiwa_link_7"),
+]
+IIWA7_ALWAYS_COLLIDING_LINKS = [("iiwa_link_5", "iiwa_link_7")]
+
+UR3_NEVER_COLLIDING_LINKS = [
+    ("upper_arm_link", "forearm_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR3_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
 UR5_NEVER_COLLIDING_LINKS = [
     ("base_link_inertia", "upper_arm_link"),
     ("upper_arm_link", "forearm_link"),
@@ -100,8 +146,52 @@ UR5_NEVER_COLLIDING_LINKS = [
     ("upper_arm_link", "wrist_3_link"),
     ("wrist_1_link", "wrist_3_link"),
 ]
-
 UR5_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
+UR10_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR10_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
+UR3E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "wrist_1_link"),
+    ("base_link_inertia", "wrist_2_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("forearm_link", "wrist_1_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR3E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
+UR5E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR5E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
+UR10E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("base_link_inertia", "wrist_1_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("upper_arm_link", "wrist_2_link"),
+    ("upper_arm_link", "wrist_3_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR10E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
+
+UR16E_NEVER_COLLIDING_LINKS = [
+    ("base_link_inertia", "upper_arm_link"),
+    ("base_link_inertia", "wrist_1_link"),
+    ("upper_arm_link", "forearm_link"),
+    ("wrist_1_link", "wrist_3_link"),
+]
+UR16E_ALWAYS_COLLIDING_LINKS = [("base_link_inertia", "shoulder_link")]
 
 
 def _load_capsule(path: str):
@@ -412,9 +502,21 @@ class Iiwa7(Robot):
         urdf_filepath = get_filepath("urdfs/iiwa7/iiwa7_formatted.urdf")
         base_link = "world"
         end_effector_link_name = "iiwa_link_ee"
-        collision_capsules_by_link = None  # TODO
+        # collision_capsules_by_link = None  # TODO
+        collision_capsules_by_link = {
+            "world": None,
+            "iiwa_link_0": _load_capsule("urdfs/iiwa7/capsules/link_0.txt"),
+            "iiwa_link_1": _load_capsule("urdfs/iiwa7/capsules/link_1.txt"),
+            "iiwa_link_2": _load_capsule("urdfs/iiwa7/capsules/link_2.txt"),
+            "iiwa_link_3": _load_capsule("urdfs/iiwa7/capsules/link_3.txt"),
+            "iiwa_link_4": _load_capsule("urdfs/iiwa7/capsules/link_4.txt"),
+            "iiwa_link_5": _load_capsule("urdfs/iiwa7/capsules/link_5.txt"),
+            "iiwa_link_6": _load_capsule("urdfs/iiwa7/capsules/link_6.txt"),
+            "iiwa_link_7": _load_capsule("urdfs/iiwa7/capsules/link_7.txt"),
+            "iiwa_link_ee": None,
+        }
 
-        ignored_collision_pairs = []
+        ignored_collision_pairs = IIWA7_NEVER_COLLIDING_LINKS + IIWA7_ALWAYS_COLLIDING_LINKS
         Robot.__init__(
             self,
             Iiwa7.name,
@@ -466,7 +568,7 @@ class Iiwa14(Robot):
             "link_ee_kuka_mft_pneum": None,
         }
 
-        ignored_collision_pairs = []
+        ignored_collision_pairs = IIWA14_NEVER_COLLIDING_LINKS
         Robot.__init__(
             self,
             Iiwa14.name,
@@ -532,6 +634,58 @@ class Rizon4(Robot):
         )
 
 
+class Ur3(Robot):
+    name = "ur3"
+    formal_robot_name = "UR3"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur3/ur3_formatted.urdf")
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur3/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur3/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur3/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur3/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur3/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur3/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur3/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR3_NEVER_COLLIDING_LINKS + UR3_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur3.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
 class Ur5(Robot):
     name = "ur5"
     formal_robot_name = "UR5"
@@ -552,12 +706,13 @@ class Ur5(Robot):
         ]
         urdf_filepath = get_filepath("urdfs/ur5/ur5_formatted.urdf")
         base_link = "base_link"
-        # base_link = "base_link_inertia"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
         end_effector_link_name = "wrist_3_link"
 
         # Must match the total number of joints (including fixed) in the robot.
         # Use "None" for no collision geometry
         collision_capsules_by_link = {
+            "base_link": _load_capsule("urdfs/ur5/capsules/base.txt"),
             "base_link_inertia": _load_capsule("urdfs/ur5/capsules/base.txt"),
             "forearm_link": _load_capsule("urdfs/ur5/capsules/forearm.txt"),
             "shoulder_link": _load_capsule("urdfs/ur5/capsules/shoulder.txt"),
@@ -582,15 +737,388 @@ class Ur5(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Ur5, Iiwa7, Iiwa14, Fr3]
-# ALL_CLCS = [Ur5]
+class Ur10(Robot):
+    name = "ur10"
+    formal_robot_name = "UR10"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur10/ur10_formatted.urdf")
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur10/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur10/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur10/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur10/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur10/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur10/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur10/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR10_NEVER_COLLIDING_LINKS + UR10_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur10.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Ur3e(Robot):
+    name = "ur3e"
+    formal_robot_name = "UR3e"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur3e/ur3e_formatted.urdf")
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur3e/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur3e/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur3e/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur3e/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur3e/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur3e/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur3e/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR3E_NEVER_COLLIDING_LINKS + UR3E_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur3e.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Ur5e(Robot):
+    name = "ur5e"
+    formal_robot_name = "UR5e"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur5e/ur5e_formatted.urdf")
+
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur5e/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur5e/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur5e/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur5e/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur5e/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur5e/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur5e/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR5E_NEVER_COLLIDING_LINKS + UR5E_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur5e.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Ur10e(Robot):
+    name = "ur10e"
+    formal_robot_name = "UR10e"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur10e/ur10e_formatted.urdf")
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur10e/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur10e/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur10e/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur10e/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur10e/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur10e/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur10e/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR10E_NEVER_COLLIDING_LINKS + UR10E_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur10e.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Ur16e(Robot):
+    name = "ur16e"
+    formal_robot_name = "UR16e"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+        urdf_filepath = get_filepath("urdfs/ur16e/ur16e_formatted.urdf")
+        base_link = "base_link"
+        # base_link = "base_link_inertia" # note: don't use this. Base starts at 'base_link'
+        end_effector_link_name = "wrist_3_link"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link_inertia": _load_capsule("urdfs/ur16e/capsules/base.txt"),
+            "forearm_link": _load_capsule("urdfs/ur16e/capsules/forearm.txt"),
+            "shoulder_link": _load_capsule("urdfs/ur16e/capsules/shoulder.txt"),
+            "upper_arm_link": _load_capsule("urdfs/ur16e/capsules/upperarm.txt"),
+            "wrist_1_link": _load_capsule("urdfs/ur16e/capsules/wrist1.txt"),
+            "wrist_2_link": _load_capsule("urdfs/ur16e/capsules/wrist2.txt"),
+            "wrist_3_link": _load_capsule("urdfs/ur16e/capsules/wrist3.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = UR16E_NEVER_COLLIDING_LINKS + UR16E_ALWAYS_COLLIDING_LINKS
+        Robot.__init__(
+            self,
+            Ur16e.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class XArm6(Robot):
+    name = "xarm6"
+    formal_robot_name = "XArm6"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+        ]
+        urdf_filepath = get_filepath("urdfs/xarm6/xarm6_robot_formatted.urdf")
+        base_link = "link_base"
+        end_effector_link_name = "link6"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "link_base": _load_capsule("urdfs/xarm6/capsules/base.txt"),
+            "link1": _load_capsule("urdfs/xarm6/capsules/link1.txt"),
+            "link2": _load_capsule("urdfs/xarm6/capsules/link2.txt"),
+            "link3": _load_capsule("urdfs/xarm6/capsules/link3.txt"),
+            "link4": _load_capsule("urdfs/xarm6/capsules/link4.txt"),
+            "link5": _load_capsule("urdfs/xarm6/capsules/link5.txt"),
+            "link6": _load_capsule("urdfs/xarm6/capsules/link6.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = [("link3", "link5"), ("link3", "link6")]
+        Robot.__init__(
+            self,
+            XArm6.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
+class Cr5(Robot):
+    name = "cr5"
+    formal_robot_name = "Cr5"
+
+    # See
+    # Rotational repeatability calculated in calculate_rotational_repeatability.py
+    POSITIONAL_REPEATABILITY_MM = 0.1
+    ROTATIONAL_REPEATABILITY_DEG = 0.1
+
+    def __init__(self, verbose: bool = False):
+        active_joints = [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+        ]
+        urdf_filepath = get_filepath("urdfs/cr5/cr5_robot.urdf")
+        base_link = "base_link"
+        end_effector_link_name = "link6"
+
+        # Must match the total number of joints (including fixed) in the robot.
+        # Use "None" for no collision geometry
+        # collision_capsules_by_link = None
+        collision_capsules_by_link = {
+            "base_link": _load_capsule("urdfs/cr5/capsules/base_link.txt"),
+            "link1": _load_capsule("urdfs/cr5/capsules/link1.txt"),
+            "link2": _load_capsule("urdfs/cr5/capsules/link2.txt"),
+            "link3": _load_capsule("urdfs/cr5/capsules/link3.txt"),
+            "link4": _load_capsule("urdfs/cr5/capsules/link4.txt"),
+            "link5": _load_capsule("urdfs/cr5/capsules/link5.txt"),
+            "link6": _load_capsule("urdfs/cr5/capsules/link6.txt"),
+        }
+
+        # ignored_collision_pairs = []
+        ignored_collision_pairs = [("link1", "link4"), ("link4", "link6")]
+        Robot.__init__(
+            self,
+            Cr5.name,
+            urdf_filepath,
+            active_joints,
+            base_link,
+            end_effector_link_name,
+            ignored_collision_pairs,
+            collision_capsules_by_link,
+            verbose=verbose,
+            additional_link_name=None,
+        )
+
+
 # TODO: Add capsules for iiwa7, fix FK for baxter
-# ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Fr3, Ur3, Ur5, Ur10, Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, Cr5]
 ALL_ROBOT_NAMES = [clc.name for clc in ALL_CLCS]
 
 
 def get_all_robots() -> List[Robot]:
-    return [clc() for clc in ALL_CLCS]
+    """
+    Returns a instantiation of each robot.
+    """
+    robots = []
+    for clc in ALL_CLCS:
+        try:
+            r = clc()
+        except Exception as e:
+            print(make_text_green_or_red(f"Error instantiating {clc.name}: {e}", False))
+            raise e
+        robots.append(r)
+    return robots
 
 
 def get_robot(robot_name: str) -> Robot:
