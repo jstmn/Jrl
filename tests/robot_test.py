@@ -6,8 +6,9 @@ import numpy as np
 from jrl.urdf_utils import _len3_tuple_from_str
 from jrl.utils import set_seed, to_torch
 from jrl.robot import Robot
-from jrl.robots import get_all_robots, Panda, Fetch, FetchArm, Fr3
+from jrl.robots import Panda, Fetch, FetchArm, Fr3
 from jrl.config import DEVICE, PT_NP_TYPE
+from jrl.testing_utils import all_robots
 
 set_seed(0)
 
@@ -15,7 +16,7 @@ set_seed(0)
 class RobotTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.robots = get_all_robots()
+        cls.robots = all_robots
         cls.panda = None
         cls.fr3 = None
         for robot in cls.robots:

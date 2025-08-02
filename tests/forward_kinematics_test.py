@@ -8,9 +8,8 @@ from jrl import config
 from jrl.robots import Fetch, FetchArm
 from jrl.robot import Robot, forward_kinematics_kinpy
 from jrl.math_utils import geodesic_distance_between_quaternions, rotation_matrix_to_quaternion
-from jrl.utils import set_seed, to_torch
-from tests.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
-from tests.all_robots import all_robots
+from jrl.utils import set_seed, to_torch, make_text_green_or_red
+from jrl.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal, all_robots
 
 set_seed()
 
@@ -133,6 +132,8 @@ class TestForwardKinematics(unittest.TestCase):
             self.assertEqual(batch_fk.shape, (25, 7))
             np.testing.assert_allclose(kinpy_fk[:, 0:3], batch_fk[:, 0:3], atol=1e-4)
             assert_pose_rotations_almost_equal(kinpy_fk, batch_fk)
+
+            make_text_green_or_red(f"Kinpy, klampt, batch_fk calculations agree for {robot.name}", True)
 
     def test_fk_matches_saved_data(self):
         """

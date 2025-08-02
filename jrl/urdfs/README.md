@@ -42,6 +42,15 @@ rosrun xacro xacro src/universal_robot/ur_description/urdf/ur5.xacro > ur5.urdf
 # cp ur5.urdf <path/to/jrl/jrl/urdfs/ur5>
 ```
 
+
+
+## Convert from `.mtl` to `.dae`
+
+I used [imagetostl.com](https://imagetostl.com/convert/file/mtl/to/dae#google_vignette) for this conversion. I'm not sure if color is correctly converted however.
+
+
+
+
 ## Create a pdf of the urdf
 
 ``` bash

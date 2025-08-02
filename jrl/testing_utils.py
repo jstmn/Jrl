@@ -4,6 +4,7 @@ import numpy as np
 from jrl.utils import to_torch
 from jrl.math_utils import geodesic_distance_between_quaternions
 from jrl.config import PT_NP_TYPE
+from jrl.robots import get_all_robots
 
 _DEFAULT_MAX_ALLOWABLE_L2_ERR = 5e-4
 _DEFAULT_MAX_ALLOWABLE_ANG_ERR = 3.141592 / 180 * 0.075  # 0.075 degrees
@@ -54,3 +55,8 @@ def assert_pose_rotations_almost_equal(
             f"pose 2: {endpoints2[i, :]}\n"
             f"{debug_str}"
         )
+
+
+all_robots = get_all_robots()
+for robot in all_robots:
+    print(f"Loaded robot: {robot}")

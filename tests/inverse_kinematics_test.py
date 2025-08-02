@@ -6,8 +6,7 @@ import numpy as np
 from jrl.robot import Robot
 from jrl.robots import Panda
 from jrl.utils import set_seed, to_torch
-from tests.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal
-from tests.all_robots import all_robots
+from jrl.testing_utils import assert_pose_positions_almost_equal, assert_pose_rotations_almost_equal, all_robots
 
 # Set seed to ensure reproducibility
 set_seed()

@@ -112,6 +112,14 @@ uv run python scripts/visualize_robot.py --robot_name=iiwa14
 uv run python scripts/visualize_robot.py --robot_name=fetch
 uv run python scripts/visualize_robot.py --robot_name=rizon4
 uv run python scripts/visualize_robot.py --robot_name=ur5
+uv run python scripts/visualize_robot.py --robot_name=ur10
+uv run python scripts/visualize_robot.py --robot_name=ur16e
+uv run python scripts/visualize_robot.py --robot_name=ur3e
+uv run python scripts/visualize_robot.py --robot_name=ur5e
+uv run python scripts/visualize_robot.py --robot_name=ur10e
+uv run python scripts/visualize_robot.py --robot_name=xarm6 # arm colors are rainbow
+uv run python scripts/visualize_robot.py --robot_name=cr5
+uv run python scripts/visualize_robot.py --robot_name=fr3
 
 # Move between configs
 uv run python scripts/visualize_robot.py \
@@ -124,7 +132,7 @@ uv run python scripts/visualize_robot.py \
     --start_config 0.66015  1.0492  -1.75236 -2.93568 -1.13264  3.01334 -2.12062 \
     --end_config   0.66015  1.0492  -1.5236 -2.93568 -1.13264  3.01334 -2.12062
 
-    
+
 uv run python scripts/visualize_robot.py \
     --robot_name=iiwa7 \
     --start_config 0.0 -0.7 0.0 -1.4 0.0 0.6 2.1 \

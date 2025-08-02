@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from jrl.robot import Robot
-from jrl.utils import get_filepath
+from jrl.utils import get_filepath, make_text_green_or_red
 from jrl.config import DEFAULT_TORCH_DTYPE, DEVICE
 
 
@@ -1101,15 +1101,24 @@ class Cr5(Robot):
         )
 
 
-ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Fr3, Ur3, Ur5, Ur10, Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, Cr5]
-# ALL_CLCS = [Ur5]
 # TODO: Add capsules for iiwa7, fix FK for baxter
-# ALL_CLCS = [Panda, Fetch, FetchArm, Iiwa7, Baxter]
+ALL_CLCS = [Panda, Fetch, FetchArm, Rizon4, Fr3, Ur3, Ur5, Ur10, Ur3e, Ur5e, Ur10e, Ur16e, Iiwa7, Iiwa14, XArm6, Cr5]
 ALL_ROBOT_NAMES = [clc.name for clc in ALL_CLCS]
 
 
 def get_all_robots() -> List[Robot]:
-    return [clc() for clc in ALL_CLCS]
+    """
+    Returns a instantiation of each robot.
+    """
+    robots = []
+    for clc in ALL_CLCS:
+        try:
+            r = clc()
+        except Exception as e:
+            print(make_text_green_or_red(f"Error instantiating {clc.name}: {e}", False))
+            raise e
+        robots.append(r)
+    return robots
 
 
 def get_robot(robot_name: str) -> Robot:
