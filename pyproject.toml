@@ -14,8 +14,10 @@ dependencies = [
     "pylint>=3.3.7",
     "pyqt5>=5.15.11",
     "pytest>=8.4.0",
+    "robot-descriptions>=1.20.0",
     "torch>=2.3.0",
     "tqdm>=4.67.1",
+    "viser>=1.0.6",
 ]
 
 [tool.setuptools.packages]
