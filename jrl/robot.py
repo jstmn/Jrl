@@ -19,7 +19,6 @@ from jrl.math_utils import (
     quaternion_product,
     quaternion_to_rpy,
     rotation_matrix_to_quaternion,
-    quaternion_norm,
     DEFAULT_TORCH_DTYPE,
 )
 from jrl.config import DEVICE, PT_NP_TYPE
@@ -38,13 +37,6 @@ from jrl.geometry import capsule_capsule_distance_batch, capsule_cuboid_distance
 def _assert_is_2d(x: Union[torch.Tensor, np.ndarray]):
     assert len(x.shape) == 2, f"Expected x to be a 2D array but got {x.shape}"
     assert isinstance(x, (torch.Tensor, np.ndarray)), f"Expected x to be a torch.Tensor or np.ndarray but got {type(x)}"
-
-
-def _assert_is_pose_matrix(poses: Union[torch.Tensor, np.ndarray]):
-    _assert_is_2d(poses)
-    assert poses.shape[1] == 7, f"Expected poses matrix to be [n x 7] but got {poses.shape}"
-    norms = quaternion_norm(poses[:, 3:7])
-    assert max(norms) < 1.01 and min(norms) > 0.99, "quaternion(s) are not unit quaternion(s)"
 
 
 def _assert_is_joint_angle_matrix(xs: Union[torch.Tensor, np.ndarray], ndof: int):
